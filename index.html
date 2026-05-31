@@ -325,7 +325,7 @@
     .gap-row:last-child { border-bottom:none; }
     .gap-pos { font-size:11px; font-weight:800; min-width:32px; }
     .gap-bar-wrap { flex:1; position:relative; }
-    .gap-bar-bg { height:32px; background:rgba(255,255,255,.04); border-radius:8px; overflow:hidden; position:relative; }
+    .gap-bar-bg { height:30px; background:rgba(255,255,255,.04); border-radius:8px; overflow:hidden; position:relative; }
     .gap-bar-fill { height:100%; border-radius:8px; transition:width .8s cubic-bezier(.4,0,.2,1); display:flex; align-items:center; padding-left:10px; }
     .gap-bar-label { font-size:12px; font-weight:700; color:#fff; white-space:nowrap; }
     .gap-badge-wrap { min-width:80px; text-align:right; }
@@ -341,17 +341,17 @@
     .gap-behind.leading { color:var(--gold); border-color:rgba(212,175,55,.3); background:rgba(212,175,55,.1); animation:none; }
 
     /* Commission cards */
-    .comm-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; margin-top:20px; }
+    .comm-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:20px; max-width:100%; }
     .comm-card {
-      background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:14px;
-      padding:16px; text-align:center; animation:fadeIn .5s ease; transition:transform .2s;
+      background:rgba(255,255,255,.04); border:1.5px solid var(--border); border-radius:14px;
+      padding:18px 14px; text-align:center; animation:fadeIn .5s ease; transition:transform .2s, border-color .2s;
     }
-    .comm-card:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.15); }
-    .comm-card-rank { font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
-    .comm-card-avatar { margin:0 auto 10px; }
-    .comm-card-name  { font-size:13px; font-weight:800; margin-bottom:2px; }
-    .comm-card-comm  { font-size:20px; font-weight:900; }
-    .comm-card-cars  { font-size:11px; color:var(--text2); margin-top:2px; }
+    .comm-card:hover { transform:translateY(-3px); border-color:rgba(255,255,255,.18); }
+    .comm-card-rank { font-size:10px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+    .comm-card-avatar { margin:0 auto 10px; display:flex; justify-content:center; }
+    .comm-card-name  { font-size:14px; font-weight:800; margin-bottom:4px; }
+    .comm-card-comm  { font-size:22px; font-weight:900; line-height:1; }
+    .comm-card-cars  { font-size:11px; color:var(--text2); margin-top:5px; }
 
     /* Full rank list */
     .rank-list-item {
@@ -392,12 +392,42 @@
       .sidebar.open { transform:translateX(0); }
       .sidebar-overlay.show { display:block; }
       .main { margin-left:0 !important; }
-      .stats-grid { grid-template-columns:1fr 1fr; }
+      .stats-grid { grid-template-columns:1fr 1fr; gap:10px; }
       .grid-2 { grid-template-columns:1fr; }
       .grid-3 { grid-template-columns:1fr 1fr; }
       .service-grid { grid-template-columns:1fr; }
-      .page-content { padding:14px; }
-      .podium-wrap { gap:0; }
+      .page-content { padding:12px; }
+      .podium-wrap { gap:0; padding:0 4px; }
+      .comm-cards { grid-template-columns:1fr 1fr; }
+      .rank-tabs { gap:2px; }
+      .rank-tab { font-size:11px; padding:8px 4px; }
+      .gap-board { padding:14px 12px; }
+      .gap-row { gap:8px; }
+      .gap-behind { font-size:10px; padding:2px 6px; }
+      .card { padding:14px; }
+      .modal { padding:18px; }
+      .emp-grid { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
+      .podium-bar { padding:8px 4px; }
+      .podium-cars { font-size:20px; }
+      .podium-name { font-size:11px; }
+      .comm-card { padding:14px 10px; }
+      .comm-card-comm { font-size:18px; }
+      .topbar { padding:0 14px; height:54px; }
+      .page-title { font-size:15px; }
+      table { font-size:11px; }
+      th,td { padding:8px 10px; }
+      .stat-card { padding:14px; }
+      .stat-value { font-size:20px; }
+      .hero-header { padding:16px; margin-bottom:14px; }
+      .rank-list-item { padding:11px 12px; gap:8px; }
+      .rl-cars { font-size:17px; }
+      .btn-xl { padding:14px 18px; font-size:14px; }
+    }
+    @media (max-width:400px) {
+      .stats-grid { grid-template-columns:1fr 1fr; }
+      .comm-cards { grid-template-columns:1fr 1fr; }
+      .grid-3 { grid-template-columns:1fr; }
+      .podium-cars { font-size:18px; }
     }
   </style>
 </head>
@@ -635,7 +665,7 @@ function Ranking({ carWashes, employees, campaign }) {
                       </div>
                       <div className="gap-bar-bg">
                         <div className="gap-bar-fill" style={{width:`${pct}%`,background:barColor,opacity:.85}}>
-                          {pct > 20 && <span className="gap-bar-label">{r.cars} cars</span>}
+                          {pct > 20 && <span className="gap-bar-label">{r.cars}c</span>}
                         </div>
                       </div>
                     </div>
