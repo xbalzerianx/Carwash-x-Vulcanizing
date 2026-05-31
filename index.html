@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>💦 CarWash Pro — Sales Tracker</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --blue: #2563EB;
+      --blue-light: #3B82F6;
+      --blue-dark: #1D4ED8;
+      --cyan: #06B6D4;
+      --indigo: #6366F1;
+      --bg: #0F172A;
+      --bg2: #1E293B;
+      --bg3: #334155;
+      --card: rgba(30,41,59,0.85);
+      --glass: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.1);
+      --text: #F8FAFC;
+      --text2: #94A3B8;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--blue-light); border-radius: 2px; }
+    /* Animations */
+    @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.05); } }
+    @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
+    @keyframes confetti { 0% { transform:scale(0) rotate(0deg); opacity:1; } 100% { transform:scale(2) rotate(360deg); opacity:0; } }
+    @keyframes successPop { 0% { transform:scale(0.5); opacity:0; } 60% { transform:scale(1.1); } 100% { transform:scale(1); opacity:1; } }
+    @keyframes gradientBG { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+    @keyframes float { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-8px); } }
+    @keyframes glow { 0%,100% { box-shadow:0 0 20px rgba(37,99,235,0.3); } 50% { box-shadow:0 0 40px rgba(37,99,235,0.6); } }
+    /* Layout */
+    .app { display:flex; min-height:100vh; }
+    .sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      height: 100vh;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+    .sidebar.closed { transform: translateX(-260px); }
+    .sidebar-logo {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      animation: float 3s ease-in-out infinite;
+    }
+    .logo-text { font-size: 15px; font-weight: 800; line-height: 1.2; }
+    .logo-sub { font-size: 11px; color: var(--text2); font-weight: 500; }
+    .nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+    .nav-section { margin-bottom: 8px; }
+    .nav-label { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1px; padding: 8px 8px 4px; text-transform: uppercase; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 10px;
+      cursor: pointer; color: var(--text2);
+      font-size: 14px; font-weight: 500;
+      transition: all 0.2s; margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--glass); color: var(--text); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(37,99,235,0.3), rgba(6,182,212,0.15)); color: #60A5FA; border: 1px solid rgba(37,99,235,0.3); }
+    .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+    .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+    .main {
+      flex: 1;
+      margin-left: 260px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: margin-left 0.3s ease;
+    }
+    .main.full { margin-left: 0; }
+    .topbar {
+      background: rgba(15,23,42,0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .menu-btn {
+      width: 36px; height: 36px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; color: var(--text2);
+      transition: all 0.2s;
+    }
+    .menu-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .page-title { font-size: 18px; font-weight: 700; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .live-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px; font-weight: 600; color: var(--success);
+    }
+    .live-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; animation: pulse 1.5s infinite; }
+    .page-content { flex: 1; padding: 24px; max-width: 1400px; width: 100%; }
+    /* Cards */
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      animation: fadeIn 0.4s ease;
+    }
+    .card-glass {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    /* Stat Cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeIn 0.4s ease;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 80px; height: 80px;
+      background: radial-gradient(circle, rgba(37,99,235,0.2), transparent);
+      border-radius: 50%;
+    }
+    .stat-icon { font-size: 28px; margin-bottom: 12px; }
+    .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 26px; font-weight: 800; }
+    .stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+    .stat-blue { border-color: rgba(37,99,235,0.3); }
+    .stat-blue::before { background: radial-gradient(circle, rgba(37,99,235,0.25), transparent); }
+    .stat-green { border-color: rgba(16,185,129,0.3); }
+    .stat-green::before { background: radial-gradient(circle, rgba(16,185,129,0.25), transparent); }
+    .stat-yellow { border-color: rgba(245,158,11,0.3); }
+    .stat-yellow::before { background: radial-gradient(circle, rgba(245,158,11,0.25), transparent); }
+    .stat-purple { border-color: rgba(99,102,241,0.3); }
+    .stat-purple::before { background: radial-gradient(circle, rgba(99,102,241,0.25), transparent); }
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; transition: all 0.2s; outline: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      color: white;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(37,99,235,0.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #10B981);
+      color: white;
+    }
+    .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(16,185,129,0.4); }
+    .btn-danger { background: linear-gradient(135deg, #DC2626, #EF4444); color: white; }
+    .btn-danger:hover { transform: translateY(-1px); }
+    .btn-ghost { background: var(--glass); color: var(--text2); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .btn-lg { padding: 16px 28px; font-size: 16px; border-radius: 14px; }
+    .btn-xl { padding: 20px 36px; font-size: 18px; font-weight: 800; border-radius: 16px; width: 100%; }
+    /* Forms */
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; display: block; letter-spacing: 0.3px; text-transform: uppercase; }
+    .form-input {
+      width: 100%;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); background: rgba(255,255,255,0.05); }
+    .form-input::placeholder { color: var(--text2); }
+    select.form-input { cursor: pointer; }
+    select.form-input option { background: var(--bg2); }
+    /* Service checkboxes */
+    .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .service-item {
+      background: var(--glass);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .service-item:hover { border-color: rgba(37,99,235,0.4); background: rgba(37,99,235,0.05); }
+    .service-item.selected { border-color: var(--blue-light); background: rgba(37,99,235,0.15); }
+    .service-item .check { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 6px; display:flex; align-items:center; justify-content:center; transition: all 0.2s; flex-shrink: 0; }
+    .service-item.selected .check { background: var(--blue-light); border-color: var(--blue-light); }
+    .service-name { font-size: 13px; font-weight: 600; }
+    .service-price { font-size: 12px; color: var(--cyan); font-weight: 700; }
+    /* Employee cards */
+    .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .emp-card {
+      background: var(--glass);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .emp-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .emp-card.selected { border-color: var(--blue-light); background: rgba(37,99,235,0.15); }
+    .emp-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; margin: 0 auto 8px; }
+    .emp-name { font-size: 13px; font-weight: 700; }
+    .emp-comm { font-size: 11px; color: var(--cyan); font-weight: 600; }
+    /* Summary box */
+    .summary-box {
+      background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(6,182,212,0.1));
+      border: 1px solid rgba(37,99,235,0.3);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+    .summary-row + .summary-row { border-top: 1px solid rgba(255,255,255,0.05); }
+    .summary-row .label { font-size: 13px; color: var(--text2); }
+    .summary-row .value { font-size: 14px; font-weight: 700; }
+    .summary-total { font-size: 22px !important; color: #60A5FA !important; }
+    .summary-commission { font-size: 16px !important; color: var(--success) !important; }
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: rgba(255,255,255,0.04); }
+    th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    td { padding: 12px 16px; font-size: 13px; border-top: 1px solid var(--border); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    /* Ranking */
+    .rank-card {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+      animation: slideUp 0.4s ease;
+    }
+    .rank-card:hover { transform: translateX(4px); border-color: rgba(37,99,235,0.3); }
+    .rank-num { font-size: 22px; font-weight: 900; min-width: 36px; text-align: center; }
+    .rank-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; flex-shrink: 0; }
+    .rank-info { flex: 1; }
+    .rank-name { font-size: 15px; font-weight: 700; }
+    .rank-stats { font-size: 12px; color: var(--text2); }
+    .rank-badge { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .rank-cars { font-size: 18px; font-weight: 800; color: #60A5FA; }
+    .rank-sales { font-size: 12px; color: var(--text2); }
+    /* Success overlay */
+    .success-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .success-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 24px;
+      padding: 40px; text-align: center; max-width: 320px; width: 90%;
+      animation: successPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .success-icon { font-size: 64px; margin-bottom: 16px; animation: float 2s ease-in-out infinite; }
+    .success-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .success-sub { color: var(--text2); font-size: 14px; }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; padding: 24px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: successPop 0.3s ease; }
+    .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-blue { background: rgba(37,99,235,0.2); color: #60A5FA; }
+    .badge-green { background: rgba(16,185,129,0.2); color: #34D399; }
+    .badge-red { background: rgba(239,68,68,0.2); color: #F87171; }
+    .badge-yellow { background: rgba(245,158,11,0.2); color: #FBBF24; }
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 500;
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 18px; font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; gap: 10px;
+      animation: slideUp 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    /* Grid helpers */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .mb-4 { margin-bottom: 16px; }
+    .mb-6 { margin-bottom: 24px; }
+    .flex { display: flex; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .flex-center { display: flex; align-items: center; gap: 12px; }
+    .text-muted { color: var(--text2); }
+    .text-sm { font-size: 13px; }
+    .text-xs { font-size: 11px; }
+    .font-bold { font-weight: 700; }
+    .font-heavy { font-weight: 800; }
+    .text-blue { color: #60A5FA; }
+    .text-green { color: #34D399; }
+    .text-yellow { color: #FBBF24; }
+    .text-red { color: #F87171; }
+    .text-cyan { color: #22D3EE; }
+    .section-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    /* Mobile overlay */
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-260px); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay { display: block; }
+      .main { margin-left: 0; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .service-grid { grid-template-columns: 1fr; }
+      .emp-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .page-content { padding: 16px; }
+      .topbar { padding: 0 16px; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .emp-grid { grid-template-columns: 1fr 1fr; }
+    }
+    /* Loading skeleton */
+    .skeleton { background: linear-gradient(90deg, var(--glass) 25%, rgba(255,255,255,0.05) 50%, var(--glass) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+    /* Gradient text */
+    .gradient-text { background: linear-gradient(135deg, #60A5FA, #22D3EE); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    /* Hero gradient header */
+    .hero-header {
+      background: linear-gradient(135deg, rgba(37,99,235,0.3), rgba(6,182,212,0.2), rgba(99,102,241,0.2));
+      border: 1px solid rgba(37,99,235,0.3);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeIn 0.5s ease;
+    }
+    .hero-header::before {
+      content: '';
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(37,99,235,0.2), transparent);
+      border-radius: 50%;
+    }
+    .hero-header::after {
+      content: '';
+      position: absolute;
+      bottom: -30px; left: 30%;
+      width: 150px; height: 150px;
+      background: radial-gradient(circle, rgba(6,182,212,0.15), transparent);
+      border-radius: 50%;
+    }
+    .tabs { display: flex; gap: 4px; background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+    .tab { flex: 1; padding: 8px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text2); transition: all 0.2s; }
+    .tab.active { background: var(--blue); color: white; }
+    /* Number input big */
+    .big-input { font-size: 24px; font-weight: 800; text-align: center; padding: 16px; }
+    /* Rank medals */
+    .medal-1 { color: #F59E0B; text-shadow: 0 0 20px rgba(245,158,11,0.5); }
+    .medal-2 { color: #94A3B8; }
+    .medal-3 { color: #B45309; }
+    /* Progress bar */
+    .progress-bar { height: 6px; background: var(--glass); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan)); border-radius: 3px; transition: width 0.5s ease; }
+    /* Notification */
+    .notif {
+      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(6,182,212,0.1));
+      border: 1px solid rgba(37,99,235,0.3);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      animation: slideUp 0.3s ease;
+    }
+    .notif-icon { font-size: 20px; }
+    .notif-text { flex: 1; font-size: 13px; }
+    .notif-time { font-size: 11px; color: var(--text2); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const API_URL = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
+const APP_ID = '6a1c42f697e43e4ff43a5097';
+
+// API client
+async function api(action, entity, extra = {}) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-base44-app-id': APP_ID },
+      body: JSON.stringify({ action, entity, ...extra })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'API error');
+    return json.data;
+  } catch (e) {
+    console.error(e);
+    throw e;
+  }
+}
+
+// Helpers
+const peso = (n) => `₱${(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const today = () => new Date().toISOString().split('T')[0];
+const monthYear = (m, y) => new Date(y, m - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+const initials = (name) => name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
+const formatDate = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+const formatTime = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  return date.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+};
+
+// Toast component
+function Toast({ msg, type, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, []);
+  const icons = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
+  return (
+    <div className="toast" style={{ borderColor: type === 'success' ? 'rgba(16,185,129,0.3)' : type === 'error' ? 'rgba(239,68,68,0.3)' : 'var(--border)' }}>
+      <span>{icons[type] || '💡'}</span> {msg}
+    </div>
+  );
+}
+
+// ============= DASHBOARD =============
+function Dashboard({ carWashes, employees, services, campaign, setPage }) {
+  const todayStr = today();
+  const todayWashes = carWashes.filter(w => (w.transaction_date || w.created_date || '').startsWith(todayStr));
+  const now = new Date();
+  const monthWashes = carWashes.filter(w => {
+    const d = new Date(w.transaction_date || w.created_date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const todaySales = todayWashes.reduce((s, w) => s + (w.total_amount || 0), 0);
+  const todayComm = todayWashes.reduce((s, w) => s + (w.commission_amount || 0), 0);
+  const monthSales = monthWashes.reduce((s, w) => s + (w.total_amount || 0), 0);
+  const avgSale = todayWashes.length > 0 ? todaySales / todayWashes.length : 0;
+
+  // Top employee today
+  const empToday = {};
+  todayWashes.forEach(w => {
+    if (!empToday[w.employee_id]) empToday[w.employee_id] = { name: w.employee_name, cars: 0, sales: 0 };
+    empToday[w.employee_id].cars++;
+    empToday[w.employee_id].sales += (w.total_amount || 0);
+  });
+  const topEmp = Object.values(empToday).sort((a, b) => b.cars - a.cars || b.sales - a.sales)[0];
+
+  // Recent transactions
+  const recent = [...carWashes].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 5);
+
+  // Quick ranking today
+  const ranking = Object.values(empToday).sort((a, b) => b.cars - a.cars || b.sales - a.sales).slice(0, 3);
+
+  const timeNow = new Date().toLocaleString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div>
+      <div className="hero-header">
+        <div style={{position:'relative',zIndex:1}}>
+          <div style={{fontSize:13,color:'#94A3B8',marginBottom:4}}>🗓 {timeNow}</div>
+          <div style={{fontSize:28,fontWeight:900,marginBottom:4}} className="gradient-text">Welcome back! 👋</div>
+          <div style={{fontSize:14,color:'#94A3B8'}}>Here's your car wash business overview</div>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card stat-blue">
+          <div className="stat-icon">🚗</div>
+          <div className="stat-label">Cars Today</div>
+          <div className="stat-value text-blue">{todayWashes.length}</div>
+          <div className="stat-sub">{monthWashes.length} this month</div>
+        </div>
+        <div className="stat-card stat-green">
+          <div className="stat-icon">💰</div>
+          <div className="stat-label">Sales Today</div>
+          <div className="stat-value text-green">{peso(todaySales)}</div>
+          <div className="stat-sub">{peso(monthSales)} this month</div>
+        </div>
+        <div className="stat-card stat-yellow">
+          <div className="stat-icon">💵</div>
+          <div className="stat-label">Commission Today</div>
+          <div className="stat-value text-yellow">{peso(todayComm)}</div>
+          <div className="stat-sub">avg {peso(avgSale)} per car</div>
+        </div>
+        <div className="stat-card stat-purple">
+          <div className="stat-icon">🏆</div>
+          <div className="stat-label">Top Today</div>
+          <div className="stat-value" style={{fontSize:18}}>{topEmp ? topEmp.name.split(' ')[0] : '—'}</div>
+          <div className="stat-sub">{topEmp ? `${topEmp.cars} cars · ${peso(topEmp.sales)}` : 'No data yet'}</div>
+        </div>
+      </div>
+
+      <div className="grid-2">
+        {/* Today's Ranking */}
+        <div className="card">
+          <div className="section-title">🏅 Today's Ranking</div>
+          {ranking.length === 0 ? (
+            <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)'}}>No transactions today yet</div>
+          ) : ranking.map((r, i) => (
+            <div key={i} className="rank-card" style={{marginBottom:8}}>
+              <div className={`rank-num ${i===0?'medal-1':i===1?'medal-2':'medal-3'}`}>{['🥇','🥈','🥉'][i]}</div>
+              <div className="rank-info">
+                <div className="rank-name">{r.name}</div>
+                <div className="rank-stats">{peso(r.sales)}</div>
+              </div>
+              <div className="rank-badge">
+                <div className="rank-cars">{r.cars}</div>
+                <div className="rank-sales">cars</div>
+              </div>
+            </div>
+          ))}
+          <button className="btn btn-ghost" style={{width:'100%',marginTop:8}} onClick={() => setPage('ranking')}>View Full Rankings →</button>
+        </div>
+
+        {/* Recent Transactions */}
+        <div className="card">
+          <div className="section-title">⚡ Recent Transactions</div>
+          {recent.length === 0 ? (
+            <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)'}}>No transactions yet. Record your first wash!</div>
+          ) : recent.map((w, i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+              <div style={{fontSize:20}}>🚗</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600}}>{w.employee_name}</div>
+                <div style={{fontSize:11,color:'var(--text2)'}}>{formatTime(w.created_date)} · {w.services?.length || 0} service(s)</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#60A5FA'}}>{peso(w.total_amount)}</div>
+              </div>
+            </div>
+          ))}
+          <button className="btn btn-ghost" style={{width:'100%',marginTop:12}} onClick={() => setPage('transactions')}>View All →</button>
+        </div>
+      </div>
+
+      {/* Active Campaign */}
+      {campaign && campaign.is_active && (
+        <div style={{marginTop:16,background:'linear-gradient(135deg,rgba(245,158,11,0.15),rgba(99,102,241,0.1))',border:'1px solid rgba(245,158,11,0.3)',borderRadius:16,padding:20}}>
+          <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>🎁 Active Reward Campaign</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:12}}>{campaign.campaign_name}</div>
+          <div style={{display:'flex',gap:12}}>
+            <div style={{flex:1,background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
+              <div style={{fontSize:20}}>🥇</div>
+              <div style={{fontSize:18,fontWeight:800,color:'#F59E0B'}}>{peso(campaign.first_place_reward)}</div>
+              <div style={{fontSize:11,color:'var(--text2)'}}>1st Place</div>
+            </div>
+            <div style={{flex:1,background:'rgba(148,163,184,0.1)',border:'1px solid rgba(148,163,184,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
+              <div style={{fontSize:20}}>🥈</div>
+              <div style={{fontSize:18,fontWeight:800,color:'#94A3B8'}}>{peso(campaign.second_place_reward)}</div>
+              <div style={{fontSize:11,color:'var(--text2)'}}>2nd Place</div>
+            </div>
+            <div style={{flex:1,background:'rgba(180,83,9,0.1)',border:'1px solid rgba(180,83,9,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
+              <div style={{fontSize:20}}>🥉</div>
+              <div style={{fontSize:18,fontWeight:800,color:'#B45309'}}>{peso(campaign.third_place_reward)}</div>
+              <div style={{fontSize:11,color:'var(--text2)'}}>3rd Place</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{marginTop:16,textAlign:'center'}}>
+        <button className="btn btn-primary btn-lg" onClick={() => setPage('record')} style={{gap:10}}>
+          🚗 Record New Car Wash
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============= RECORD CAR WASH =============
+function RecordCarWash({ employees, services, onSave, showToast }) {
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [customerName, setCustomerName] = useState('');
+  const [plateNumber, setPlateNumber] = useState('');
+  const [amountPaid, setAmountPaid] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [savedData, setSavedData] = useState(null);
+
+  const activeServices = services.filter(s => s.is_active);
+  const activeEmployees = employees.filter(e => e.is_active);
+
+  const totalAmount = selectedServices.reduce((s, svc) => s + svc.price, 0);
+  const commRate = selectedEmployee ? selectedEmployee.commission_percentage : 0;
+  const commAmount = (totalAmount * commRate) / 100;
+
+  const toggleService = (svc) => {
+    setSelectedServices(prev =>
+      prev.find(s => s.id === svc.id) ? prev.filter(s => s.id !== svc.id) : [...prev, svc]
+    );
+  };
+
+  const reset = () => {
+    setSelectedServices([]);
+    setSelectedEmployee(null);
+    setCustomerName('');
+    setPlateNumber('');
+    setAmountPaid('');
+  };
+
+  const handleSave = async () => {
+    if (selectedServices.length === 0) return showToast('Select at least one service!', 'warning');
+    if (!selectedEmployee) return showToast('Select an employee!', 'warning');
+    setSaving(true);
+    try {
+      const data = {
+        customer_name: customerName,
+        plate_number: plateNumber,
+        employee_id: selectedEmployee.id,
+        employee_name: selectedEmployee.full_name,
+        services: selectedServices.map(s => ({ id: s.id, name: s.name, price: s.price })),
+        total_amount: totalAmount,
+        amount_paid: parseFloat(amountPaid) || totalAmount,
+        commission_rate: commRate,
+        commission_amount: commAmount,
+        transaction_date: new Date().toISOString(),
+      };
+      const saved = await api('create', 'CarWash', { data });
+      setSavedData(data);
+      setShowSuccess(true);
+      onSave(saved);
+      setTimeout(() => { setShowSuccess(false); reset(); }, 3000);
+    } catch (e) {
+      showToast('Error saving transaction: ' + e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const now = new Date();
+  const timeStr = now.toLocaleString('en-PH', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  if (showSuccess) {
+    return (
+      <div className="success-overlay">
+        <div className="success-card">
+          <div className="success-icon">🎉</div>
+          <div className="success-title">Car Wash Recorded!</div>
+          <div className="success-sub" style={{marginBottom:16}}>Transaction saved successfully</div>
+          <div style={{background:'rgba(37,99,235,0.1)',border:'1px solid rgba(37,99,235,0.2)',borderRadius:12,padding:16,marginTop:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+              <span style={{color:'var(--text2)',fontSize:13}}>Total</span>
+              <span style={{fontWeight:800,color:'#60A5FA',fontSize:18}}>{peso(totalAmount)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between'}}>
+              <span style={{color:'var(--text2)',fontSize:13}}>Commission</span>
+              <span style={{fontWeight:700,color:'#34D399'}}>{peso(commAmount)}</span>
+            </div>
+          </div>
+          <div style={{color:'var(--text2)',fontSize:12,marginTop:12}}>Ready for next customer...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{background:'linear-gradient(135deg,rgba(37,99,235,0.2),rgba(6,182,212,0.1))',border:'1px solid rgba(37,99,235,0.3)',borderRadius:16,padding:16,marginBottom:20,display:'flex',alignItems:'center',gap:12}}>
+        <div style={{fontSize:28}}>🚗</div>
+        <div>
+          <div style={{fontWeight:800,fontSize:16}}>Quick Car Wash Entry</div>
+          <div style={{fontSize:12,color:'var(--text2)'}}>🕐 {timeStr}</div>
+        </div>
+      </div>
+
+      {/* Customer Info */}
+      <div className="card mb-4">
+        <div className="section-title" style={{fontSize:14,marginBottom:12}}>👤 Customer Info <span style={{fontWeight:400,color:'var(--text2)',fontSize:12}}>(optional)</span></div>
+        <div className="grid-2">
+          <div className="form-group" style={{marginBottom:0}}>
+            <label className="form-label">Customer Name</label>
+            <input className="form-input" placeholder="e.g. Juan dela Cruz" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+          </div>
+          <div className="form-group" style={{marginBottom:0}}>
+            <label className="form-label">Plate Number</label>
+            <input className="form-input" placeholder="e.g. ABC 1234" value={plateNumber} onChange={e => setPlateNumber(e.target.value.toUpperCase())} />
+          </div>
+        </div>
+      </div>
+
+      {/* Services */}
+      <div className="card mb-4">
+        <div className="section-title" style={{fontSize:14,marginBottom:12}}>🛁 Select Services</div>
+        <div className="service-grid">
+          {activeServices.map(svc => {
+            const sel = selectedServices.find(s => s.id === svc.id);
+            return (
+              <div key={svc.id} className={`service-item ${sel ? 'selected' : ''}`} onClick={() => toggleService(svc)}>
+                <div className="check">{sel ? '✓' : ''}</div>
+                <div style={{flex:1}}>
+                  <div className="service-name">{svc.icon || '🚿'} {svc.name}</div>
+                  <div className="service-price">{peso(svc.price)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Employee */}
+      <div className="card mb-4">
+        <div className="section-title" style={{fontSize:14,marginBottom:12}}>👨‍🔧 Who did the wash?</div>
+        <div className="emp-grid">
+          {activeEmployees.map(emp => (
+            <div key={emp.id} className={`emp-card ${selectedEmployee?.id === emp.id ? 'selected' : ''}`} onClick={() => setSelectedEmployee(emp)}>
+              <div className="emp-avatar" style={{background: emp.avatar_color || '#3B82F6', color: 'white'}}>
+                {initials(emp.full_name)}
+              </div>
+              <div className="emp-name">{emp.full_name.split(' ')[0]}</div>
+              <div className="emp-comm">{emp.commission_percentage}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary */}
+      {(selectedServices.length > 0 || selectedEmployee) && (
+        <div className="summary-box mb-4">
+          <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>📊 Transaction Summary</div>
+          {selectedServices.map(s => (
+            <div key={s.id} className="summary-row">
+              <span className="label">{s.icon || '🚿'} {s.name}</span>
+              <span className="value">{peso(s.price)}</span>
+            </div>
+          ))}
+          {selectedServices.length > 0 && <hr className="divider" />}
+          <div className="summary-row">
+            <span className="label">Total Amount</span>
+            <span className="value summary-total">{peso(totalAmount)}</span>
+          </div>
+          {selectedEmployee && (
+            <div className="summary-row">
+              <span className="label">Commission ({commRate}%)</span>
+              <span className="value summary-commission">{peso(commAmount)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Amount Paid */}
+      <div className="card mb-4">
+        <div className="form-group" style={{marginBottom:0}}>
+          <label className="form-label">💵 Amount Paid</label>
+          <input
+            className="form-input big-input"
+            type="number"
+            placeholder={`${totalAmount || 0}`}
+            value={amountPaid}
+            onChange={e => setAmountPaid(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Save */}
+      <button
+        className="btn btn-success btn-xl"
+        onClick={handleSave}
+        disabled={saving}
+        style={{animation: 'glow 2s ease-in-out infinite'}}
+      >
+        {saving ? '⏳ Saving...' : '🚗 Record Car Wash'}
+      </button>
+    </div>
+  );
+}
+
+// ============= TRANSACTIONS =============
+function Transactions({ carWashes, employees, onDelete, showToast }) {
+  const [filter, setFilter] = useState('today');
+  const [search, setSearch] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const now = new Date();
+  const todayStr = today();
+
+  const filtered = carWashes.filter(w => {
+    const d = new Date(w.transaction_date || w.created_date);
+    const dateStr = (w.transaction_date || w.created_date || '').substring(0, 10);
+
+    let pass = true;
+    if (filter === 'today') pass = dateStr === todayStr;
+    else if (filter === 'week') {
+      const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+      pass = d >= weekAgo;
+    } else if (filter === 'month') {
+      pass = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+
+    if (search) {
+      const q = search.toLowerCase();
+      pass = pass && (w.employee_name?.toLowerCase().includes(q) || w.customer_name?.toLowerCase().includes(q) || w.plate_number?.toLowerCase().includes(q));
+    }
+    return pass;
+  }).sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+
+  const totalSales = filtered.reduce((s, w) => s + (w.total_amount || 0), 0);
+  const totalComm = filtered.reduce((s, w) => s + (w.commission_amount || 0), 0);
+
+  const handleDelete = async (id) => {
+    try {
+      await api('delete', 'CarWash', { id });
+      onDelete(id);
+      showToast('Transaction deleted', 'success');
+      setConfirmDelete(null);
+    } catch (e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>📋 Transactions</div>
+        <div style={{fontSize:13,color:'var(--text2)'}}>
+          {filtered.length} records · {peso(totalSales)}
+        </div>
+      </div>
+
+      <div className="tabs">
+        {['today','week','month','all'].map(t => (
+          <div key={t} className={`tab ${filter===t?'active':''}`} onClick={() => setFilter(t)}>
+            {t.charAt(0).toUpperCase()+t.slice(1)}
+          </div>
+        ))}
+      </div>
+
+      <div className="form-group mb-4">
+        <input className="form-input" placeholder="🔍 Search by employee, customer, plate..." value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      <div className="stats-grid" style={{gridTemplateColumns:'1fr 1fr 1fr',marginBottom:16}}>
+        <div className="stat-card stat-blue" style={{padding:14}}>
+          <div className="stat-label">Cars</div>
+          <div className="stat-value text-blue" style={{fontSize:22}}>{filtered.length}</div>
+        </div>
+        <div className="stat-card stat-green" style={{padding:14}}>
+          <div className="stat-label">Revenue</div>
+          <div className="stat-value text-green" style={{fontSize:18}}>{peso(totalSales)}</div>
+        </div>
+        <div className="stat-card stat-yellow" style={{padding:14}}>
+          <div className="stat-label">Commission</div>
+          <div className="stat-value text-yellow" style={{fontSize:18}}>{peso(totalComm)}</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Employee</th>
+                <th>Customer</th>
+                <th>Services</th>
+                <th>Total</th>
+                <th>Commission</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={7} style={{textAlign:'center',padding:'32px',color:'var(--text2)'}}>No transactions found</td></tr>
+              ) : filtered.map(w => (
+                <tr key={w.id}>
+                  <td>
+                    <div style={{fontSize:12,fontWeight:600}}>{formatDate(w.transaction_date || w.created_date)}</div>
+                    <div style={{fontSize:11,color:'var(--text2)'}}>{formatTime(w.transaction_date || w.created_date)}</div>
+                  </td>
+                  <td><span style={{fontWeight:600}}>{w.employee_name}</span></td>
+                  <td style={{color:'var(--text2)'}}>{w.customer_name || '—'} {w.plate_number ? <span style={{fontSize:11,background:'rgba(255,255,255,0.05)',padding:'2px 6px',borderRadius:4}}>{w.plate_number}</span> : ''}</td>
+                  <td>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                      {(w.services || []).map((s, i) => (
+                        <span key={i} className="badge badge-blue">{s.name}</span>
+                      ))}
+                    </div>
+                  </td>
+                  <td><span style={{fontWeight:700,color:'#60A5FA'}}>{peso(w.total_amount)}</span></td>
+                  <td><span style={{fontWeight:700,color:'#34D399'}}>{peso(w.commission_amount)}</span></td>
+                  <td>
+                    <button className="btn btn-danger" style={{padding:'4px 10px',fontSize:12}} onClick={() => setConfirmDelete(w)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {confirmDelete && (
+        <div className="modal-overlay">
+          <div className="modal" style={{maxWidth:360}}>
+            <div style={{textAlign:'center',padding:'8px 0'}}>
+              <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
+              <div style={{fontSize:18,fontWeight:800,marginBottom:8}}>Delete Transaction?</div>
+              <div style={{color:'var(--text2)',fontSize:13,marginBottom:24}}>This will permanently remove this car wash record.</div>
+              <div style={{display:'flex',gap:12}}>
+                <button className="btn btn-ghost" style={{flex:1}} onClick={() => setConfirmDelete(null)}>Cancel</button>
+                <button className="btn btn-danger" style={{flex:1}} onClick={() => handleDelete(confirmDelete.id)}>Yes, Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============= RANKING =============
+function Ranking({ carWashes, employees, campaign }) {
+  const [tab, setTab] = useState('daily');
+  const now = new Date();
+  const todayStr = today();
+
+  const getStats = (wash) => {
+    return tab === 'daily'
+      ? (wash.transaction_date || wash.created_date || '').startsWith(todayStr)
+      : (() => { const d = new Date(wash.transaction_date || wash.created_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })();
+  };
+
+  const empStats = {};
+  carWashes.filter(getStats).forEach(w => {
+    if (!empStats[w.employee_id]) {
+      const emp = employees.find(e => e.id === w.employee_id);
+      empStats[w.employee_id] = {
+        id: w.employee_id,
+        name: w.employee_name,
+        avatar_color: emp?.avatar_color || '#3B82F6',
+        cars: 0, sales: 0, commission: 0
+      };
+    }
+    empStats[w.employee_id].cars++;
+    empStats[w.employee_id].sales += (w.total_amount || 0);
+    empStats[w.employee_id].commission += (w.commission_amount || 0);
+  });
+
+  // Also include employees with 0 cars
+  employees.filter(e => e.is_active).forEach(e => {
+    if (!empStats[e.id]) {
+      empStats[e.id] = { id: e.id, name: e.full_name, avatar_color: e.avatar_color || '#3B82F6', cars: 0, sales: 0, commission: 0 };
+    }
+  });
+
+  const ranked = Object.values(empStats).sort((a, b) => b.cars - a.cars || b.sales - a.sales);
+  const totalCars = ranked.reduce((s, e) => s + e.cars, 0);
+
+  return (
+    <div>
+      <div className="section-title">🏆 Employee Rankings</div>
+
+      <div className="tabs">
+        <div className={`tab ${tab==='daily'?'active':''}`} onClick={() => setTab('daily')}>📅 Today</div>
+        <div className={`tab ${tab==='monthly'?'active':''}`} onClick={() => setTab('monthly')}>📆 This Month</div>
+      </div>
+
+      {/* Top 3 Podium */}
+      {ranked.length >= 3 && (
+        <div style={{display:'flex',alignItems:'flex-end',gap:12,marginBottom:24,justifyContent:'center'}}>
+          {[ranked[1], ranked[0], ranked[2]].map((r, idx) => {
+            const isFirst = idx === 1;
+            const medals = ['🥈','🥇','🥉'];
+            const heights = [120, 150, 100];
+            return (
+              <div key={r.id} style={{textAlign:'center',flex:1,maxWidth:140}}>
+                <div style={{fontSize:isFirst?28:20,marginBottom:6}}>{medals[idx]}</div>
+                <div style={{width:isFirst?56:44,height:isFirst?56:44,borderRadius:'50%',background:r.avatar_color,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:isFirst?22:16,margin:'0 auto 8px'}}>
+                  {initials(r.name)}
+                </div>
+                <div style={{fontSize:isFirst?15:13,fontWeight:800,marginBottom:4}}>{r.name.split(' ')[0]}</div>
+                <div style={{height:heights[idx],background:`linear-gradient(180deg,${r.avatar_color}40,${r.avatar_color}20)`,border:`2px solid ${r.avatar_color}50`,borderRadius:'12px 12px 0 0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+                  <div style={{fontSize:22,fontWeight:900,color:r.avatar_color}}>{r.cars}</div>
+                  <div style={{fontSize:10,color:'var(--text2)'}}>cars</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Full list */}
+      <div className="card">
+        {ranked.map((r, i) => (
+          <div key={r.id} className="rank-card">
+            <div className={`rank-num ${i===0?'medal-1':i===1?'medal-2':i===2?'medal-3':''}`}>
+              {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i+1}`}
+            </div>
+            <div className="rank-avatar" style={{background:r.avatar_color,color:'white'}}>{initials(r.name)}</div>
+            <div className="rank-info">
+              <div className="rank-name">{r.name}</div>
+              <div style={{marginTop:4}}>
+                <div className="progress-bar" style={{width:'100%'}}>
+                  <div className="progress-fill" style={{width: totalCars > 0 ? `${(r.cars/totalCars)*100}%` : '0%',background:`linear-gradient(90deg,${r.avatar_color},${r.avatar_color}99)`}}></div>
+                </div>
+              </div>
+              <div className="rank-stats">{peso(r.sales)} sales · {peso(r.commission)} commission</div>
+            </div>
+            <div className="rank-badge">
+              <div className="rank-cars" style={{color:r.avatar_color}}>{r.cars}</div>
+              <div className="rank-sales">cars</div>
+            </div>
+          </div>
+        ))}
+        {ranked.length === 0 && (
+          <div style={{textAlign:'center',padding:'32px',color:'var(--text2)'}}>No data for this period</div>
+        )}
+      </div>
+
+      {/* Campaign */}
+      {campaign && campaign.is_active && (
+        <div style={{marginTop:16,background:'linear-gradient(135deg,rgba(245,158,11,0.15),rgba(99,102,241,0.1))',border:'1px solid rgba(245,158,11,0.3)',borderRadius:16,padding:20}}>
+          <div style={{fontWeight:800,marginBottom:12}}>🎁 {campaign.campaign_name}</div>
+          <div style={{display:'flex',gap:12}}>
+            {[
+              {emoji:'🥇',reward:campaign.first_place_reward,color:'#F59E0B',label:'1st Place'},
+              {emoji:'🥈',reward:campaign.second_place_reward,color:'#94A3B8',label:'2nd Place'},
+              {emoji:'🥉',reward:campaign.third_place_reward,color:'#B45309',label:'3rd Place'},
+            ].map((p,i) => (
+              <div key={i} style={{flex:1,background:'rgba(255,255,255,0.04)',border:`1px solid ${p.color}30`,borderRadius:12,padding:12,textAlign:'center'}}>
+                <div style={{fontSize:18}}>{p.emoji}</div>
+                <div style={{fontWeight:800,color:p.color}}>{peso(p.reward)}</div>
+                <div style={{fontSize:11,color:'var(--text2)'}}>{p.label}</div>
+                {ranked[i] && <div style={{fontSize:11,fontWeight:600,marginTop:4,color:'var(--text)'}}>{ranked[i].name.split(' ')[0]}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============= EMPLOYEES =============
+function Employees({ employees, carWashes, showToast, onRefresh }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#3B82F6' });
+  const [saving, setSaving] = useState(false);
+  const [viewEmp, setViewEmp] = useState(null);
+
+  const colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
+
+  const openAdd = () => { setEditing(null); setForm({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#3B82F6' }); setShowModal(true); };
+  const openEdit = (emp) => { setEditing(emp); setForm({...emp}); setShowModal(true); };
+
+  const handleSave = async () => {
+    if (!form.full_name.trim()) return showToast('Enter employee name', 'warning');
+    setSaving(true);
+    try {
+      if (editing) await api('update', 'Employee', { id: editing.id, data: form });
+      else await api('create', 'Employee', { data: form });
+      await onRefresh();
+      setShowModal(false);
+      showToast(editing ? 'Employee updated!' : 'Employee added!', 'success');
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const toggleActive = async (emp) => {
+    try {
+      await api('update', 'Employee', { id: emp.id, data: { is_active: !emp.is_active } });
+      await onRefresh();
+      showToast(`${emp.full_name} ${emp.is_active?'deactivated':'activated'}`, 'success');
+    } catch (e) { showToast('Error', 'error'); }
+  };
+
+  const getEmpStats = (empId) => {
+    const washes = carWashes.filter(w => w.employee_id === empId);
+    const now = new Date();
+    const todayWashes = washes.filter(w => (w.transaction_date||w.created_date||'').startsWith(today()));
+    const monthWashes = washes.filter(w => { const d = new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+    return {
+      total: washes.length,
+      today: todayWashes.length,
+      month: monthWashes.length,
+      totalSales: washes.reduce((s,w) => s+(w.total_amount||0), 0),
+      totalComm: washes.reduce((s,w) => s+(w.commission_amount||0), 0),
+    };
+  };
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>👨‍🔧 Employees</div>
+        <button className="btn btn-primary" onClick={openAdd}>+ Add Employee</button>
+      </div>
+
+      <div className="grid-2">
+        {employees.map(emp => {
+          const stats = getEmpStats(emp.id);
+          return (
+            <div key={emp.id} className="card" style={{cursor:'pointer'}} onClick={() => setViewEmp(emp)}>
+              <div className="flex-between mb-4">
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{width:48,height:48,borderRadius:'50%',background:emp.avatar_color||'#3B82F6',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:18}}>
+                    {initials(emp.full_name)}
+                  </div>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:15}}>{emp.full_name}</div>
+                    <div style={{fontSize:12,color:'var(--text2)'}}>{emp.contact_number}</div>
+                  </div>
+                </div>
+                <div>
+                  <span className={`badge ${emp.is_active?'badge-green':'badge-red'}`}>{emp.is_active?'Active':'Inactive'}</span>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
+                <div style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
+                  <div style={{fontSize:16,fontWeight:800,color:'#60A5FA'}}>{stats.today}</div>
+                  <div style={{fontSize:10,color:'var(--text2)'}}>Today</div>
+                </div>
+                <div style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
+                  <div style={{fontSize:16,fontWeight:800,color:'#34D399'}}>{stats.month}</div>
+                  <div style={{fontSize:10,color:'var(--text2)'}}>This Month</div>
+                </div>
+                <div style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
+                  <div style={{fontSize:16,fontWeight:800,color:'#FBBF24'}}>{emp.commission_percentage}%</div>
+                  <div style={{fontSize:10,color:'var(--text2)'}}>Commission</div>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:6}}>
+                <button className="btn btn-ghost" style={{flex:1,padding:'8px',fontSize:12}} onClick={e=>{e.stopPropagation();openEdit(emp)}}>✏️ Edit</button>
+                <button className={`btn ${emp.is_active?'btn-danger':'btn-success'}`} style={{flex:1,padding:'8px',fontSize:12}} onClick={e=>{e.stopPropagation();toggleActive(emp)}}>
+                  {emp.is_active?'Deactivate':'Activate'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">{editing ? '✏️ Edit Employee' : '➕ Add Employee'}</div>
+            <div className="form-group">
+              <label className="form-label">Full Name *</label>
+              <input className="form-input" value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="e.g. Juan dela Cruz" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Contact Number</label>
+              <input className="form-input" value={form.contact_number} onChange={e=>setForm({...form,contact_number:e.target.value})} placeholder="09XXXXXXXXX" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Commission % *</label>
+              <input className="form-input" type="number" min="0" max="100" value={form.commission_percentage} onChange={e=>setForm({...form,commission_percentage:parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Avatar Color</label>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {colors.map(c => (
+                  <div key={c} onClick={() => setForm({...form,avatar_color:c})} style={{width:32,height:32,borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${form.avatar_color===c?'white':'transparent'}`,transition:'all 0.2s'}}></div>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+            <div style={{display:'flex',gap:12}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving...':'Save Employee'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Employee Detail */}
+      {viewEmp && (
+        <div className="modal-overlay" onClick={() => setViewEmp(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{width:72,height:72,borderRadius:'50%',background:viewEmp.avatar_color||'#3B82F6',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:900,fontSize:28,margin:'0 auto 12px'}}>
+                {initials(viewEmp.full_name)}
+              </div>
+              <div style={{fontSize:20,fontWeight:900}}>{viewEmp.full_name}</div>
+              <div style={{color:'var(--text2)',fontSize:13}}>{viewEmp.contact_number}</div>
+              <span className={`badge ${viewEmp.is_active?'badge-green':'badge-red'}`} style={{marginTop:6}}>{viewEmp.is_active?'Active':'Inactive'}</span>
+            </div>
+            {(() => {
+              const stats = getEmpStats(viewEmp.id);
+              return (
+                <div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                    {[
+                      {label:'Total Cars Washed',value:stats.total,icon:'🚗',color:'#60A5FA'},
+                      {label:'This Month',value:stats.month,icon:'📅',color:'#34D399'},
+                      {label:'Total Revenue',value:peso(stats.totalSales),icon:'💰',color:'#FBBF24'},
+                      {label:'Total Commission',value:peso(stats.totalComm),icon:'💵',color:'#A78BFA'},
+                    ].map((s,i) => (
+                      <div key={i} style={{background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14,textAlign:'center'}}>
+                        <div style={{fontSize:20,marginBottom:4}}>{s.icon}</div>
+                        <div style={{fontSize:18,fontWeight:800,color:s.color}}>{s.value}</div>
+                        <div style={{fontSize:11,color:'var(--text2)'}}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14,textAlign:'center',marginBottom:16}}>
+                    <div style={{fontSize:24,fontWeight:900,color:'#60A5FA'}}>{viewEmp.commission_percentage}%</div>
+                    <div style={{fontSize:12,color:'var(--text2)'}}>Commission Rate</div>
+                  </div>
+                </div>
+              );
+            })()}
+            <button className="btn btn-ghost" style={{width:'100%'}} onClick={() => setViewEmp(null)}>Close</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============= SERVICES =============
+function Services({ services, showToast, onRefresh }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name:'', description:'', price:0, is_active:true, icon:'🚿' });
+  const [saving, setSaving] = useState(false);
+
+  const emojis = ['💧','✨','🪣','💎','🏆','⚙️','🔄','🧴','🧹','🚿','🏅','⭐'];
+
+  const openAdd = () => { setEditing(null); setForm({ name:'', description:'', price:0, is_active:true, icon:'🚿' }); setShowModal(true); };
+  const openEdit = (s) => { setEditing(s); setForm({...s}); setShowModal(true); };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return showToast('Enter service name', 'warning');
+    if (!form.price || form.price <= 0) return showToast('Enter valid price', 'warning');
+    setSaving(true);
+    try {
+      if (editing) await api('update', 'Service', { id: editing.id, data: form });
+      else await api('create', 'Service', { data: form });
+      await onRefresh();
+      setShowModal(false);
+      showToast(editing ? 'Service updated!' : 'Service added!', 'success');
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const toggleActive = async (svc) => {
+    try {
+      await api('update', 'Service', { id: svc.id, data: { is_active: !svc.is_active } });
+      await onRefresh();
+    } catch (e) { showToast('Error', 'error'); }
+  };
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>🛁 Services</div>
+        <button className="btn btn-primary" onClick={openAdd}>+ Add Service</button>
+      </div>
+
+      <div className="grid-2">
+        {services.map(svc => (
+          <div key={svc.id} className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div className="flex-between">
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{fontSize:28}}>{svc.icon || '🚿'}</div>
+                <div>
+                  <div style={{fontWeight:800,fontSize:15}}>{svc.name}</div>
+                  <div style={{fontSize:12,color:'var(--text2)'}}>{svc.description}</div>
+                </div>
+              </div>
+              <span className={`badge ${svc.is_active?'badge-green':'badge-red'}`}>{svc.is_active?'Active':'Off'}</span>
+            </div>
+            <div style={{fontSize:26,fontWeight:900,color:'#60A5FA'}}>{peso(svc.price)}</div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-ghost" style={{flex:1,padding:'8px',fontSize:12}} onClick={() => openEdit(svc)}>✏️ Edit</button>
+              <button className={`btn ${svc.is_active?'btn-danger':'btn-success'}`} style={{flex:1,padding:'8px',fontSize:12}} onClick={() => toggleActive(svc)}>
+                {svc.is_active?'Disable':'Enable'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">{editing ? '✏️ Edit Service' : '➕ Add Service'}</div>
+            <div className="form-group">
+              <label className="form-label">Icon</label>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
+                {emojis.map(e => (
+                  <div key={e} onClick={() => setForm({...form,icon:e})} style={{width:36,height:36,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,cursor:'pointer',background:form.icon===e?'rgba(37,99,235,0.3)':'var(--glass)',border:`2px solid ${form.icon===e?'var(--blue-light)':'var(--border)'}`,transition:'all 0.2s'}}>
+                    {e}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Service Name *</label>
+              <input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="e.g. Basic Wash" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Description</label>
+              <input className="form-input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Short description" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Price (₱) *</label>
+              <input className="form-input" type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+            <div style={{display:'flex',gap:12}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving...':'Save Service'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============= REWARDS =============
+function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ campaign_name:'', month: new Date().getMonth()+1, year: new Date().getFullYear(), first_place_reward:3000, second_place_reward:2000, third_place_reward:1000, is_active:false, description:'' });
+  const [saving, setSaving] = useState(false);
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ campaign_name:'', month: new Date().getMonth()+1, year: new Date().getFullYear(), first_place_reward:3000, second_place_reward:2000, third_place_reward:1000, is_active:false, description:'' });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.campaign_name.trim()) return showToast('Enter campaign name', 'warning');
+    setSaving(true);
+    try {
+      if (editing) await api('update', 'RewardCampaign', { id: editing.id, data: form });
+      else await api('create', 'RewardCampaign', { data: form });
+      await onRefresh();
+      setShowModal(false);
+      showToast('Campaign saved!', 'success');
+    } catch(e) { showToast('Error: '+e.message, 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const toggleActive = async (camp) => {
+    try {
+      // Deactivate all first
+      for (const c of campaigns) {
+        if (c.is_active && c.id !== camp.id) {
+          await api('update', 'RewardCampaign', { id: c.id, data: { is_active: false } });
+        }
+      }
+      await api('update', 'RewardCampaign', { id: camp.id, data: { is_active: !camp.is_active } });
+      await onRefresh();
+      showToast('Campaign updated!', 'success');
+    } catch(e) { showToast('Error', 'error'); }
+  };
+
+  const getWinners = (camp) => {
+    const now = new Date();
+    const washes = carWashes.filter(w => {
+      const d = new Date(w.transaction_date || w.created_date);
+      return d.getMonth()+1 === camp.month && d.getFullYear() === camp.year;
+    });
+    const empStats = {};
+    washes.forEach(w => {
+      if (!empStats[w.employee_id]) empStats[w.employee_id] = { name: w.employee_name, cars: 0, sales: 0 };
+      empStats[w.employee_id].cars++;
+      empStats[w.employee_id].sales += (w.total_amount||0);
+    });
+    return Object.values(empStats).sort((a,b) => b.cars-a.cars||b.sales-a.sales).slice(0,3);
+  };
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>🎁 Reward Campaigns</div>
+        <button className="btn btn-primary" onClick={openAdd}>+ New Campaign</button>
+      </div>
+
+      {campaigns.map(camp => {
+        const winners = getWinners(camp);
+        return (
+          <div key={camp.id} className="card mb-4" style={{border:camp.is_active?'2px solid rgba(245,158,11,0.4)':'1px solid var(--border)'}}>
+            <div className="flex-between mb-4">
+              <div>
+                <div style={{fontWeight:800,fontSize:16}}>{camp.campaign_name}</div>
+                <div style={{fontSize:12,color:'var(--text2)'}}>{monthYear(camp.month,camp.year)}</div>
+                {camp.description && <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{camp.description}</div>}
+              </div>
+              <span className={`badge ${camp.is_active?'badge-yellow':'badge-blue'}`}>{camp.is_active?'🟡 Active':'Inactive'}</span>
+            </div>
+
+            <div style={{display:'flex',gap:10,marginBottom:16}}>
+              {[
+                {emoji:'🥇',label:'1st',value:camp.first_place_reward,color:'#F59E0B'},
+                {emoji:'🥈',label:'2nd',value:camp.second_place_reward,color:'#94A3B8'},
+                {emoji:'🥉',label:'3rd',value:camp.third_place_reward,color:'#B45309'},
+              ].map((p,i) => (
+                <div key={i} style={{flex:1,background:'var(--glass)',border:'1px solid var(--border)',borderRadius:10,padding:12,textAlign:'center'}}>
+                  <div style={{fontSize:18}}>{p.emoji}</div>
+                  <div style={{fontWeight:800,color:p.color,fontSize:16}}>{peso(p.value)}</div>
+                  <div style={{fontSize:10,color:'var(--text2)'}}>{p.label} Place</div>
+                  {winners[i] && <div style={{fontSize:11,fontWeight:600,color:'var(--text)',marginTop:4}}>{winners[i].name.split(' ')[0]}</div>}
+                </div>
+              ))}
+            </div>
+
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-ghost" style={{flex:1,fontSize:12,padding:10}} onClick={() => { setEditing(camp); setForm({...camp}); setShowModal(true); }}>✏️ Edit</button>
+              <button className={`btn ${camp.is_active?'btn-danger':'btn-success'}`} style={{flex:1,fontSize:12,padding:10}} onClick={() => toggleActive(camp)}>
+                {camp.is_active?'Deactivate':'Activate'}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">{editing?'✏️ Edit Campaign':'🎁 New Campaign'}</div>
+            <div className="form-group">
+              <label className="form-label">Campaign Name *</label>
+              <input className="form-input" value={form.campaign_name} onChange={e=>setForm({...form,campaign_name:e.target.value})} placeholder="e.g. May 2026 Champions" />
+            </div>
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Month</label>
+                <select className="form-input" value={form.month} onChange={e=>setForm({...form,month:parseInt(e.target.value)})}>
+                  {Array.from({length:12},(_,i)=>(
+                    <option key={i+1} value={i+1}>{new Date(2000,i,1).toLocaleString('default',{month:'long'})}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Year</label>
+                <input className="form-input" type="number" value={form.year} onChange={e=>setForm({...form,year:parseInt(e.target.value)})} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">🥇 1st Place Reward (₱)</label>
+              <input className="form-input" type="number" value={form.first_place_reward} onChange={e=>setForm({...form,first_place_reward:parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">🥈 2nd Place Reward (₱)</label>
+              <input className="form-input" type="number" value={form.second_place_reward} onChange={e=>setForm({...form,second_place_reward:parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">🥉 3rd Place Reward (₱)</label>
+              <input className="form-input" type="number" value={form.third_place_reward} onChange={e=>setForm({...form,third_place_reward:parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Description</label>
+              <input className="form-input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Optional notes" />
+            </div>
+            <div style={{display:'flex',gap:12}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving...':'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============= REPORTS =============
+function Reports({ carWashes, employees, showToast }) {
+  const [tab, setTab] = useState('daily');
+  const [customStart, setCustomStart] = useState(today());
+  const [customEnd, setCustomEnd] = useState(today());
+  const now = new Date();
+
+  const getRange = () => {
+    if (tab === 'daily') { return { start: today(), end: today() }; }
+    if (tab === 'weekly') {
+      const start = new Date(now); start.setDate(start.getDate() - 7);
+      return { start: start.toISOString().split('T')[0], end: today() };
+    }
+    if (tab === 'monthly') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: start.toISOString().split('T')[0], end: today() };
+    }
+    return { start: customStart, end: customEnd };
+  };
+
+  const { start, end } = getRange();
+
+  const filtered = carWashes.filter(w => {
+    const d = (w.transaction_date || w.created_date || '').substring(0, 10);
+    return d >= start && d <= end;
+  });
+
+  const empStats = {};
+  filtered.forEach(w => {
+    if (!empStats[w.employee_id]) empStats[w.employee_id] = { name: w.employee_name, cars: 0, sales: 0, commission: 0 };
+    empStats[w.employee_id].cars++;
+    empStats[w.employee_id].sales += (w.total_amount||0);
+    empStats[w.employee_id].commission += (w.commission_amount||0);
+  });
+  const empList = Object.values(empStats).sort((a,b) => b.cars-a.cars||b.sales-a.sales);
+  const totalRevenue = filtered.reduce((s,w) => s+(w.total_amount||0), 0);
+  const totalComm = filtered.reduce((s,w) => s+(w.commission_amount||0), 0);
+  const totalCars = filtered.length;
+  const avgSale = totalCars > 0 ? totalRevenue / totalCars : 0;
+
+  const exportCSV = () => {
+    const headers = ['Date','Time','Employee','Customer','Plate','Services','Total','Commission'];
+    const rows = filtered.map(w => [
+      formatDate(w.transaction_date||w.created_date),
+      formatTime(w.transaction_date||w.created_date),
+      w.employee_name,
+      w.customer_name||'',
+      w.plate_number||'',
+      (w.services||[]).map(s=>s.name).join('; '),
+      w.total_amount||0,
+      w.commission_amount||0,
+    ]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `carwash-report-${start}-${end}.csv`; a.click();
+    showToast('CSV downloaded!', 'success');
+  };
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>📈 Reports</div>
+        <button className="btn btn-success" onClick={exportCSV}>📥 Export CSV</button>
+      </div>
+
+      <div className="tabs">
+        {['daily','weekly','monthly','custom'].map(t => (
+          <div key={t} className={`tab ${tab===t?'active':''}`} onClick={() => setTab(t)}>
+            {t.charAt(0).toUpperCase()+t.slice(1)}
+          </div>
+        ))}
+      </div>
+
+      {tab === 'custom' && (
+        <div className="grid-2 mb-4">
+          <div className="form-group" style={{marginBottom:0}}>
+            <label className="form-label">Start Date</label>
+            <input className="form-input" type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} />
+          </div>
+          <div className="form-group" style={{marginBottom:0}}>
+            <label className="form-label">End Date</label>
+            <input className="form-input" type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      <div className="stats-grid mb-4">
+        <div className="stat-card stat-blue" style={{padding:14}}>
+          <div className="stat-icon">🚗</div>
+          <div className="stat-label">Cars Washed</div>
+          <div className="stat-value text-blue">{totalCars}</div>
+        </div>
+        <div className="stat-card stat-green" style={{padding:14}}>
+          <div className="stat-icon">💰</div>
+          <div className="stat-label">Revenue</div>
+          <div className="stat-value text-green" style={{fontSize:20}}>{peso(totalRevenue)}</div>
+        </div>
+        <div className="stat-card stat-yellow" style={{padding:14}}>
+          <div className="stat-icon">💵</div>
+          <div className="stat-label">Commission</div>
+          <div className="stat-value text-yellow" style={{fontSize:20}}>{peso(totalComm)}</div>
+        </div>
+        <div className="stat-card stat-purple" style={{padding:14}}>
+          <div className="stat-icon">📊</div>
+          <div className="stat-label">Avg per Car</div>
+          <div className="stat-value" style={{fontSize:20}}>{peso(avgSale)}</div>
+        </div>
+      </div>
+
+      {/* Employee Table */}
+      <div className="card mb-4">
+        <div className="section-title" style={{fontSize:14,marginBottom:12}}>👨‍🔧 Employee Performance</div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Employee</th>
+                <th>Cars Washed</th>
+                <th>Sales</th>
+                <th>Commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {empList.length === 0 ? (
+                <tr><td colSpan={5} style={{textAlign:'center',padding:'24px',color:'var(--text2)'}}>No data for this period</td></tr>
+              ) : empList.map((e,i) => (
+                <tr key={i}>
+                  <td>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</td>
+                  <td style={{fontWeight:600}}>{e.name}</td>
+                  <td><span style={{fontWeight:700,color:'#60A5FA'}}>{e.cars}</span></td>
+                  <td><span style={{fontWeight:700,color:'#34D399'}}>{peso(e.sales)}</span></td>
+                  <td><span style={{fontWeight:700,color:'#FBBF24'}}>{peso(e.commission)}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Service breakdown */}
+      <div className="card">
+        <div className="section-title" style={{fontSize:14,marginBottom:12}}>🛁 Service Breakdown</div>
+        {(() => {
+          const svcStats = {};
+          filtered.forEach(w => {
+            (w.services||[]).forEach(s => {
+              if (!svcStats[s.name]) svcStats[s.name] = { name: s.name, count: 0, revenue: 0 };
+              svcStats[s.name].count++;
+              svcStats[s.name].revenue += (s.price||0);
+            });
+          });
+          const list = Object.values(svcStats).sort((a,b)=>b.count-a.count);
+          const maxCount = list[0]?.count || 1;
+          return list.length === 0 ? <div style={{textAlign:'center',padding:'24px',color:'var(--text2)'}}>No service data</div> : (
+            list.map((s,i) => (
+              <div key={i} style={{marginBottom:12}}>
+                <div className="flex-between" style={{marginBottom:4}}>
+                  <span style={{fontSize:13,fontWeight:600}}>{s.name}</span>
+                  <span style={{fontSize:12,color:'var(--text2)'}}>{s.count}x · {peso(s.revenue)}</span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{width:`${(s.count/maxCount)*100}%`}}></div>
+                </div>
+              </div>
+            ))
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
+// ============= MAIN APP =============
+function App() {
+  const [page, setPage] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+  const [employees, setEmployees] = useState([]);
+  const [services, setServices] = useState([]);
+  const [carWashes, setCarWashes] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = 'info') => {
+    setToast({ msg, type });
+  };
+
+  const loadAll = async () => {
+    try {
+      const [emps, svcs, washes, camps] = await Promise.all([
+        api('list', 'Employee'),
+        api('list', 'Service'),
+        api('list', 'CarWash'),
+        api('list', 'RewardCampaign'),
+      ]);
+      setEmployees(emps || []);
+      setServices(svcs || []);
+      setCarWashes(washes || []);
+      setCampaigns(camps || []);
+    } catch (e) {
+      showToast('Failed to load data: ' + e.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadAll(); }, []);
+
+  useEffect(() => {
+    const handleResize = () => setSidebarOpen(window.innerWidth > 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const navItems = [
+    { id: 'dashboard', icon: '🏠', label: 'Dashboard', section: 'Main' },
+    { id: 'record', icon: '🚗', label: 'Record Wash', section: 'Main' },
+    { id: 'transactions', icon: '📋', label: 'Transactions', section: 'Main' },
+    { id: 'ranking', icon: '🏆', label: 'Rankings', section: 'Analytics' },
+    { id: 'reports', icon: '📈', label: 'Reports', section: 'Analytics' },
+    { id: 'employees', icon: '👨‍🔧', label: 'Employees', section: 'Admin' },
+    { id: 'services', icon: '🛁', label: 'Services', section: 'Admin' },
+    { id: 'rewards', icon: '🎁', label: 'Rewards', section: 'Admin' },
+  ];
+
+  const sections = [...new Set(navItems.map(n => n.section))];
+  const activeCampaign = campaigns.find(c => c.is_active);
+  const pageLabels = { dashboard:'Dashboard', record:'Record Wash', transactions:'Transactions', ranking:'Rankings', reports:'Reports', employees:'Employees', services:'Services', rewards:'Rewards' };
+
+  if (loading) {
+    return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:16}}>
+        <div style={{fontSize:48,animation:'float 2s ease-in-out infinite'}}>💦</div>
+        <div style={{fontSize:20,fontWeight:800}} className="gradient-text">CarWash Pro</div>
+        <div style={{color:'var(--text2)',fontSize:14}}>Loading your data...</div>
+        <div style={{width:200,height:4,background:'var(--glass)',borderRadius:2,overflow:'hidden'}}>
+          <div style={{height:'100%',background:'linear-gradient(90deg,var(--blue),var(--cyan))',borderRadius:2,animation:'shimmer 1.5s infinite',backgroundSize:'200% 100%'}}></div>
+        </div>
+      </div>
+    );
+  }
+
+  const isMobile = window.innerWidth <= 768;
+
+  return (
+    <div className="app">
+      {/* Sidebar overlay for mobile */}
+      {isMobile && sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
+      )}
+
+      {/* Sidebar */}
+      <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-logo">
+          <div className="logo-icon">💦</div>
+          <div>
+            <div className="logo-text gradient-text">CarWash Pro</div>
+            <div className="logo-sub">Sales Tracker</div>
+          </div>
+        </div>
+
+        <nav className="nav">
+          {sections.map(section => (
+            <div key={section} className="nav-section">
+              <div className="nav-label">{section}</div>
+              {navItems.filter(n => n.section === section).map(item => (
+                <div
+                  key={item.id}
+                  className={`nav-item ${page === item.id ? 'active' : ''}`}
+                  onClick={() => { setPage(item.id); if(isMobile) setSidebarOpen(false); }}
+                >
+                  <span className="icon">{item.icon}</span>
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          {activeCampaign && (
+            <div style={{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:10,padding:10,fontSize:12}}>
+              <div style={{fontWeight:700,color:'#F59E0B',marginBottom:2}}>🎁 Active Campaign</div>
+              <div style={{color:'var(--text2)'}}>{activeCampaign.campaign_name}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className={`main ${!sidebarOpen && !isMobile ? 'full' : ''}`} style={{marginLeft: sidebarOpen && !isMobile ? 260 : 0}}>
+        <div className="topbar">
+          <div className="topbar-left">
+            <div className="menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</div>
+            <div className="page-title">{pageLabels[page] || page}</div>
+          </div>
+          <div className="topbar-right">
+            <div className="live-badge">
+              <div className="live-dot"></div>
+              Live
+            </div>
+            <button className="btn btn-primary" style={{padding:'8px 16px',fontSize:13}} onClick={() => setPage('record')}>
+              + New Wash
+            </button>
+          </div>
+        </div>
+
+        <div className="page-content">
+          {page === 'dashboard' && <Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage} />}
+          {page === 'record' && <RecordCarWash employees={employees} services={services} onSave={(w) => { setCarWashes(prev => [w, ...prev]); loadAll(); }} showToast={showToast} />}
+          {page === 'transactions' && <Transactions carWashes={carWashes} employees={employees} onDelete={(id) => setCarWashes(prev => prev.filter(w => w.id !== id))} showToast={showToast} />}
+          {page === 'ranking' && <Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign} />}
+          {page === 'reports' && <Reports carWashes={carWashes} employees={employees} showToast={showToast} />}
+          {page === 'employees' && <Employees employees={employees} carWashes={carWashes} showToast={showToast} onRefresh={loadAll} />}
+          {page === 'services' && <Services services={services} showToast={showToast} onRefresh={loadAll} />}
+          {page === 'rewards' && <Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll} />}
+        </div>
+      </div>
+
+      {/* Toast */}
+      {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+</html>
