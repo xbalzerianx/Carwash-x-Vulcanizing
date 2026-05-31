@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "properties": {
+    "campaign_name": {
+      "type": "string"
+    },
+    "month": {
+      "type": "number"
+    },
+    "year": {
+      "type": "number"
+    },
+    "first_place_reward": {
+      "type": "number"
+    },
+    "second_place_reward": {
+      "type": "number"
+    },
+    "third_place_reward": {
+      "type": "number"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "required": [],
+  "name": "RewardCampaign"
+}

@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string"
+    },
+    "contact_number": {
+      "type": "string"
+    },
+    "commission_percentage": {
+      "type": "number"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "avatar_color": {
+      "type": "string"
+    }
+  },
+  "required": [],
+  "name": "Employee"
+}
