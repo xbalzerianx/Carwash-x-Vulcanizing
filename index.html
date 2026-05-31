@@ -10,22 +10,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --blue: #2563EB;
-      --blue-light: #3B82F6;
-      --blue-dark: #1D4ED8;
-      --cyan: #06B6D4;
-      --indigo: #6366F1;
-      --bg: #0F172A;
-      --bg2: #1E293B;
-      --bg3: #334155;
-      --card: rgba(30,41,59,0.85);
-      --glass: rgba(255,255,255,0.06);
-      --border: rgba(255,255,255,0.1);
-      --text: #F8FAFC;
-      --text2: #94A3B8;
-      --success: #10B981;
-      --warning: #F59E0B;
-      --danger: #EF4444;
+      --red: #D94A4A;
+      --red-hover: #C63E3E;
+      --red-dark: #B83030;
+      --gold: #D4AF37;
+      --silver: #B8BCC2;
+      --bronze: #B87333;
+      --bg: #1E1E22;
+      --bg2: #2B2B31;
+      --bg3: #3A3A42;
+      --card: rgba(43,43,49,0.92);
+      --glass: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.08);
+      --border-light: #E5E5E5;
+      --text: #F7F7F7;
+      --text2: #7A7A85;
+      --success: #22C55E;
+      --warning: #D4AF37;
+      --danger: #D94A4A;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -38,7 +40,7 @@
     /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--blue-light); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb { background: var(--red); border-radius: 2px; }
     /* Animations */
     @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
     @keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
@@ -48,12 +50,12 @@
     @keyframes successPop { 0% { transform:scale(0.5); opacity:0; } 60% { transform:scale(1.1); } 100% { transform:scale(1); opacity:1; } }
     @keyframes gradientBG { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
     @keyframes float { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-8px); } }
-    @keyframes glow { 0%,100% { box-shadow:0 0 20px rgba(37,99,235,0.3); } 50% { box-shadow:0 0 40px rgba(37,99,235,0.6); } }
+    @keyframes glow { 0%,100% { box-shadow:0 0 20px rgba(217,74,74,0.3); } 50% { box-shadow:0 0 40px rgba(217,74,74,0.6); } }
     /* Layout */
     .app { display:flex; min-height:100vh; }
     .sidebar {
       width: 260px;
-      background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+      background: linear-gradient(180deg, #1E1E22 0%, #2B2B31 100%);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
@@ -72,7 +74,7 @@
     }
     .logo-icon {
       width: 42px; height: 42px;
-      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      background: linear-gradient(135deg, var(--red), var(--gold));
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -93,7 +95,7 @@
       transition: all 0.2s; margin-bottom: 2px;
     }
     .nav-item:hover { background: var(--glass); color: var(--text); }
-    .nav-item.active { background: linear-gradient(135deg, rgba(37,99,235,0.3), rgba(6,182,212,0.15)); color: #60A5FA; border: 1px solid rgba(37,99,235,0.3); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(217,74,74,0.25), rgba(212,175,55,0.12)); color: #D94A4A; border: 1px solid rgba(217,74,74,0.35); }
     .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
     .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
     .main {
@@ -106,7 +108,7 @@
     }
     .main.full { margin-left: 0; }
     .topbar {
-      background: rgba(15,23,42,0.95);
+      background: rgba(30,30,34,0.97);
       backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
       padding: 0 24px;
@@ -174,21 +176,21 @@
       position: absolute;
       top: 0; right: 0;
       width: 80px; height: 80px;
-      background: radial-gradient(circle, rgba(37,99,235,0.2), transparent);
+      background: radial-gradient(circle, rgba(217,74,74,0.15), transparent);
       border-radius: 50%;
     }
     .stat-icon { font-size: 28px; margin-bottom: 12px; }
     .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
     .stat-value { font-size: 26px; font-weight: 800; }
     .stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
-    .stat-blue { border-color: rgba(37,99,235,0.3); }
-    .stat-blue::before { background: radial-gradient(circle, rgba(37,99,235,0.25), transparent); }
+    .stat-blue { border-color: rgba(217,74,74,0.3); }
+    .stat-blue::before { background: radial-gradient(circle, rgba(217,74,74,0.25), transparent); }
     .stat-green { border-color: rgba(16,185,129,0.3); }
     .stat-green::before { background: radial-gradient(circle, rgba(16,185,129,0.25), transparent); }
-    .stat-yellow { border-color: rgba(245,158,11,0.3); }
-    .stat-yellow::before { background: radial-gradient(circle, rgba(245,158,11,0.25), transparent); }
-    .stat-purple { border-color: rgba(99,102,241,0.3); }
-    .stat-purple::before { background: radial-gradient(circle, rgba(99,102,241,0.25), transparent); }
+    .stat-yellow { border-color: rgba(212,175,55,0.3); }
+    .stat-yellow::before { background: radial-gradient(circle, rgba(212,175,55,0.25), transparent); }
+    .stat-purple { border-color: rgba(184,188,194,0.3); }
+    .stat-purple::before { background: radial-gradient(circle, rgba(184,188,194,0.2), transparent); }
     /* Buttons */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -196,10 +198,10 @@
       cursor: pointer; border: none; transition: all 0.2s; outline: none;
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      background: linear-gradient(135deg, var(--red), var(--red-hover));
       color: white;
     }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(37,99,235,0.4); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(217,74,74,0.4); }
     .btn-primary:active { transform: translateY(0); }
     .btn-success {
       background: linear-gradient(135deg, #059669, #10B981);
@@ -227,7 +229,7 @@
       transition: all 0.2s;
       outline: none;
     }
-    .form-input:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); background: rgba(255,255,255,0.05); }
+    .form-input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); background: rgba(255,255,255,0.05); }
     .form-input::placeholder { color: var(--text2); }
     select.form-input { cursor: pointer; }
     select.form-input option { background: var(--bg2); }
@@ -244,12 +246,12 @@
       align-items: center;
       gap: 10px;
     }
-    .service-item:hover { border-color: rgba(37,99,235,0.4); background: rgba(37,99,235,0.05); }
-    .service-item.selected { border-color: var(--blue-light); background: rgba(37,99,235,0.15); }
+    .service-item:hover { border-color: rgba(217,74,74,0.4); background: rgba(217,74,74,0.05); }
+    .service-item.selected { border-color: var(--red); background: rgba(217,74,74,0.15); }
     .service-item .check { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 6px; display:flex; align-items:center; justify-content:center; transition: all 0.2s; flex-shrink: 0; }
-    .service-item.selected .check { background: var(--blue-light); border-color: var(--blue-light); }
+    .service-item.selected .check { background: var(--red); border-color: var(--red); }
     .service-name { font-size: 13px; font-weight: 600; }
-    .service-price { font-size: 12px; color: var(--cyan); font-weight: 700; }
+    .service-price { font-size: 12px; color: var(--gold); font-weight: 700; }
     /* Employee cards */
     .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
     .emp-card {
@@ -262,14 +264,14 @@
       transition: all 0.2s;
     }
     .emp-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-    .emp-card.selected { border-color: var(--blue-light); background: rgba(37,99,235,0.15); }
+    .emp-card.selected { border-color: var(--red); background: rgba(217,74,74,0.15); }
     .emp-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; margin: 0 auto 8px; }
     .emp-name { font-size: 13px; font-weight: 700; }
-    .emp-comm { font-size: 11px; color: var(--cyan); font-weight: 600; }
+    .emp-comm { font-size: 11px; color: var(--gold); font-weight: 600; }
     /* Summary box */
     .summary-box {
-      background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(6,182,212,0.1));
-      border: 1px solid rgba(37,99,235,0.3);
+      background: linear-gradient(135deg, rgba(217,74,74,0.15), rgba(6,182,212,0.1));
+      border: 1px solid rgba(217,74,74,0.3);
       border-radius: 14px;
       padding: 16px;
     }
@@ -277,7 +279,7 @@
     .summary-row + .summary-row { border-top: 1px solid rgba(255,255,255,0.05); }
     .summary-row .label { font-size: 13px; color: var(--text2); }
     .summary-row .value { font-size: 14px; font-weight: 700; }
-    .summary-total { font-size: 22px !important; color: #60A5FA !important; }
+    .summary-total { font-size: 22px !important; color: #F08080 !important; }
     .summary-commission { font-size: 16px !important; color: var(--success) !important; }
     /* Table */
     .table-wrap { overflow-x: auto; border-radius: 12px; }
@@ -297,14 +299,20 @@
       transition: all 0.2s;
       animation: slideUp 0.4s ease;
     }
-    .rank-card:hover { transform: translateX(4px); border-color: rgba(37,99,235,0.3); }
+    .rank-card:hover { transform: translateX(4px); border-color: rgba(217,74,74,0.3); }
+    .rank-card.rank-pos-1 { border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.06); }
+    .rank-card.rank-pos-1:hover { border-color: rgba(212,175,55,0.7); box-shadow: 0 4px 24px rgba(212,175,55,0.15); }
+    .rank-card.rank-pos-2 { border-color: rgba(184,188,194,0.35); background: rgba(184,188,194,0.04); }
+    .rank-card.rank-pos-2:hover { border-color: rgba(184,188,194,0.6); box-shadow: 0 4px 20px rgba(184,188,194,0.1); }
+    .rank-card.rank-pos-3 { border-color: rgba(184,115,51,0.35); background: rgba(184,115,51,0.04); }
+    .rank-card.rank-pos-3:hover { border-color: rgba(184,115,51,0.6); box-shadow: 0 4px 20px rgba(184,115,51,0.1); }
     .rank-num { font-size: 22px; font-weight: 900; min-width: 36px; text-align: center; }
     .rank-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; flex-shrink: 0; }
     .rank-info { flex: 1; }
     .rank-name { font-size: 15px; font-weight: 700; }
     .rank-stats { font-size: 12px; color: var(--text2); }
     .rank-badge { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-    .rank-cars { font-size: 18px; font-weight: 800; color: #60A5FA; }
+    .rank-cars { font-size: 18px; font-weight: 800; color: #D94A4A; }
     .rank-sales { font-size: 12px; color: var(--text2); }
     /* Success overlay */
     .success-overlay {
@@ -325,10 +333,10 @@
     .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
     /* Badge */
     .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-    .badge-blue { background: rgba(37,99,235,0.2); color: #60A5FA; }
+    .badge-blue { background: rgba(217,74,74,0.2); color: #F08080; }
     .badge-green { background: rgba(16,185,129,0.2); color: #34D399; }
     .badge-red { background: rgba(239,68,68,0.2); color: #F87171; }
-    .badge-yellow { background: rgba(245,158,11,0.2); color: #FBBF24; }
+    .badge-yellow { background: rgba(245,158,11,0.2); color: #D4AF37; }
     /* Toast */
     .toast {
       position: fixed; bottom: 24px; right: 24px; z-index: 500;
@@ -351,9 +359,9 @@
     .text-xs { font-size: 11px; }
     .font-bold { font-weight: 700; }
     .font-heavy { font-weight: 800; }
-    .text-blue { color: #60A5FA; }
+    .text-blue { color: #F08080; }
     .text-green { color: #34D399; }
-    .text-yellow { color: #FBBF24; }
+    .text-yellow { color: #D4AF37; }
     .text-red { color: #F87171; }
     .text-cyan { color: #22D3EE; }
     .section-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
@@ -381,11 +389,11 @@
     /* Loading skeleton */
     .skeleton { background: linear-gradient(90deg, var(--glass) 25%, rgba(255,255,255,0.05) 50%, var(--glass) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
     /* Gradient text */
-    .gradient-text { background: linear-gradient(135deg, #60A5FA, #22D3EE); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-text { background: linear-gradient(135deg, #F08080, #22D3EE); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     /* Hero gradient header */
     .hero-header {
-      background: linear-gradient(135deg, rgba(37,99,235,0.3), rgba(6,182,212,0.2), rgba(99,102,241,0.2));
-      border: 1px solid rgba(37,99,235,0.3);
+      background: linear-gradient(135deg, rgba(217,74,74,0.3), rgba(6,182,212,0.2), rgba(99,102,241,0.2));
+      border: 1px solid rgba(217,74,74,0.3);
       border-radius: 20px;
       padding: 24px;
       margin-bottom: 24px;
@@ -398,7 +406,7 @@
       position: absolute;
       top: -50px; right: -50px;
       width: 200px; height: 200px;
-      background: radial-gradient(circle, rgba(37,99,235,0.2), transparent);
+      background: radial-gradient(circle, rgba(217,74,74,0.15), transparent);
       border-radius: 50%;
     }
     .hero-header::after {
@@ -411,20 +419,20 @@
     }
     .tabs { display: flex; gap: 4px; background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
     .tab { flex: 1; padding: 8px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text2); transition: all 0.2s; }
-    .tab.active { background: var(--blue); color: white; }
+    .tab.active { background: var(--red); color: white; }
     /* Number input big */
     .big-input { font-size: 24px; font-weight: 800; text-align: center; padding: 16px; }
     /* Rank medals */
-    .medal-1 { color: #F59E0B; text-shadow: 0 0 20px rgba(245,158,11,0.5); }
-    .medal-2 { color: #94A3B8; }
-    .medal-3 { color: #B45309; }
+    .medal-1 { color: #D4AF37; text-shadow: 0 0 20px rgba(212,175,55,0.6); }
+    .medal-2 { color: #B8BCC2; text-shadow: 0 0 16px rgba(184,188,194,0.4); }
+    .medal-3 { color: #B87333; text-shadow: 0 0 16px rgba(184,115,51,0.4); }
     /* Progress bar */
     .progress-bar { height: 6px; background: var(--glass); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan)); border-radius: 3px; transition: width 0.5s ease; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--gold)); border-radius: 3px; transition: width 0.5s ease; }
     /* Notification */
     .notif {
-      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(6,182,212,0.1));
-      border: 1px solid rgba(37,99,235,0.3);
+      background: linear-gradient(135deg, rgba(217,74,74,0.15), rgba(212,175,55,0.08));
+      border: 1px solid rgba(217,74,74,0.25);
       border-radius: 12px;
       padding: 12px 16px;
       display: flex;
@@ -526,9 +534,9 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
     <div>
       <div className="hero-header">
         <div style={{position:'relative',zIndex:1}}>
-          <div style={{fontSize:13,color:'#94A3B8',marginBottom:4}}>🗓 {timeNow}</div>
+          <div style={{fontSize:13,color:'#7A7A85',marginBottom:4}}>🗓 {timeNow}</div>
           <div style={{fontSize:28,fontWeight:900,marginBottom:4}} className="gradient-text">Welcome back! 👋</div>
-          <div style={{fontSize:14,color:'#94A3B8'}}>Here's your car wash business overview</div>
+          <div style={{fontSize:14,color:'#7A7A85'}}>Here's your car wash business overview</div>
         </div>
       </div>
 
@@ -566,7 +574,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
           {ranking.length === 0 ? (
             <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)'}}>No transactions today yet</div>
           ) : ranking.map((r, i) => (
-            <div key={i} className="rank-card" style={{marginBottom:8}}>
+            <div key={i} className={`rank-card${i===0?" rank-pos-1":i===1?" rank-pos-2":i===2?" rank-pos-3":""}`} style={{marginBottom:8}}>
               <div className={`rank-num ${i===0?'medal-1':i===1?'medal-2':'medal-3'}`}>{['🥇','🥈','🥉'][i]}</div>
               <div className="rank-info">
                 <div className="rank-name">{r.name}</div>
@@ -594,7 +602,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                 <div style={{fontSize:11,color:'var(--text2)'}}>{formatTime(w.created_date)} · {w.services?.length || 0} service(s)</div>
               </div>
               <div style={{textAlign:'right'}}>
-                <div style={{fontSize:13,fontWeight:700,color:'#60A5FA'}}>{peso(w.total_amount)}</div>
+                <div style={{fontSize:13,fontWeight:700,color:'#F08080'}}>{peso(w.total_amount)}</div>
               </div>
             </div>
           ))}
@@ -608,19 +616,19 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
           <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>🎁 Active Reward Campaign</div>
           <div style={{fontSize:13,color:'var(--text2)',marginBottom:12}}>{campaign.campaign_name}</div>
           <div style={{display:'flex',gap:12}}>
-            <div style={{flex:1,background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
+            <div style={{flex:1,background:'rgba(212,175,55,0.12)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
               <div style={{fontSize:20}}>🥇</div>
-              <div style={{fontSize:18,fontWeight:800,color:'#F59E0B'}}>{peso(campaign.first_place_reward)}</div>
+              <div style={{fontSize:18,fontWeight:800,color:'#D4AF37'}}>{peso(campaign.first_place_reward)}</div>
               <div style={{fontSize:11,color:'var(--text2)'}}>1st Place</div>
             </div>
             <div style={{flex:1,background:'rgba(148,163,184,0.1)',border:'1px solid rgba(148,163,184,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
               <div style={{fontSize:20}}>🥈</div>
-              <div style={{fontSize:18,fontWeight:800,color:'#94A3B8'}}>{peso(campaign.second_place_reward)}</div>
+              <div style={{fontSize:18,fontWeight:800,color:'#7A7A85'}}>{peso(campaign.second_place_reward)}</div>
               <div style={{fontSize:11,color:'var(--text2)'}}>2nd Place</div>
             </div>
-            <div style={{flex:1,background:'rgba(180,83,9,0.1)',border:'1px solid rgba(180,83,9,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
+            <div style={{flex:1,background:'rgba(154,123,30,0.12)',border:'1px solid rgba(180,83,9,0.2)',borderRadius:12,padding:12,textAlign:'center'}}>
               <div style={{fontSize:20}}>🥉</div>
-              <div style={{fontSize:18,fontWeight:800,color:'#B45309'}}>{peso(campaign.third_place_reward)}</div>
+              <div style={{fontSize:18,fontWeight:800,color:'#9A7B1E'}}>{peso(campaign.third_place_reward)}</div>
               <div style={{fontSize:11,color:'var(--text2)'}}>3rd Place</div>
             </div>
           </div>
@@ -707,10 +715,10 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
           <div className="success-icon">🎉</div>
           <div className="success-title">Car Wash Recorded!</div>
           <div className="success-sub" style={{marginBottom:16}}>Transaction saved successfully</div>
-          <div style={{background:'rgba(37,99,235,0.1)',border:'1px solid rgba(37,99,235,0.2)',borderRadius:12,padding:16,marginTop:12}}>
+          <div style={{background:'rgba(217,74,74,0.1)',border:'1px solid rgba(217,74,74,0.2)',borderRadius:12,padding:16,marginTop:12}}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
               <span style={{color:'var(--text2)',fontSize:13}}>Total</span>
-              <span style={{fontWeight:800,color:'#60A5FA',fontSize:18}}>{peso(totalAmount)}</span>
+              <span style={{fontWeight:800,color:'#F08080',fontSize:18}}>{peso(totalAmount)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between'}}>
               <span style={{color:'var(--text2)',fontSize:13}}>Commission</span>
@@ -725,7 +733,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
 
   return (
     <div>
-      <div style={{background:'linear-gradient(135deg,rgba(37,99,235,0.2),rgba(6,182,212,0.1))',border:'1px solid rgba(37,99,235,0.3)',borderRadius:16,padding:16,marginBottom:20,display:'flex',alignItems:'center',gap:12}}>
+      <div style={{background:'linear-gradient(135deg,rgba(217,74,74,0.2),rgba(6,182,212,0.1))',border:'1px solid rgba(217,74,74,0.3)',borderRadius:16,padding:16,marginBottom:20,display:'flex',alignItems:'center',gap:12}}>
         <div style={{fontSize:28}}>🚗</div>
         <div>
           <div style={{fontWeight:800,fontSize:16}}>Quick Car Wash Entry</div>
@@ -773,7 +781,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         <div className="emp-grid">
           {activeEmployees.map(emp => (
             <div key={emp.id} className={`emp-card ${selectedEmployee?.id === emp.id ? 'selected' : ''}`} onClick={() => setSelectedEmployee(emp)}>
-              <div className="emp-avatar" style={{background: emp.avatar_color || '#3B82F6', color: 'white'}}>
+              <div className="emp-avatar" style={{background: emp.avatar_color || '#D94A4A', color: 'white'}}>
                 {initials(emp.full_name)}
               </div>
               <div className="emp-name">{emp.full_name.split(' ')[0]}</div>
@@ -945,7 +953,7 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
                       ))}
                     </div>
                   </td>
-                  <td><span style={{fontWeight:700,color:'#60A5FA'}}>{peso(w.total_amount)}</span></td>
+                  <td><span style={{fontWeight:700,color:'#F08080'}}>{peso(w.total_amount)}</span></td>
                   <td><span style={{fontWeight:700,color:'#34D399'}}>{peso(w.commission_amount)}</span></td>
                   <td>
                     <button className="btn btn-danger" style={{padding:'4px 10px',fontSize:12}} onClick={() => setConfirmDelete(w)}>Delete</button>
@@ -995,7 +1003,7 @@ function Ranking({ carWashes, employees, campaign }) {
       empStats[w.employee_id] = {
         id: w.employee_id,
         name: w.employee_name,
-        avatar_color: emp?.avatar_color || '#3B82F6',
+        avatar_color: emp?.avatar_color || '#D94A4A',
         cars: 0, sales: 0, commission: 0
       };
     }
@@ -1007,7 +1015,7 @@ function Ranking({ carWashes, employees, campaign }) {
   // Also include employees with 0 cars
   employees.filter(e => e.is_active).forEach(e => {
     if (!empStats[e.id]) {
-      empStats[e.id] = { id: e.id, name: e.full_name, avatar_color: e.avatar_color || '#3B82F6', cars: 0, sales: 0, commission: 0 };
+      empStats[e.id] = { id: e.id, name: e.full_name, avatar_color: e.avatar_color || '#D94A4A', cars: 0, sales: 0, commission: 0 };
     }
   });
 
@@ -1050,7 +1058,7 @@ function Ranking({ carWashes, employees, campaign }) {
       {/* Full list */}
       <div className="card">
         {ranked.map((r, i) => (
-          <div key={r.id} className="rank-card">
+          <div key={r.id} className={`rank-card${i===0?" rank-pos-1":i===1?" rank-pos-2":i===2?" rank-pos-3":""}`}>
             <div className={`rank-num ${i===0?'medal-1':i===1?'medal-2':i===2?'medal-3':''}`}>
               {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i+1}`}
             </div>
@@ -1081,9 +1089,9 @@ function Ranking({ carWashes, employees, campaign }) {
           <div style={{fontWeight:800,marginBottom:12}}>🎁 {campaign.campaign_name}</div>
           <div style={{display:'flex',gap:12}}>
             {[
-              {emoji:'🥇',reward:campaign.first_place_reward,color:'#F59E0B',label:'1st Place'},
-              {emoji:'🥈',reward:campaign.second_place_reward,color:'#94A3B8',label:'2nd Place'},
-              {emoji:'🥉',reward:campaign.third_place_reward,color:'#B45309',label:'3rd Place'},
+              {emoji:'🥇',reward:campaign.first_place_reward,color:'#D4AF37',label:'1st Place'},
+              {emoji:'🥈',reward:campaign.second_place_reward,color:'#7A7A85',label:'2nd Place'},
+              {emoji:'🥉',reward:campaign.third_place_reward,color:'#9A7B1E',label:'3rd Place'},
             ].map((p,i) => (
               <div key={i} style={{flex:1,background:'rgba(255,255,255,0.04)',border:`1px solid ${p.color}30`,borderRadius:12,padding:12,textAlign:'center'}}>
                 <div style={{fontSize:18}}>{p.emoji}</div>
@@ -1103,13 +1111,13 @@ function Ranking({ carWashes, employees, campaign }) {
 function Employees({ employees, carWashes, showToast, onRefresh }) {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#3B82F6' });
+  const [form, setForm] = useState({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#D94A4A' });
   const [saving, setSaving] = useState(false);
   const [viewEmp, setViewEmp] = useState(null);
 
-  const colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
+  const colors = ['#D94A4A','#10B981','#D4AF37','#EF4444','#8B5CF6','#EC4899','#D4AF37','#84CC16'];
 
-  const openAdd = () => { setEditing(null); setForm({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#3B82F6' }); setShowModal(true); };
+  const openAdd = () => { setEditing(null); setForm({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#D94A4A' }); setShowModal(true); };
   const openEdit = (emp) => { setEditing(emp); setForm({...emp}); setShowModal(true); };
 
   const handleSave = async () => {
@@ -1161,7 +1169,7 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
             <div key={emp.id} className="card" style={{cursor:'pointer'}} onClick={() => setViewEmp(emp)}>
               <div className="flex-between mb-4">
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
-                  <div style={{width:48,height:48,borderRadius:'50%',background:emp.avatar_color||'#3B82F6',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:18}}>
+                  <div style={{width:48,height:48,borderRadius:'50%',background:emp.avatar_color||'#D94A4A',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:18}}>
                     {initials(emp.full_name)}
                   </div>
                   <div>
@@ -1175,7 +1183,7 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
                 <div style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
-                  <div style={{fontSize:16,fontWeight:800,color:'#60A5FA'}}>{stats.today}</div>
+                  <div style={{fontSize:16,fontWeight:800,color:'#F08080'}}>{stats.today}</div>
                   <div style={{fontSize:10,color:'var(--text2)'}}>Today</div>
                 </div>
                 <div style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
@@ -1183,7 +1191,7 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
                   <div style={{fontSize:10,color:'var(--text2)'}}>This Month</div>
                 </div>
                 <div style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
-                  <div style={{fontSize:16,fontWeight:800,color:'#FBBF24'}}>{emp.commission_percentage}%</div>
+                  <div style={{fontSize:16,fontWeight:800,color:'#D4AF37'}}>{emp.commission_percentage}%</div>
                   <div style={{fontSize:10,color:'var(--text2)'}}>Commission</div>
                 </div>
               </div>
@@ -1243,7 +1251,7 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
         <div className="modal-overlay" onClick={() => setViewEmp(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{width:72,height:72,borderRadius:'50%',background:viewEmp.avatar_color||'#3B82F6',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:900,fontSize:28,margin:'0 auto 12px'}}>
+              <div style={{width:72,height:72,borderRadius:'50%',background:viewEmp.avatar_color||'#D94A4A',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:900,fontSize:28,margin:'0 auto 12px'}}>
                 {initials(viewEmp.full_name)}
               </div>
               <div style={{fontSize:20,fontWeight:900}}>{viewEmp.full_name}</div>
@@ -1256,10 +1264,10 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
                 <div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
                     {[
-                      {label:'Total Cars Washed',value:stats.total,icon:'🚗',color:'#60A5FA'},
+                      {label:'Total Cars Washed',value:stats.total,icon:'🚗',color:'#F08080'},
                       {label:'This Month',value:stats.month,icon:'📅',color:'#34D399'},
-                      {label:'Total Revenue',value:peso(stats.totalSales),icon:'💰',color:'#FBBF24'},
-                      {label:'Total Commission',value:peso(stats.totalComm),icon:'💵',color:'#A78BFA'},
+                      {label:'Total Revenue',value:peso(stats.totalSales),icon:'💰',color:'#D4AF37'},
+                      {label:'Total Commission',value:peso(stats.totalComm),icon:'💵',color:'#B8BCC2'},
                     ].map((s,i) => (
                       <div key={i} style={{background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14,textAlign:'center'}}>
                         <div style={{fontSize:20,marginBottom:4}}>{s.icon}</div>
@@ -1269,7 +1277,7 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
                     ))}
                   </div>
                   <div style={{background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14,textAlign:'center',marginBottom:16}}>
-                    <div style={{fontSize:24,fontWeight:900,color:'#60A5FA'}}>{viewEmp.commission_percentage}%</div>
+                    <div style={{fontSize:24,fontWeight:900,color:'#F08080'}}>{viewEmp.commission_percentage}%</div>
                     <div style={{fontSize:12,color:'var(--text2)'}}>Commission Rate</div>
                   </div>
                 </div>
@@ -1336,7 +1344,7 @@ function Services({ services, showToast, onRefresh }) {
               </div>
               <span className={`badge ${svc.is_active?'badge-green':'badge-red'}`}>{svc.is_active?'Active':'Off'}</span>
             </div>
-            <div style={{fontSize:26,fontWeight:900,color:'#60A5FA'}}>{peso(svc.price)}</div>
+            <div style={{fontSize:26,fontWeight:900,color:'#F08080'}}>{peso(svc.price)}</div>
             <div style={{display:'flex',gap:8}}>
               <button className="btn btn-ghost" style={{flex:1,padding:'8px',fontSize:12}} onClick={() => openEdit(svc)}>✏️ Edit</button>
               <button className={`btn ${svc.is_active?'btn-danger':'btn-success'}`} style={{flex:1,padding:'8px',fontSize:12}} onClick={() => toggleActive(svc)}>
@@ -1355,7 +1363,7 @@ function Services({ services, showToast, onRefresh }) {
               <label className="form-label">Icon</label>
               <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
                 {emojis.map(e => (
-                  <div key={e} onClick={() => setForm({...form,icon:e})} style={{width:36,height:36,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,cursor:'pointer',background:form.icon===e?'rgba(37,99,235,0.3)':'var(--glass)',border:`2px solid ${form.icon===e?'var(--blue-light)':'var(--border)'}`,transition:'all 0.2s'}}>
+                  <div key={e} onClick={() => setForm({...form,icon:e})} style={{width:36,height:36,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,cursor:'pointer',background:form.icon===e?'rgba(217,74,74,0.3)':'var(--glass)',border:`2px solid ${form.icon===e?'var(--red)':'var(--border)'}`,transition:'all 0.2s'}}>
                     {e}
                   </div>
                 ))}
@@ -1468,9 +1476,9 @@ function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
 
             <div style={{display:'flex',gap:10,marginBottom:16}}>
               {[
-                {emoji:'🥇',label:'1st',value:camp.first_place_reward,color:'#F59E0B'},
-                {emoji:'🥈',label:'2nd',value:camp.second_place_reward,color:'#94A3B8'},
-                {emoji:'🥉',label:'3rd',value:camp.third_place_reward,color:'#B45309'},
+                {emoji:'🥇',label:'1st',value:camp.first_place_reward,color:'#D4AF37'},
+                {emoji:'🥈',label:'2nd',value:camp.second_place_reward,color:'#7A7A85'},
+                {emoji:'🥉',label:'3rd',value:camp.third_place_reward,color:'#9A7B1E'},
               ].map((p,i) => (
                 <div key={i} style={{flex:1,background:'var(--glass)',border:'1px solid var(--border)',borderRadius:10,padding:12,textAlign:'center'}}>
                   <div style={{fontSize:18}}>{p.emoji}</div>
@@ -1672,9 +1680,9 @@ function Reports({ carWashes, employees, showToast }) {
                 <tr key={i}>
                   <td>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</td>
                   <td style={{fontWeight:600}}>{e.name}</td>
-                  <td><span style={{fontWeight:700,color:'#60A5FA'}}>{e.cars}</span></td>
+                  <td><span style={{fontWeight:700,color:'#F08080'}}>{e.cars}</span></td>
                   <td><span style={{fontWeight:700,color:'#34D399'}}>{peso(e.sales)}</span></td>
-                  <td><span style={{fontWeight:700,color:'#FBBF24'}}>{peso(e.commission)}</span></td>
+                  <td><span style={{fontWeight:700,color:'#D4AF37'}}>{peso(e.commission)}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -1779,7 +1787,7 @@ function App() {
         <div style={{fontSize:20,fontWeight:800}} className="gradient-text">CarWash Pro</div>
         <div style={{color:'var(--text2)',fontSize:14}}>Loading your data...</div>
         <div style={{width:200,height:4,background:'var(--glass)',borderRadius:2,overflow:'hidden'}}>
-          <div style={{height:'100%',background:'linear-gradient(90deg,var(--blue),var(--cyan))',borderRadius:2,animation:'shimmer 1.5s infinite',backgroundSize:'200% 100%'}}></div>
+          <div style={{height:'100%',background:'linear-gradient(90deg,var(--red),var(--gold))',borderRadius:2,animation:'shimmer 1.5s infinite',backgroundSize:'200% 100%'}}></div>
         </div>
       </div>
     );
@@ -1824,8 +1832,8 @@ function App() {
 
         <div className="sidebar-footer">
           {activeCampaign && (
-            <div style={{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:10,padding:10,fontSize:12}}>
-              <div style={{fontWeight:700,color:'#F59E0B',marginBottom:2}}>🎁 Active Campaign</div>
+            <div style={{background:'rgba(212,175,55,0.12)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:10,padding:10,fontSize:12}}>
+              <div style={{fontWeight:700,color:'#D4AF37',marginBottom:2}}>🎁 Active Campaign</div>
               <div style={{color:'var(--text2)'}}>{activeCampaign.campaign_name}</div>
             </div>
           )}
