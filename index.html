@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>CarWash Pro — Sales Tracker</title>
+  <title>KGCAR Carwash — Sales Tracker</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -189,7 +189,7 @@
     .emp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
     .emp-card {
       background:var(--glass); border:1.5px solid var(--border); border-radius:14px;
-      padding:14px 10px; cursor:pointer; text-align:center; transition:all .2s;
+      padding:16px 12px; cursor:pointer; text-align:center; transition:all .2s; display:flex; flex-direction:column; align-items:center;
     }
     .emp-card:hover   { transform:translateY(-2px); box-shadow:0 4px 20px rgba(0,0,0,.3); }
     .emp-card.selected { border-color:var(--red); background:rgba(217,74,74,.12); }
@@ -577,7 +577,7 @@ function Ranking({ carWashes, employees, campaign }) {
         </div>
         {campaign?.is_active && (
           <div style={{background:'rgba(212,175,55,.1)',border:'1px solid rgba(212,175,55,.3)',borderRadius:10,padding:'7px 13px',fontSize:12,fontWeight:700,color:'var(--gold)'}}>
-            {Ic.star} {campaign.campaign_name}
+            {campaign.campaign_name}
           </div>
         )}
       </div>
@@ -978,7 +978,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
       </div>
 
       <div className="card mb-4">
-        <div style={{fontWeight:700,fontSize:11,marginBottom:12,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.5px'}}>Who did the wash?</div>
+        <div style={{fontWeight:700,fontSize:11,marginBottom:12,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'1px'}}>Who did the wash?</div>
         <div className="emp-grid">
           {activeEmps.map(emp => (
             <div key={emp.id} className={`emp-card ${selectedEmp?.id===emp.id?'selected':''}`} onClick={()=>setSelectedEmp(emp)}>
@@ -1428,56 +1428,185 @@ function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
    REPORTS
 ═══════════════════════════════════════════ */
 function Reports({ carWashes, employees, showToast }) {
-  const [period,setPeriod]=useState('month');
-  const now=new Date();
-  const filtered=period==='today'?carWashes.filter(w=>(w.transaction_date||w.created_date||'').startsWith(today())):carWashes.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-  const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
-  const tComm=filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
-  const tPaid=filtered.reduce((s,w)=>s+(w.amount_paid||0),0);
-  const empMap={};
-  filtered.forEach(w=>{if(!empMap[w.employee_id])empMap[w.employee_id]={name:w.employee_name,id:w.employee_id,cars:0,sales:0,comm:0};empMap[w.employee_id].cars++;empMap[w.employee_id].sales+=(w.total_amount||0);empMap[w.employee_id].comm+=(w.commission_amount||0);});
-  const empRows=Object.values(empMap).sort((a,b)=>b.cars-a.cars);
-  const svcMap={};
-  filtered.forEach(w=>(w.services||[]).forEach(s=>{if(!svcMap[s.id])svcMap[s.id]={name:s.name,count:0,revenue:0};svcMap[s.id].count++;svcMap[s.id].revenue+=(s.price||0);}));
-  const svcRows=Object.values(svcMap).sort((a,b)=>b.count-a.count);
-  const exportCSV=()=>{
-    const rows=[['Date','Employee','Customer','Plate','Services','Total','Commission','Paid'],...filtered.map(w=>[fmt(w.transaction_date||w.created_date),w.employee_name,w.customer_name||'',w.plate_number||'',(w.services||[]).map(s=>s.name).join('; '),w.total_amount,w.commission_amount,w.amount_paid])];
-    const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));a.download=`carwash-${today()}.csv`;a.click();
+  const [period, setPeriod] = useState('today');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo,   setCustomTo]   = useState('');
+  const now = new Date();
+
+  const getFiltered = () => {
+    if (period === 'today') {
+      const t = today();
+      return carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(t));
+    }
+    if (period === '7days') {
+      const cutoff = new Date(now.getTime() - 7*24*60*60*1000);
+      return carWashes.filter(w => new Date(w.transaction_date||w.created_date) >= cutoff);
+    }
+    if (period === 'month') {
+      return carWashes.filter(w => {
+        const d = new Date(w.transaction_date||w.created_date);
+        return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+      });
+    }
+    if (period === 'custom' && customFrom && customTo) {
+      const from = new Date(customFrom + 'T00:00:00');
+      const to   = new Date(customTo   + 'T23:59:59');
+      return carWashes.filter(w => {
+        const d = new Date(w.transaction_date||w.created_date);
+        return d >= from && d <= to;
+      });
+    }
+    return carWashes;
+  };
+
+  const filtered = getFiltered();
+  const tSales = filtered.reduce((s,w)=>s+(w.total_amount||0),0);
+  const tComm  = filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
+  const tPaid  = filtered.reduce((s,w)=>s+(w.amount_paid||0),0);
+
+  const empMap = {};
+  filtered.forEach(w => {
+    if (!empMap[w.employee_id]) empMap[w.employee_id]={name:w.employee_name,id:w.employee_id,cars:0,sales:0,comm:0};
+    empMap[w.employee_id].cars++;
+    empMap[w.employee_id].sales += (w.total_amount||0);
+    empMap[w.employee_id].comm  += (w.commission_amount||0);
+  });
+  const empRows = Object.values(empMap).sort((a,b)=>b.cars-a.cars);
+
+  const svcMap = {};
+  filtered.forEach(w=>(w.services||[]).forEach(s=>{
+    if (!svcMap[s.id]) svcMap[s.id]={name:s.name,count:0,revenue:0};
+    svcMap[s.id].count++;
+    svcMap[s.id].revenue+=(s.price||0);
+  }));
+  const svcRows = Object.values(svcMap).sort((a,b)=>b.count-a.count);
+
+  const exportCSV = () => {
+    const rows = [
+      ['Date','Employee','Customer','Plate','Services','Total','Commission','Paid'],
+      ...filtered.map(w=>[fmt(w.transaction_date||w.created_date),w.employee_name,w.customer_name||'',w.plate_number||'',(w.services||[]).map(s=>s.name).join('; '),w.total_amount,w.commission_amount,w.amount_paid])
+    ];
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+    a.download = `kgcar-report-${today()}.csv`;
+    a.click();
     showToast('CSV exported!','success');
   };
+
+  const periodLabel = {today:'Today', '7days':'Last 7 Days', month:'This Month', custom:'Custom Range'}[period];
+
   return (
     <div>
-      <div className="flex-between mb-4">
+      {/* Header */}
+      <div className="flex-between mb-4" style={{flexWrap:'wrap',gap:10}}>
         <div className="section-title" style={{marginBottom:0}}>Reports</div>
-        <div style={{display:'flex',gap:8}}>
-          <div className="tabs" style={{marginBottom:0}}>
-            <div className={`tab ${period==='today'?'active':''}`} onClick={()=>setPeriod('today')}>Today</div>
-            <div className={`tab ${period==='month'?'active':''}`} onClick={()=>setPeriod('month')}>Month</div>
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={exportCSV}>Export CSV</button>
-        </div>
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV}>Export CSV</button>
       </div>
-      <div className="stats-grid mb-4">
-        {[{l:'Total Cars',v:filtered.length,c:'var(--red)',cls:'stat-red'},{l:'Revenue',v:peso(tSales),c:'var(--success)',cls:'stat-green'},{l:'Commission',v:peso(tComm),c:'var(--gold)',cls:'stat-yellow'},{l:'Collected',v:peso(tPaid),c:'var(--silver)',cls:'stat-gray'}].map((s,i)=>(
-          <div key={i} className={`stat-card ${s.cls}`}><div className="stat-label">{s.l}</div><div className="stat-value" style={{color:s.c}}>{s.v}</div></div>
+
+      {/* Period Tabs */}
+      <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+        {[
+          {key:'today',  label:'Day'},
+          {key:'7days',  label:'7 Days'},
+          {key:'month',  label:'Month'},
+          {key:'custom', label:'Custom'},
+        ].map(t => (
+          <button key={t.key}
+            className={`btn btn-sm ${period===t.key ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={()=>setPeriod(t.key)}
+            style={{minWidth:72}}
+          >{t.label}</button>
         ))}
       </div>
-      <div className="grid-2">
-        <div className="card">
-          <div className="section-title" style={{fontSize:13}}>By Employee</div>
-          <div className="table-wrap"><table><thead><tr><th>Employee</th><th>Cars</th><th>Sales</th><th>Comm.</th></tr></thead><tbody>
-            {empRows.map((r,i)=>{const emp=employees.find(e=>e.id===r.id);return(<tr key={i}><td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:r.name}} size={26} fs={10}/><span style={{fontWeight:600}}>{r.name}</span></div></td><td style={{fontWeight:700,color:'var(--red)'}}>{r.cars}</td><td>{peso(r.sales)}</td><td style={{color:'var(--success)'}}>{peso(r.comm)}</td></tr>);})}
-            {empRows.length===0&&<tr><td colSpan={4} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No data.</td></tr>}
-          </tbody></table></div>
+
+      {/* Custom date range picker */}
+      {period === 'custom' && (
+        <div className="card mb-4" style={{padding:'14px 16px'}}>
+          <div className="grid-2" style={{gap:12}}>
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">From</label>
+              <input className="form-input" type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)} />
+            </div>
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">To</label>
+              <input className="form-input" type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)} />
+            </div>
+          </div>
+          {customFrom && customTo && (
+            <div style={{fontSize:11,color:'var(--text2)',marginTop:10}}>
+              Showing {filtered.length} transactions from {customFrom} to {customTo}
+            </div>
+          )}
         </div>
-        <div className="card">
-          <div className="section-title" style={{fontSize:13}}>Top Services</div>
-          <div className="table-wrap"><table><thead><tr><th>Service</th><th>Count</th><th>Revenue</th></tr></thead><tbody>
-            {svcRows.map((s,i)=>(<tr key={i}><td style={{fontWeight:600}}>{s.name}</td><td style={{color:'var(--red)',fontWeight:700}}>{s.count}</td><td style={{color:'var(--gold)'}}>{peso(s.revenue)}</td></tr>))}
-            {svcRows.length===0&&<tr><td colSpan={3} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No data.</td></tr>}
-          </tbody></table></div>
-        </div>
+      )}
+
+      {/* Stats */}
+      <div className="stats-grid mb-4">
+        {[
+          {l:'Cars',       v:filtered.length,  c:'var(--red)',    cls:'stat-red'},
+          {l:'Revenue',    v:peso(tSales),      c:'var(--success)',cls:'stat-green'},
+          {l:'Commission', v:peso(tComm),       c:'var(--gold)',   cls:'stat-yellow'},
+          {l:'Collected',  v:peso(tPaid),       c:'var(--silver)', cls:'stat-gray'},
+        ].map((s,i)=>(
+          <div key={i} className={`stat-card ${s.cls}`}>
+            <div className="stat-label">{s.l}</div>
+            <div className="stat-value" style={{color:s.c}}>{s.v}</div>
+            <div className="stat-sub">{periodLabel}</div>
+          </div>
+        ))}
       </div>
+
+      {filtered.length === 0 ? (
+        <div className="card" style={{textAlign:'center',padding:'36px 24px',color:'var(--text2)'}}>
+          <div style={{fontSize:32,marginBottom:10,opacity:.4}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div style={{fontWeight:700,fontSize:15}}>No data for this period</div>
+          <div style={{fontSize:13,marginTop:4}}>{period==='custom'&&(!customFrom||!customTo)?'Select a date range above':'Try a different date range'}</div>
+        </div>
+      ) : (
+        <div className="grid-2">
+          <div className="card">
+            <div className="section-title" style={{fontSize:13}}>By Employee</div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Employee</th><th>Cars</th><th>Sales</th><th>Comm.</th></tr></thead>
+                <tbody>
+                  {empRows.map((r,i)=>{
+                    const emp=employees.find(e=>e.id===r.id);
+                    return (
+                      <tr key={i}>
+                        <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:r.name}} size={26} fs={10}/><span style={{fontWeight:600}}>{r.name}</span></div></td>
+                        <td style={{fontWeight:700,color:'var(--red)'}}>{r.cars}</td>
+                        <td>{peso(r.sales)}</td>
+                        <td style={{color:'var(--success)'}}>{peso(r.comm)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="section-title" style={{fontSize:13}}>Top Services</div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Service</th><th>Count</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  {svcRows.map((s,i)=>(
+                    <tr key={i}>
+                      <td style={{fontWeight:600}}>{s.name}</td>
+                      <td style={{color:'var(--red)',fontWeight:700}}>{s.count}</td>
+                      <td style={{color:'var(--gold)'}}>{peso(s.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1525,7 +1654,7 @@ function App() {
   if(loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:14}}>
       <div style={{width:48,height:48,background:'var(--red)',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center'}}>{Ic.drop}</div>
-      <div style={{fontSize:18,fontWeight:800}}>CarWash Pro</div>
+      <div style={{fontSize:18,fontWeight:800}}>KGCAR Carwash</div>
       <div style={{color:'var(--text2)',fontSize:13}}>Loading...</div>
       <div style={{width:160,height:3,background:'var(--glass)',borderRadius:2,overflow:'hidden'}}>
         <div style={{height:'100%',width:'60%',background:'var(--red)',borderRadius:2}}></div>
@@ -1539,7 +1668,7 @@ function App() {
       <div className={`sidebar ${sidebarOpen?'open':'closed'}`}>
         <div className="sidebar-logo">
           <div className="logo-icon">{Ic.drop}</div>
-          <div><div className="logo-text">CarWash Pro</div><div className="logo-sub">Sales Tracker</div></div>
+          <div><div className="logo-text">KGCAR Carwash</div><div className="logo-sub">Car Wash</div></div>
         </div>
         <nav className="nav">
           {sections.map(sec=>(
