@@ -449,6 +449,12 @@ async function api(action, entity, extra = {}) {
 }
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+
+async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
+  try {
+    await api('create','ActivityLog',{data:{event_type,title,description,actor_name,entity_id,amount}});
+  } catch(e) { console.warn('Log failed:',e.message); }
+}
 const today   = () => new Date().toISOString().split('T')[0];
 const initials= n  => n ? n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?';
 const fmt     = d  => d ? new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
@@ -473,6 +479,7 @@ const Ic = {
   gap:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
   search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   drop:   <svg viewBox="0 0 24 24" fill="white"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>,
+  log:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
   star:   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
   bolt:   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
 };
@@ -791,7 +798,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
         {[
           {label:'Cars Today',   value:todayW.length,    sub:`${monthW.length} this month`,   cls:'stat-red',   color:'var(--red)'},
           {label:'Sales Today',  value:peso(todaySales), sub:`${peso(monthSales)} this month`, cls:'stat-green', color:'var(--success)'},
-          {label:'Commission',   value:peso(todayComm),  sub:`avg ${peso(avgSale)} / car`,     cls:'stat-yellow',color:'var(--gold)'},
+          {label:'Commission',   value:peso(todayComm),  sub:`avg ${peso(todayW.length>0?todayComm/todayW.length:0)} / car`,     cls:'stat-yellow',color:'var(--gold)'},
           {label:'Top Today',    value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray',color:'var(--silver)'},
         ].map((s,i)=>(
           <div key={i} className={`stat-card ${s.cls}`}>
@@ -906,6 +913,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         commission_rate:commR, commission_amount:commAmt,
         transaction_date:new Date().toISOString(),
       }});
+      logEvent({event_type:'wash_recorded',title:`Wash recorded — ${selectedEmp.full_name}`,description:`${selectedSvcs.map(s=>s.name).join(', ')}${plate?' | '+plate:''}${custName?' | '+custName:''}`,actor_name:selectedEmp.full_name,entity_id:saved?.id||'',amount:total});
       onSave(saved);
       setShowOK(true);
       setTimeout(()=>{setShowOK(false);reset();},2800);
@@ -1162,6 +1170,7 @@ function Employees({ employees, carWashes, payouts, showToast, onRefresh }) {
         note:          payoutNote || 'Advance payout',
         payout_date:   new Date().toISOString(),
       }});
+      logEvent({event_type:'commission_paid',title:`Commission paid — ${payoutEmp.full_name}`,description:`${payoutNote||'Advance payout'} | Remaining after: ${peso(getCommStats(payoutEmp.id).remaining - amt)}`,actor_name:payoutEmp.full_name,entity_id:payoutEmp.id,amount:amt});
       await onRefresh();
       setShowPayoutModal(false);
       setPayoutAmt(''); setPayoutNote('');
@@ -1184,8 +1193,13 @@ function Employees({ employees, carWashes, payouts, showToast, onRefresh }) {
     if (!form.full_name.trim()) return showToast('Enter employee name','warning');
     setSaving(true);
     try {
-      if(editing) await api('update','Employee',{id:editing.id,data:form});
-      else        await api('create','Employee',{data:form});
+      if(editing) {
+        await api('update','Employee',{id:editing.id,data:form});
+        logEvent({event_type:'employee_updated',title:`Employee updated — ${form.full_name}`,description:`Commission: ${form.commission_percentage}% | Status: ${form.is_active?'Active':'Inactive'}`,actor_name:form.full_name,entity_id:editing.id});
+      } else {
+        const created = await api('create','Employee',{data:form});
+        logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:created?.id||''});
+      }
       await onRefresh(); setShowModal(false);
       showToast(editing?'Employee updated!':'Employee added!','success');
     } catch(e){showToast('Error: '+e.message,'error');}
@@ -1391,8 +1405,13 @@ function Services({ services, showToast, onRefresh }) {
     if(!form.name.trim()) return showToast('Enter service name','warning');
     setSaving(true);
     try{
-      if(editing) await api('update','Service',{id:editing.id,data:form});
-      else await api('create','Service',{data:form});
+      if(editing) {
+        await api('update','Service',{id:editing.id,data:form});
+        logEvent({event_type:'service_updated',title:`Service updated — ${form.name}`,description:`Price: ${peso(form.price)} | ${form.is_active?'Active':'Inactive'}`,entity_id:editing.id});
+      } else {
+        const created = await api('create','Service',{data:form});
+        logEvent({event_type:'service_added',title:`New service added — ${form.name}`,description:`Price: ${peso(form.price)}`,entity_id:created?.id||''});
+      }
       await onRefresh();setShowModal(false);
       showToast(editing?'Service updated!':'Service added!','success');
     }catch(e){showToast('Error: '+e.message,'error');}
@@ -1418,7 +1437,7 @@ function Services({ services, showToast, onRefresh }) {
                   <td><span className={`badge ${svc.is_active?'badge-green':'badge-red'}`}>{svc.is_active?'Active':'Inactive'}</span></td>
                   <td><div style={{display:'flex',gap:6}}>
                     <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(svc)}>{Ic.edit}</button>
-                    <button className={`btn btn-sm ${svc.is_active?'btn-danger':''}`} style={!svc.is_active?{background:'rgba(34,197,94,.15)',color:'var(--success)',border:'1px solid rgba(34,197,94,.2)'}:{}} onClick={()=>toggle(svc)} style={{fontSize:11}}>{svc.is_active?'Deactivate':'Activate'}</button>
+                    <button className={`btn btn-sm ${svc.is_active?'btn-danger':''}`} style={{fontSize:11,...(!svc.is_active?{background:'rgba(34,197,94,.15)',color:'var(--success)',border:'1px solid rgba(34,197,94,.2)'}:{})}} onClick={()=>toggle(svc)}>{svc.is_active?'Deactivate':'Activate'}</button>
                   </div></td>
                 </tr>
               ))}
@@ -1775,6 +1794,152 @@ function Reports({ carWashes, employees, payouts, showToast }) {
 }
 
 /* ═══════════════════════════════════════════
+   ACTIVITY LOG
+═══════════════════════════════════════════ */
+function ActivityLogs({ logs, employees, onRefresh }) {
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const typeConfig = {
+    wash_recorded:        { label:'Wash',        color:'var(--red)',     bg:'rgba(217,74,74,.12)' },
+    employee_added:       { label:'New Emp',     color:'var(--success)', bg:'rgba(34,197,94,.12)' },
+    employee_updated:     { label:'Emp Update',  color:'var(--success)', bg:'rgba(34,197,94,.08)' },
+    employee_deactivated: { label:'Deactivated', color:'var(--text2)',   bg:'rgba(255,255,255,.05)' },
+    service_added:        { label:'New Service', color:'var(--gold)',    bg:'rgba(212,175,55,.12)' },
+    service_updated:      { label:'Svc Update',  color:'var(--gold)',    bg:'rgba(212,175,55,.08)' },
+    commission_paid:      { label:'Payout',      color:'#22C55E',       bg:'rgba(34,197,94,.12)' },
+    campaign_created:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.1)' },
+    campaign_updated:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.08)' },
+  };
+
+  const sorted = [...logs].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
+
+  const filtered = sorted.filter(l => {
+    if (filter !== 'all' && l.event_type !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (l.title||'').toLowerCase().includes(q) || (l.description||'').toLowerCase().includes(q) || (l.actor_name||'').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const fmtAgo = (d) => {
+    if (!d) return '';
+    const diff = Date.now() - new Date(d).getTime();
+    const mins  = Math.floor(diff/60000);
+    const hours = Math.floor(diff/3600000);
+    const days  = Math.floor(diff/86400000);
+    if (mins < 1)  return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  };
+
+  const categories = [
+    {key:'all',         label:'All'},
+    {key:'wash_recorded',label:'Washes'},
+    {key:'commission_paid',label:'Payouts'},
+    {key:'employee_added',label:'Employees'},
+    {key:'service_added',label:'Services'},
+  ];
+
+  const todayCount  = sorted.filter(l=>(l.created_date||'').startsWith(new Date().toISOString().split('T')[0])).length;
+  const washCount   = sorted.filter(l=>l.event_type==='wash_recorded').length;
+  const payoutTotal = sorted.filter(l=>l.event_type==='commission_paid').reduce((s,l)=>s+(l.amount||0),0);
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>Activity Log</div>
+        <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} of {logs.length} events</div>
+      </div>
+
+      {/* Stats strip */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
+        {[
+          {l:'Today',    v:todayCount,        c:'var(--red)'},
+          {l:'Washes',   v:washCount,         c:'var(--success)'},
+          {l:'Paid Out', v:peso(payoutTotal), c:'var(--gold)'},
+        ].map((s,i)=>(
+          <div key={i} className="stat-card" style={{padding:14}}>
+            <div className="stat-label">{s.l}</div>
+            <div className="stat-value" style={{fontSize:20,color:s.c}}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter chips */}
+      <div style={{display:'flex',gap:6,marginBottom:14,flexWrap:'wrap'}}>
+        {categories.map(c=>(
+          <button key={c.key} className={`btn btn-sm ${filter===c.key?'btn-primary':'btn-ghost'}`} onClick={()=>setFilter(c.key)}>{c.label}</button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="form-group mb-4" style={{position:'relative'}}>
+        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>{Ic.search}</div>
+        <input className="form-input" placeholder="Search logs..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}} />
+      </div>
+
+      {/* Log feed */}
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        {filtered.length === 0 ? (
+          <div style={{textAlign:'center',padding:'40px 24px',color:'var(--text2)'}}>
+            <div style={{fontSize:32,marginBottom:10,opacity:.3}}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div style={{fontWeight:700}}>No activity yet</div>
+            <div style={{fontSize:13,marginTop:4}}>Events are logged automatically as you use the app</div>
+          </div>
+        ) : filtered.map((log, i) => {
+          const cfg = typeConfig[log.event_type] || {label:log.event_type,color:'var(--text2)',bg:'rgba(255,255,255,.04)'};
+          const emp = log.actor_name ? employees.find(e=>e.full_name===log.actor_name) : null;
+          return (
+            <div key={log.id||i} style={{
+              display:'flex', alignItems:'flex-start', gap:14,
+              padding:'14px 18px',
+              borderBottom: i < filtered.length-1 ? '1px solid var(--border)' : 'none',
+              animation:`fadeIn .3s ease ${i*.02}s both`,
+              transition:'background .15s',
+            }}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.02)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              {/* Avatar / Icon */}
+              <div style={{width:38,height:38,borderRadius:'50%',background:cfg.bg,border:`1px solid ${cfg.color}30`,display:'flex',alignItems:'center',justifyContent:'center',flex:'none'}}>
+                {emp
+                  ? <Av emp={emp} size={38} fs={13} />
+                  : <div style={{width:14,height:14,color:cfg.color}}>{
+                      log.event_type==='wash_recorded'    ? Ic.car    :
+                      log.event_type==='commission_paid'  ? Ic.gift   :
+                      log.event_type?.startsWith('emp')   ? Ic.users  :
+                      log.event_type?.startsWith('svc')   ? Ic.wrench :
+                      Ic.log
+                    }</div>
+                }
+              </div>
+              {/* Content */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:2}}>
+                  <span className="badge" style={{background:cfg.bg,color:cfg.color,fontSize:9,padding:'2px 7px'}}>{cfg.label}</span>
+                  <span style={{fontSize:13,fontWeight:700}}>{log.title}</span>
+                </div>
+                {log.description && <div style={{fontSize:12,color:'var(--text2)',marginTop:1,lineHeight:1.4}}>{log.description}</div>}
+                {log.amount > 0 && <div style={{fontSize:12,fontWeight:700,color:'var(--success)',marginTop:2}}>{peso(log.amount)}</div>}
+              </div>
+              {/* Time */}
+              <div style={{fontSize:11,color:'var(--text2)',white:'nowrap',flexShrink:0,textAlign:'right'}}>
+                <div>{fmtAgo(log.created_date)}</div>
+                <div style={{fontSize:10,marginTop:2}}>{log.created_date ? new Date(log.created_date).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}) : ''}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════ */
 function App() {
@@ -1790,8 +1955,8 @@ function App() {
 
   const loadAll=async()=>{
     try{
-      const [e,s,w,c,p]=await Promise.all([api('list','Employee'),api('list','Service'),api('list','CarWash'),api('list','RewardCampaign'),api('list','CommissionPayout')]);
-      setEmployees(e||[]);setServices(s||[]);setCarWashes(w||[]);setCampaigns(c||[]);setPayouts(p||[]);
+      const [e,s,w,c,p,l]=await Promise.all([api('list','Employee'),api('list','Service'),api('list','CarWash'),api('list','RewardCampaign'),api('list','CommissionPayout'),api('list','ActivityLog')]);
+      setEmployees(e||[]);setServices(s||[]);setCarWashes(w||[]);setCampaigns(c||[]);setPayouts(p||[]);setLogs(l||[]);
     }catch(err){showToast('Failed to load: '+err.message,'error');}
     finally{setLoading(false);}
   };
@@ -1808,6 +1973,7 @@ function App() {
     {id:'employees',icon:Ic.users, label:'Employees',   section:'Admin'},
     {id:'services', icon:Ic.wrench,label:'Services',    section:'Admin'},
     {id:'rewards',  icon:Ic.gift,  label:'Rewards',     section:'Admin'},
+    {id:'logs',     icon:Ic.log,   label:'Activity Log', section:'Admin'},
   ];
   const sections=[...new Set(navItems.map(n=>n.section))];
   const activeCampaign=campaigns.find(c=>c.is_active);
@@ -1875,6 +2041,7 @@ function App() {
           {page==='employees'    && <Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/>}
           {page==='services'     && <Services services={services} showToast={showToast} onRefresh={loadAll}/>}
           {page==='rewards'      && <Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/>}
+          {page==='logs'         && <ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/>}
         </div>
       </div>
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}

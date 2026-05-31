@@ -350,3 +350,23 @@ CREATE INDEX IF NOT EXISTS idx_comm_payouts_date     ON commission_payouts(payou
 CREATE TRIGGER trg_commission_payouts_updated_at
   BEFORE UPDATE ON commission_payouts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+--  7.  ACTIVITY LOG  (added 2026-06-01)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id          UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_type  TEXT         NOT NULL,
+  title       TEXT         NOT NULL,
+  description TEXT,
+  actor_name  TEXT,
+  entity_id   UUID,
+  amount      NUMERIC(10,2) DEFAULT 0,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_logs_event  ON activity_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_date   ON activity_logs(created_at DESC);
+
+COMMENT ON TABLE activity_logs IS 'Audit trail for all key events: washes, payouts, employee/service changes';

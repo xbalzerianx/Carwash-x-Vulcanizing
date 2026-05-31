@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
       CarWash:          base44.asServiceRole.entities.CarWash,
       RewardCampaign:   base44.asServiceRole.entities.RewardCampaign,
       CommissionPayout: base44.asServiceRole.entities.CommissionPayout,
+      ActivityLog:      base44.asServiceRole.entities.ActivityLog,
     };
 
     if (!entity || !entityMap[entity]) {
