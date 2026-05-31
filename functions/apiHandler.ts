@@ -13,21 +13,19 @@ Deno.serve(async (req) => {
 
   try {
     const base44 = createClientFromRequest(req);
-    const url = new URL(req.url);
-    const path = url.pathname.split('/').filter(Boolean);
     const body = await req.json().catch(() => ({}));
     const { action, entity, data, query, id } = body;
 
-    // Generic entity CRUD
     const entityMap: Record<string, any> = {
-      Employee: base44.asServiceRole.entities.Employee,
-      Service: base44.asServiceRole.entities.Service,
-      CarWash: base44.asServiceRole.entities.CarWash,
-      RewardCampaign: base44.asServiceRole.entities.RewardCampaign,
+      Employee:         base44.asServiceRole.entities.Employee,
+      Service:          base44.asServiceRole.entities.Service,
+      CarWash:          base44.asServiceRole.entities.CarWash,
+      RewardCampaign:   base44.asServiceRole.entities.RewardCampaign,
+      CommissionPayout: base44.asServiceRole.entities.CommissionPayout,
     };
 
     if (!entity || !entityMap[entity]) {
-      return Response.json({ error: 'Unknown entity' }, { status: 400, headers: corsHeaders });
+      return Response.json({ error: 'Unknown entity: ' + entity }, { status: 400, headers: corsHeaders });
     }
 
     const ent = entityMap[entity];
@@ -53,7 +51,7 @@ Deno.serve(async (req) => {
         result = await ent.delete(id);
         break;
       default:
-        return Response.json({ error: 'Unknown action' }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: 'Unknown action: ' + action }, { status: 400, headers: corsHeaders });
     }
 
     return Response.json({ ok: true, data: result }, { headers: corsHeaders });

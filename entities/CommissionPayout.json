@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "title": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "title": "Employee Name"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Amount Paid Out"
+    },
+    "note": {
+      "type": "string",
+      "title": "Note (e.g. advance, full payout)"
+    },
+    "payout_date": {
+      "type": "string",
+      "title": "Payout Date (ISO)"
+    }
+  },
+  "required": [],
+  "name": "CommissionPayout"
+}

@@ -326,3 +326,27 @@ FROM information_schema.tables t
 WHERE table_schema = 'public'
   AND table_type   = 'BASE TABLE'
 ORDER BY table_name;
+
+-- ============================================================
+--  6.  COMMISSION PAYOUTS  (added 2026-06-01)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS commission_payouts (
+  id            UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id   UUID         REFERENCES employees(id) ON DELETE SET NULL,
+  employee_name TEXT         NOT NULL,
+  amount        NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+  note          TEXT         DEFAULT 'Advance payout',
+  payout_date   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE commission_payouts IS 'Tracks advance / full commission payouts per employee per month';
+
+CREATE INDEX IF NOT EXISTS idx_comm_payouts_employee ON commission_payouts(employee_id);
+CREATE INDEX IF NOT EXISTS idx_comm_payouts_date     ON commission_payouts(payout_date);
+
+-- Trigger: auto-update updated_at
+CREATE TRIGGER trg_commission_payouts_updated_at
+  BEFORE UPDATE ON commission_payouts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
