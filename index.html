@@ -10,158 +10,173 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --red:      #D94A4A;
-      --red-h:    #C63E3E;
-      --gold:     #D4AF37;
-      --silver:   #B8BCC2;
-      --bronze:   #B87333;
-      --bg:       #1E1E22;
-      --bg2:      #2B2B31;
-      --bg3:      #36363D;
-      --border:   rgba(255,255,255,0.08);
-      --text:     #F7F7F7;
-      --text2:    #7A7A85;
-      --success:  #3DBE6E;
-      --danger:   #D94A4A;
+      --red: #D94A4A;
+      --red-hover: #C63E3E;
+      --red-dark: #B83030;
+      --gold: #D4AF37;
+      --silver: #B8BCC2;
+      --bronze: #B87333;
+      --bg: #1E1E22;
+      --bg2: #2B2B31;
+      --bg3: #3A3A42;
+      --card: rgba(43,43,49,0.95);
+      --glass: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.08);
+      --text: #F7F7F7;
+      --text2: #7A7A85;
+      --success: #22C55E;
+      --danger: #D94A4A;
     }
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
-
     ::-webkit-scrollbar { width:4px; }
     ::-webkit-scrollbar-track { background:var(--bg); }
-    ::-webkit-scrollbar-thumb { background:var(--bg3); border-radius:2px; }
+    ::-webkit-scrollbar-thumb { background:var(--red); border-radius:2px; }
 
-    @keyframes fadeUp   { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes pop      { 0% { transform:scale(.85); opacity:0; } 60% { transform:scale(1.04); } 100% { transform:scale(1); opacity:1; } }
-    @keyframes pulse    { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-    @keyframes spin     { to { transform:rotate(360deg); } }
+    @keyframes fadeIn    { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes slideUp   { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes popIn     { 0%{transform:scale(.5);opacity:0} 60%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
+    @keyframes pulse     { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+    @keyframes pulseDot  { 0%,100%{opacity:1} 50%{opacity:.3} }
+    @keyframes float     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    @keyframes shimmer   { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes countUp   { from{transform:scale(1.4);opacity:0} to{transform:scale(1);opacity:1} }
+    @keyframes gapPulse  { 0%,100%{opacity:1} 50%{opacity:.6} }
+    @keyframes rankSlide { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes podiumRise { from{transform:scaleY(0);opacity:0} to{transform:scaleY(1);opacity:1} }
+    @keyframes crownBob  { 0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-4px) rotate(5deg)} }
 
     /* ── LAYOUT ── */
     .app { display:flex; min-height:100vh; }
     .sidebar {
-      width:240px; background:var(--bg2); border-right:1px solid var(--border);
+      width:260px; background:var(--bg2); border-right:1px solid var(--border);
       display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100;
-      transition:transform .25s ease;
+      transition:transform .3s ease;
     }
-    .sidebar.closed { transform:translateX(-240px); }
+    .sidebar.closed { transform:translateX(-260px); }
     .sidebar-logo {
-      padding:20px 18px; border-bottom:1px solid var(--border);
-      display:flex; align-items:center; gap:10px;
+      padding:22px 20px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
     }
-    .logo-mark {
-      width:36px; height:36px; background:var(--red); border-radius:10px;
+    .logo-icon {
+      width:40px; height:40px; background:var(--red); border-radius:12px;
       display:flex; align-items:center; justify-content:center; flex-shrink:0;
     }
-    .logo-mark svg { width:20px; height:20px; fill:white; }
-    .logo-name { font-size:15px; font-weight:800; letter-spacing:-.3px; }
-    .logo-sub  { font-size:10px; color:var(--text2); font-weight:500; margin-top:1px; }
-
-    .nav { flex:1; padding:12px 10px; overflow-y:auto; }
-    .nav-label { font-size:10px; font-weight:700; color:var(--text2); letter-spacing:1px; padding:10px 8px 4px; text-transform:uppercase; }
+    .logo-icon svg { width:22px; height:22px; fill:white; }
+    .logo-text { font-size:15px; font-weight:800; }
+    .logo-sub  { font-size:11px; color:var(--text2); font-weight:500; }
+    .nav { flex:1; padding:14px 10px; overflow-y:auto; }
+    .nav-section { margin-bottom:6px; }
+    .nav-label { font-size:10px; font-weight:700; color:var(--text2); letter-spacing:1px; padding:8px 8px 4px; text-transform:uppercase; }
     .nav-item {
       display:flex; align-items:center; gap:10px;
-      padding:9px 10px; border-radius:8px; cursor:pointer;
-      color:var(--text2); font-size:13px; font-weight:500;
-      transition:background .15s, color .15s; margin-bottom:1px;
+      padding:10px 12px; border-radius:10px; cursor:pointer; color:var(--text2);
+      font-size:13px; font-weight:500; transition:all .2s; margin-bottom:2px;
     }
-    .nav-item:hover { background:rgba(255,255,255,0.05); color:var(--text); }
-    .nav-item.active { background:var(--red); color:#fff; }
+    .nav-item:hover { background:var(--glass); color:var(--text); }
+    .nav-item.active { background:rgba(217,74,74,0.18); color:var(--red); border:1px solid rgba(217,74,74,0.3); }
     .nav-icon { width:18px; height:18px; flex-shrink:0; }
     .nav-icon svg { width:18px; height:18px; }
-
-    .sidebar-footer { padding:14px 10px; border-top:1px solid var(--border); }
-
-    .main { flex:1; margin-left:240px; min-height:100vh; display:flex; flex-direction:column; transition:margin-left .25s ease; }
-    .main.full { margin-left:0; }
-
+    .sidebar-footer { padding:14px; border-top:1px solid var(--border); }
+    .main { flex:1; margin-left:260px; min-height:100vh; display:flex; flex-direction:column; transition:margin-left .3s; }
     .topbar {
-      background:var(--bg2); border-bottom:1px solid var(--border);
-      padding:0 20px; height:56px; display:flex; align-items:center;
-      justify-content:space-between; position:sticky; top:0; z-index:50;
+      background:rgba(30,30,34,.97); backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border); padding:0 24px; height:62px;
+      display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:50;
     }
-    .topbar-left  { display:flex; align-items:center; gap:12px; }
+    .topbar-left  { display:flex; align-items:center; gap:14px; }
     .topbar-right { display:flex; align-items:center; gap:10px; }
     .menu-btn {
-      width:32px; height:32px; background:var(--bg3); border-radius:7px;
-      display:flex; align-items:center; justify-content:center; cursor:pointer;
-      transition:background .15s;
+      width:36px; height:36px; background:var(--glass); border:1px solid var(--border);
+      border-radius:8px; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:all .2s;
     }
-    .menu-btn:hover { background:rgba(255,255,255,0.1); }
+    .menu-btn:hover { background:rgba(255,255,255,.1); }
     .menu-btn svg { width:16px; height:16px; stroke:var(--text2); }
-    .page-title { font-size:16px; font-weight:700; }
-
+    .page-title { font-size:17px; font-weight:700; }
     .live-badge {
       display:flex; align-items:center; gap:5px;
-      background:rgba(61,190,110,0.12); border:1px solid rgba(61,190,110,0.25);
-      border-radius:20px; padding:4px 10px; font-size:11px; font-weight:600; color:var(--success);
+      background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.25);
+      border-radius:20px; padding:4px 11px; font-size:11px; font-weight:600; color:var(--success);
     }
-    .live-dot { width:6px; height:6px; background:var(--success); border-radius:50%; animation:pulse 1.5s infinite; }
-
-    .page-content { flex:1; padding:20px; max-width:1400px; width:100%; }
+    .live-dot { width:6px; height:6px; background:var(--success); border-radius:50%; animation:pulseDot 1.5s infinite; }
+    .page-content { flex:1; padding:22px; max-width:1400px; width:100%; }
 
     /* ── CARDS ── */
     .card {
-      background:var(--bg2); border:1px solid var(--border); border-radius:12px;
-      padding:18px; animation:fadeUp .3s ease;
+      background:var(--card); backdrop-filter:blur(20px);
+      border:1px solid var(--border); border-radius:16px; padding:20px;
+      animation:fadeIn .4s ease;
     }
-    .card-flat { background:var(--bg3); border-radius:12px; padding:16px; }
 
     /* ── STAT CARDS ── */
-    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:20px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
     .stat-card {
-      background:var(--bg2); border:1px solid var(--border); border-radius:12px;
-      padding:18px; transition:border-color .2s;
+      background:var(--glass); border:1px solid var(--border); border-radius:16px;
+      padding:18px; position:relative; overflow:hidden;
+      animation:fadeIn .4s ease; transition:transform .2s, box-shadow .2s;
     }
-    .stat-card:hover { border-color:rgba(255,255,255,0.15); }
+    .stat-card:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,.3); }
+    .stat-card::before {
+      content:''; position:absolute; top:0; right:0;
+      width:70px; height:70px; border-radius:50%;
+    }
     .stat-label { font-size:11px; color:var(--text2); font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
-    .stat-value { font-size:24px; font-weight:800; letter-spacing:-.5px; }
+    .stat-value { font-size:24px; font-weight:800; }
     .stat-sub   { font-size:11px; color:var(--text2); margin-top:4px; }
-    .stat-stripe { height:3px; border-radius:2px; margin-bottom:14px; }
+    .stat-red    { border-color:rgba(217,74,74,.3); }
+    .stat-red::before    { background:radial-gradient(circle,rgba(217,74,74,.2),transparent); }
+    .stat-green  { border-color:rgba(34,197,94,.3); }
+    .stat-green::before  { background:radial-gradient(circle,rgba(34,197,94,.2),transparent); }
+    .stat-yellow { border-color:rgba(212,175,55,.3); }
+    .stat-yellow::before { background:radial-gradient(circle,rgba(212,175,55,.2),transparent); }
+    .stat-gray   { border-color:rgba(184,188,194,.25); }
+    .stat-gray::before   { background:radial-gradient(circle,rgba(184,188,194,.15),transparent); }
 
     /* ── BUTTONS ── */
     .btn {
       display:inline-flex; align-items:center; justify-content:center; gap:7px;
-      padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600;
-      cursor:pointer; border:none; outline:none; transition:background .15s, opacity .15s;
-      font-family:inherit;
+      padding:11px 20px; border-radius:10px; font-size:13px; font-weight:600;
+      cursor:pointer; border:none; outline:none; transition:all .2s; font-family:inherit;
     }
     .btn:disabled { opacity:.5; cursor:not-allowed; }
-    .btn-primary { background:var(--red); color:#fff; }
-    .btn-primary:hover:not(:disabled) { background:var(--red-h); }
-    .btn-success { background:var(--success); color:#fff; }
-    .btn-success:hover:not(:disabled) { background:#34a85e; }
-    .btn-danger  { background:rgba(217,74,74,0.15); color:var(--red); border:1px solid rgba(217,74,74,0.25); }
-    .btn-danger:hover:not(:disabled) { background:rgba(217,74,74,0.25); }
-    .btn-ghost   { background:var(--bg3); color:var(--text2); }
-    .btn-ghost:hover:not(:disabled)  { background:rgba(255,255,255,0.08); color:var(--text); }
-    .btn-sm  { padding:6px 12px; font-size:12px; border-radius:6px; }
-    .btn-xl  { padding:14px 20px; font-size:15px; font-weight:700; border-radius:10px; width:100%; }
     .btn svg { width:15px; height:15px; }
+    .btn-primary { background:var(--red); color:#fff; }
+    .btn-primary:hover:not(:disabled) { background:var(--red-hover); transform:translateY(-1px); box-shadow:0 4px 16px rgba(217,74,74,.4); }
+    .btn-success { background:var(--success); color:#fff; }
+    .btn-success:hover:not(:disabled) { background:#16a34a; transform:translateY(-1px); }
+    .btn-danger  { background:rgba(217,74,74,.15); color:var(--red); border:1px solid rgba(217,74,74,.2); }
+    .btn-danger:hover:not(:disabled)  { background:rgba(217,74,74,.25); }
+    .btn-ghost   { background:var(--glass); color:var(--text2); border:1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled)   { background:rgba(255,255,255,.1); color:var(--text); }
+    .btn-sm  { padding:7px 14px; font-size:12px; border-radius:8px; }
+    .btn-lg  { padding:14px 26px; font-size:15px; border-radius:12px; }
+    .btn-xl  { padding:16px 24px; font-size:16px; font-weight:800; border-radius:14px; width:100%; }
 
     /* ── FORMS ── */
     .form-group { margin-bottom:14px; }
     .form-label { font-size:11px; font-weight:700; color:var(--text2); margin-bottom:5px; display:block; letter-spacing:.3px; text-transform:uppercase; }
     .form-input {
-      width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px;
-      padding:10px 12px; color:var(--text); font-size:13px; font-family:inherit;
-      transition:border-color .15s; outline:none;
+      width:100%; background:var(--glass); border:1px solid var(--border); border-radius:10px;
+      padding:11px 13px; color:var(--text); font-size:13px; font-family:inherit;
+      transition:border-color .2s; outline:none;
     }
-    .form-input:focus { border-color:var(--red); }
+    .form-input:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(217,74,74,.1); }
     .form-input::placeholder { color:var(--text2); }
     select.form-input { cursor:pointer; }
     select.form-input option { background:var(--bg2); }
 
     /* ── SERVICE SELECTOR ── */
-    .service-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .service-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .service-item {
-      background:var(--bg3); border:1.5px solid var(--border); border-radius:10px;
-      padding:12px; cursor:pointer; transition:border-color .15s, background .15s;
-      display:flex; align-items:center; gap:10px;
+      background:var(--glass); border:1.5px solid var(--border); border-radius:12px;
+      padding:13px; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:10px;
     }
-    .service-item:hover   { border-color:rgba(217,74,74,0.4); }
-    .service-item.selected { border-color:var(--red); background:rgba(217,74,74,0.08); }
+    .service-item:hover   { border-color:rgba(217,74,74,.4); background:rgba(217,74,74,.04); }
+    .service-item.selected { border-color:var(--red); background:rgba(217,74,74,.12); }
     .svc-check {
-      width:18px; height:18px; border:1.5px solid var(--border); border-radius:5px;
+      width:19px; height:19px; border:1.5px solid var(--border); border-radius:5px;
       display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .15s;
     }
     .service-item.selected .svc-check { background:var(--red); border-color:var(--red); }
@@ -173,143 +188,216 @@
     /* ── EMPLOYEE PICKER ── */
     .emp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
     .emp-card {
-      background:var(--bg3); border:1.5px solid var(--border); border-radius:10px;
-      padding:14px 10px; cursor:pointer; text-align:center; transition:all .15s;
+      background:var(--glass); border:1.5px solid var(--border); border-radius:14px;
+      padding:14px 10px; cursor:pointer; text-align:center; transition:all .2s;
     }
-    .emp-card:hover { border-color:rgba(255,255,255,0.2); }
-    .emp-card.selected { border-color:var(--red); background:rgba(217,74,74,0.08); }
+    .emp-card:hover   { transform:translateY(-2px); box-shadow:0 4px 20px rgba(0,0,0,.3); }
+    .emp-card.selected { border-color:var(--red); background:rgba(217,74,74,.12); }
     .emp-avatar {
       width:48px; height:48px; border-radius:50%; display:flex; align-items:center;
-      justify-content:center; font-size:16px; font-weight:800; margin:0 auto 8px;
-      overflow:hidden; position:relative;
+      justify-content:center; font-size:17px; font-weight:800; margin:0 auto 8px; overflow:hidden;
     }
     .emp-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-    .emp-name { font-size:12px; font-weight:700; }
+    .emp-name { font-size:13px; font-weight:700; }
     .emp-comm { font-size:11px; color:var(--gold); font-weight:600; margin-top:2px; }
 
     /* ── SUMMARY BOX ── */
     .summary-box {
-      background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:14px;
+      background:rgba(217,74,74,.08); border:1px solid rgba(217,74,74,.2); border-radius:14px; padding:16px;
     }
-    .summary-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; }
-    .summary-row + .summary-row { border-top:1px solid rgba(255,255,255,0.05); }
-    .summary-row .lbl { font-size:12px; color:var(--text2); }
-    .summary-row .val { font-size:13px; font-weight:700; }
+    .summary-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; }
+    .summary-row + .summary-row { border-top:1px solid rgba(255,255,255,.05); }
+    .summary-row .lbl { font-size:13px; color:var(--text2); }
+    .summary-row .val { font-size:14px; font-weight:700; }
 
     /* ── TABLE ── */
-    .table-wrap { overflow-x:auto; border-radius:10px; }
+    .table-wrap { overflow-x:auto; border-radius:12px; }
     table { width:100%; border-collapse:collapse; }
-    thead tr { background:rgba(255,255,255,0.03); }
-    th { padding:10px 14px; text-align:left; font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+    thead tr { background:rgba(255,255,255,.04); }
+    th { padding:11px 14px; text-align:left; font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
     td { padding:11px 14px; font-size:12px; border-top:1px solid var(--border); }
-    tr:hover td { background:rgba(255,255,255,0.02); }
-
-    /* ── RANKING ── */
-    .rank-card {
-      display:flex; align-items:center; gap:12px; background:var(--bg3);
-      border:1px solid var(--border); border-radius:10px; padding:14px 16px;
-      margin-bottom:8px; transition:border-color .15s; cursor:default;
-    }
-    .rank-card.rank-pos-1 { border-color:rgba(212,175,55,0.5); }
-    .rank-card.rank-pos-2 { border-color:rgba(184,188,194,0.4); }
-    .rank-card.rank-pos-3 { border-color:rgba(184,115,51,0.4); }
-    .rank-num  { font-size:13px; font-weight:800; min-width:28px; text-align:center; color:var(--text2); }
-    .rank-pos-1 .rank-num { color:var(--gold); }
-    .rank-pos-2 .rank-num { color:var(--silver); }
-    .rank-pos-3 .rank-num { color:var(--bronze); }
-    .rank-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; overflow:hidden; }
-    .rank-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-    .rank-info  { flex:1; }
-    .rank-name  { font-size:14px; font-weight:700; }
-    .rank-stat  { font-size:11px; color:var(--text2); }
-    .rank-cars  { font-size:18px; font-weight:800; color:var(--text); }
-    .rank-label { font-size:10px; color:var(--text2); }
+    tr:hover td { background:rgba(255,255,255,.02); }
 
     /* ── BADGES ── */
-    .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:700; }
-    .badge-green  { background:rgba(61,190,110,0.15); color:var(--success); }
-    .badge-red    { background:rgba(217,74,74,0.15);  color:var(--red); }
-    .badge-gold   { background:rgba(212,175,55,0.15); color:var(--gold); }
-    .badge-gray   { background:rgba(255,255,255,0.06); color:var(--text2); }
+    .badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; }
+    .badge-green  { background:rgba(34,197,94,.15);  color:var(--success); }
+    .badge-red    { background:rgba(217,74,74,.15);   color:var(--red); }
+    .badge-gold   { background:rgba(212,175,55,.15);  color:var(--gold); }
+    .badge-gray   { background:rgba(255,255,255,.06); color:var(--text2); }
 
     /* ── TABS ── */
-    .tabs { display:flex; gap:3px; background:var(--bg3); border-radius:9px; padding:3px; margin-bottom:16px; }
-    .tab  { flex:1; padding:7px 8px; text-align:center; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; color:var(--text2); transition:all .15s; }
+    .tabs { display:flex; gap:3px; background:var(--glass); border:1px solid var(--border); border-radius:12px; padding:4px; margin-bottom:20px; }
+    .tab  { flex:1; padding:8px; text-align:center; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; color:var(--text2); transition:all .2s; }
     .tab.active { background:var(--red); color:#fff; }
 
     /* ── MODAL ── */
-    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:200; padding:16px; }
-    .modal { background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:22px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; animation:pop .25s ease; }
-    .modal-title { font-size:16px; font-weight:800; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:200; padding:16px; }
+    .modal { background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:24px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; animation:popIn .3s ease; }
+    .modal-title { font-size:17px; font-weight:800; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
 
     /* ── SUCCESS OVERLAY ── */
-    .success-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .success-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:1000; }
     .success-card {
-      background:var(--bg2); border:1px solid var(--border); border-radius:20px;
-      padding:36px 32px; text-align:center; max-width:300px; width:90%;
-      animation:pop .4s cubic-bezier(.175,.885,.32,1.275);
+      background:var(--bg2); border:1px solid var(--border); border-radius:24px;
+      padding:38px 32px; text-align:center; max-width:310px; width:90%;
+      animation:popIn .4s cubic-bezier(.175,.885,.32,1.275);
     }
 
     /* ── TOAST ── */
     .toast {
       position:fixed; bottom:20px; right:20px; z-index:500;
-      background:var(--bg2); border:1px solid var(--border); border-radius:10px;
-      padding:12px 16px; font-size:12px; font-weight:600;
+      background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+      padding:13px 18px; font-size:12px; font-weight:600;
       display:flex; align-items:center; gap:8px;
-      animation:fadeUp .25s ease; box-shadow:0 8px 30px rgba(0,0,0,.4);
+      animation:slideUp .3s ease; box-shadow:0 8px 32px rgba(0,0,0,.4);
     }
     .toast-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 
     /* ── PROGRESS ── */
-    .progress-bar  { height:5px; background:var(--bg3); border-radius:3px; overflow:hidden; }
-    .progress-fill { height:100%; background:var(--red); border-radius:3px; transition:width .5s ease; }
+    .progress-bar  { height:5px; background:var(--glass); border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:3px; transition:width .6s ease; }
 
-    /* ── HERO HEADER ── */
-    .hero-header { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; animation:fadeUp .3s ease; }
-
-    /* ── AVATAR UPLOAD ── */
-    .avatar-upload-ring {
-      width:72px; height:72px; border-radius:50%; border:2px dashed var(--border);
-      display:flex; align-items:center; justify-content:center; cursor:pointer;
-      transition:border-color .2s; position:relative; overflow:hidden;
+    /* ── HERO ── */
+    .hero-header {
+      background:var(--card); border:1px solid var(--border); border-radius:16px;
+      padding:22px; margin-bottom:22px; animation:fadeIn .4s ease; position:relative; overflow:hidden;
     }
-    .avatar-upload-ring:hover { border-color:var(--red); }
-    .avatar-upload-ring img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-    .avatar-upload-ring input { position:absolute; inset:0; opacity:0; cursor:pointer; }
-    .avatar-upload-ring svg { width:24px; height:24px; stroke:var(--text2); }
+    .hero-header::before {
+      content:''; position:absolute; top:-40px; right:-40px;
+      width:180px; height:180px;
+      background:radial-gradient(circle,rgba(217,74,74,.12),transparent); border-radius:50%;
+    }
+
+    /* ── GAMIFIED RANKING ── */
+    .rank-tabs { display:flex; gap:3px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:14px; padding:5px; margin-bottom:24px; }
+    .rank-tab {
+      flex:1; padding:10px 8px; text-align:center; border-radius:10px;
+      cursor:pointer; font-size:12px; font-weight:700; color:var(--text2); transition:all .2s;
+      letter-spacing:.3px; text-transform:uppercase;
+    }
+    .rank-tab.active { background:var(--red); color:#fff; box-shadow:0 4px 16px rgba(217,74,74,.35); }
+
+    /* Podium */
+    .podium-wrap {
+      display:flex; align-items:flex-end; justify-content:center;
+      gap:0; margin-bottom:28px; padding:0 10px;
+    }
+    .podium-slot { flex:1; max-width:140px; text-align:center; position:relative; }
+    .podium-avatar-wrap { margin-bottom:8px; position:relative; display:inline-block; }
+    .podium-avatar {
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-weight:900; margin:0 auto; overflow:hidden; position:relative;
+    }
+    .podium-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .podium-crown {
+      position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+      font-size:20px; animation:crownBob 2s ease-in-out infinite;
+      filter:drop-shadow(0 0 8px rgba(212,175,55,.8));
+    }
+    .podium-bar {
+      border-radius:12px 12px 0 0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; padding:12px 6px;
+      transform-origin:bottom; animation:podiumRise .6s cubic-bezier(.175,.885,.32,1.275);
+      position:relative; overflow:hidden;
+    }
+    .podium-bar::after {
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(180deg,rgba(255,255,255,.08),transparent);
+      pointer-events:none;
+    }
+    .podium-cars { font-size:26px; font-weight:900; line-height:1; }
+    .podium-cars-label { font-size:10px; font-weight:700; opacity:.7; margin-top:1px; }
+    .podium-name { font-size:12px; font-weight:800; margin-top:6px; }
+
+    /* Gap comparison */
+    .gap-board {
+      background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:16px;
+      padding:18px; margin-bottom:20px; animation:fadeIn .5s ease;
+    }
+    .gap-board-title {
+      font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase;
+      letter-spacing:1px; margin-bottom:14px; display:flex; align-items:center; gap:6px;
+    }
+    .gap-row {
+      display:flex; align-items:center; gap:12px; padding:10px 0;
+      border-bottom:1px solid var(--border); animation:rankSlide .4s ease;
+    }
+    .gap-row:last-child { border-bottom:none; }
+    .gap-pos { font-size:11px; font-weight:800; min-width:32px; }
+    .gap-bar-wrap { flex:1; position:relative; }
+    .gap-bar-bg { height:32px; background:rgba(255,255,255,.04); border-radius:8px; overflow:hidden; position:relative; }
+    .gap-bar-fill { height:100%; border-radius:8px; transition:width .8s cubic-bezier(.4,0,.2,1); display:flex; align-items:center; padding-left:10px; }
+    .gap-bar-label { font-size:12px; font-weight:700; color:#fff; white-space:nowrap; }
+    .gap-badge-wrap { min-width:80px; text-align:right; }
+    .gap-cars  { font-size:16px; font-weight:900; }
+    .gap-sales { font-size:11px; color:var(--text2); }
+    .gap-behind {
+      display:inline-flex; align-items:center; gap:4px;
+      background:rgba(255,255,255,.06); border:1px solid var(--border);
+      border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700;
+      color:var(--text2); animation:gapPulse 2s ease-in-out infinite;
+    }
+    .gap-behind.closing { color:#22C55E; border-color:rgba(34,197,94,.25); background:rgba(34,197,94,.08); animation:none; }
+    .gap-behind.leading { color:var(--gold); border-color:rgba(212,175,55,.3); background:rgba(212,175,55,.1); animation:none; }
+
+    /* Commission cards */
+    .comm-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; margin-top:20px; }
+    .comm-card {
+      background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:14px;
+      padding:16px; text-align:center; animation:fadeIn .5s ease; transition:transform .2s;
+    }
+    .comm-card:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.15); }
+    .comm-card-rank { font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+    .comm-card-avatar { margin:0 auto 10px; }
+    .comm-card-name  { font-size:13px; font-weight:800; margin-bottom:2px; }
+    .comm-card-comm  { font-size:20px; font-weight:900; }
+    .comm-card-cars  { font-size:11px; color:var(--text2); margin-top:2px; }
+
+    /* Full rank list */
+    .rank-list-item {
+      display:flex; align-items:center; gap:12px;
+      background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px;
+      padding:14px 16px; margin-bottom:8px; transition:all .2s;
+    }
+    .rank-list-item:hover { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); }
+    .rank-list-item.pos-1 { border-color:rgba(212,175,55,.35); background:rgba(212,175,55,.05); }
+    .rank-list-item.pos-2 { border-color:rgba(184,188,194,.3); background:rgba(184,188,194,.03); }
+    .rank-list-item.pos-3 { border-color:rgba(184,115,51,.3);  background:rgba(184,115,51,.03); }
+    .rl-pos    { font-size:12px; font-weight:900; min-width:30px; text-align:center; }
+    .rl-info   { flex:1; }
+    .rl-name   { font-size:14px; font-weight:700; margin-bottom:4px; }
+    .rl-bar    { margin-bottom:3px; }
+    .rl-stats  { font-size:11px; color:var(--text2); }
+    .rl-right  { text-align:right; }
+    .rl-cars   { font-size:20px; font-weight:900; line-height:1; }
+    .rl-clabel { font-size:10px; color:var(--text2); }
 
     /* ── MISC ── */
+    .section-title { font-size:16px; font-weight:800; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
     .divider    { border:none; border-top:1px solid var(--border); margin:12px 0; }
-    .section-title { font-size:15px; font-weight:800; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
     .mb-3 { margin-bottom:12px; }
     .mb-4 { margin-bottom:16px; }
     .flex-between { display:flex; justify-content:space-between; align-items:center; }
     .text-muted { color:var(--text2); }
     .text-sm    { font-size:12px; }
-    .text-xs    { font-size:11px; }
-    .font-bold  { font-weight:700; }
     .text-red   { color:var(--red); }
     .text-green { color:var(--success); }
     .text-gold  { color:var(--gold); }
-
-    /* ── SIDEBAR OVERLAY MOBILE ── */
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99; }
 
-    /* ── RESPONSIVE ── */
     @media (max-width:768px) {
-      .sidebar { transform:translateX(-240px); }
+      .sidebar { transform:translateX(-260px); }
       .sidebar.open { transform:translateX(0); }
-      .sidebar-overlay.visible { display:block; }
+      .sidebar-overlay.show { display:block; }
       .main { margin-left:0 !important; }
       .stats-grid { grid-template-columns:1fr 1fr; }
       .grid-2 { grid-template-columns:1fr; }
       .grid-3 { grid-template-columns:1fr 1fr; }
       .service-grid { grid-template-columns:1fr; }
       .page-content { padding:14px; }
-      table { font-size:11px; }
-      th,td { padding:8px 10px; }
+      .podium-wrap { gap:0; }
     }
   </style>
 </head>
@@ -323,30 +411,27 @@ const APP_ID  = '6a1c42f697e43e4ff43a5097';
 
 async function api(action, entity, extra = {}) {
   try {
-    const res  = await fetch(API_URL, {
-      method:'POST', headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID},
-      body: JSON.stringify({ action, entity, ...extra })
-    });
+    const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID}, body:JSON.stringify({action,entity,...extra}) });
     const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'API error');
+    if (!json.ok) throw new Error(json.error||'API error');
     return json.data;
   } catch(e) { console.error(e); throw e; }
 }
 
-const peso     = n => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-const today    = () => new Date().toISOString().split('T')[0];
-const initials = name => name ? name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?';
-const fmt      = d  => d ? new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
-const fmtTime  = d  => d ? new Date(d).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}) : '';
+const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+const today   = () => new Date().toISOString().split('T')[0];
+const initials= n  => n ? n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?';
+const fmt     = d  => d ? new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
+const fmtTime = d  => d ? new Date(d).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}) : '';
 
-/* ── SVG Icons ── */
+/* SVG Icons */
 const Ic = {
-  menu:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6"  x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  menu:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
   home:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   car:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="11" width="22" height="9" rx="2"/><path d="M5 11V9a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="7.5" cy="20" r="1.5"/><circle cx="16.5" cy="20" r="1.5"/></svg>,
-  list:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6"  x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6"  x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+  list:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/></svg>,
   trophy: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4a2 2 0 01-2-2V5h4"/><path d="M18 9h2a2 2 0 002-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 5h12v6a6 6 0 01-12 0z"/></svg>,
-  chart:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6"  y1="20" x2="6"  y2="14"/></svg>,
+  chart:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
   users:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
   wrench: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>,
   gift:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>,
@@ -354,88 +439,332 @@ const Ic = {
   trash:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
   edit:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   check:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  x:      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  camera: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+  fire:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 17c.5 0 1-.1 1.4-.4.4-.3.6-.8.6-1.3 0-1.5-2-3-2-3s-2 1.5-2 3.2zm5.5-10c0 0 3 3 3 6a6 6 0 01-12 0C5 7.5 8.5 4.5 8.5 4.5S10 7 12 7c1 0 1.5-1 2-2.5z"/></svg>,
+  gap:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
   search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  logo:   <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>,
   drop:   <svg viewBox="0 0 24 24" fill="white"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>,
-  down:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  star:   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+  bolt:   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
 };
 
-/* ── Avatar Component ── */
-function Avatar({ employee, size=40, fontSize=15 }) {
-  const [imgErr, setImgErr] = useState(false);
-  const hasImg = employee?.avatar_url && !imgErr;
+/* Avatar component */
+function Av({ emp, size=40, fs=15 }) {
+  const [err,setErr] = useState(false);
+  const hasImg = emp?.avatar_url && !err;
   return (
-    <div style={{
-      width:size, height:size, borderRadius:'50%',
-      background: hasImg ? 'transparent' : (employee?.avatar_color || '#D94A4A'),
-      display:'flex', alignItems:'center', justifyContent:'center',
-      color:'white', fontWeight:800, fontSize, overflow:'hidden', flexShrink:0
-    }}>
-      {hasImg
-        ? <img src={employee.avatar_url} alt={employee.full_name} style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setImgErr(true)} />
-        : initials(employee?.full_name)
-      }
+    <div style={{width:size,height:size,borderRadius:'50%',background:hasImg?'transparent':(emp?.avatar_color||'#D94A4A'),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:fs,overflow:'hidden',flexShrink:0}}>
+      {hasImg ? <img src={emp.avatar_url} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(emp?.full_name)}
     </div>
   );
 }
 
-/* ── Toast ── */
+/* Toast */
 function Toast({ msg, type, onClose }) {
-  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, []);
-  const colors = { success:'#3DBE6E', error:'#D94A4A', warning:'#D4AF37', info:'#7A7A85' };
+  useEffect(() => { const t=setTimeout(onClose,3000); return()=>clearTimeout(t); }, []);
+  const clr = {success:'#22C55E',error:'#D94A4A',warning:'#D4AF37',info:'#7A7A85'};
   return (
     <div className="toast">
-      <div className="toast-dot" style={{background: colors[type]||colors.info}}></div>
+      <div className="toast-dot" style={{background:clr[type]||clr.info}}></div>
       {msg}
     </div>
   );
 }
 
-/* ── DASHBOARD ── */
-function Dashboard({ carWashes, employees, campaign, setPage }) {
-  const todayStr   = today();
-  const now        = new Date();
-  const todayW     = carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(todayStr));
-  const monthW     = carWashes.filter(w => {
-    const d = new Date(w.transaction_date||w.created_date);
-    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-  });
-  const todaySales = todayW.reduce((s,w) => s+(w.total_amount||0), 0);
-  const todayComm  = todayW.reduce((s,w) => s+(w.commission_amount||0), 0);
-  const monthSales = monthW.reduce((s,w) => s+(w.total_amount||0), 0);
-  const avgSale    = todayW.length > 0 ? todaySales/todayW.length : 0;
+/* ═══════════════════════════════════════════
+   GAMIFIED RANKING PAGE
+═══════════════════════════════════════════ */
+function Ranking({ carWashes, employees, campaign }) {
+  const [tab, setTab] = useState('today');
+  const now = new Date();
+  const todayStr = today();
 
-  const empMap = {};
-  todayW.forEach(w => {
-    if (!empMap[w.employee_id]) empMap[w.employee_id] = { name:w.employee_name, cars:0, sales:0, id:w.employee_id };
-    empMap[w.employee_id].cars++;
-    empMap[w.employee_id].sales += (w.total_amount||0);
-  });
-  const topEmp  = Object.values(empMap).sort((a,b) => b.cars-a.cars||b.sales-a.sales)[0];
-  const ranking = Object.values(empMap).sort((a,b) => b.cars-a.cars||b.sales-a.sales).slice(0,3);
-  const recent  = [...carWashes].sort((a,b) => new Date(b.created_date)-new Date(a.created_date)).slice(0,5);
+  /* Filter by tab */
+  const filterWashes = () => {
+    if (tab === 'today') return carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(todayStr));
+    if (tab === '7days') {
+      const cutoff = new Date(now.getTime() - 7*24*60*60*1000);
+      return carWashes.filter(w => new Date(w.transaction_date||w.created_date) >= cutoff);
+    }
+    return carWashes.filter(w => {
+      const d = new Date(w.transaction_date||w.created_date);
+      return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    });
+  };
 
-  const timeNow = now.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  /* Build leaderboard */
+  const buildBoard = () => {
+    const map = {};
+    employees.filter(e=>e.is_active).forEach(e => {
+      map[e.id] = { id:e.id, name:e.full_name, emp:e, cars:0, sales:0, commission:0 };
+    });
+    filterWashes().forEach(w => {
+      if (!map[w.employee_id]) {
+        const e = employees.find(x=>x.id===w.employee_id);
+        map[w.employee_id] = { id:w.employee_id, name:w.employee_name, emp:e||null, cars:0, sales:0, commission:0 };
+      }
+      map[w.employee_id].cars++;
+      map[w.employee_id].sales      += (w.total_amount||0);
+      map[w.employee_id].commission += (w.commission_amount||0);
+    });
+    return Object.values(map).sort((a,b) => b.cars-a.cars || b.sales-a.sales);
+  };
+
+  const ranked  = buildBoard();
+  const maxCars = ranked[0]?.cars || 1;
+  const leader  = ranked[0];
+  const pos1    = ranked[0]; const pos2 = ranked[1]; const pos3 = ranked[2];
+
+  /* Gap data */
+  const gap2 = pos1 && pos2 ? (pos1.cars - pos2.cars) : null;
+  const gap3 = pos1 && pos3 ? (pos1.cars - pos3.cars) : null;
+
+  /* Colors for positions */
+  const posColor = ['var(--gold)','var(--silver)','var(--bronze)'];
+  const posLabel = ['1ST','2ND','3RD'];
+  const tabLabels = { today:'Today', '7days':'7 Days', month:'This Month' };
+
+  /* Podium order: 2nd, 1st, 3rd */
+  const podiumOrder = [pos2, pos1, pos3];
+  const podiumHeights = [110, 150, 90];
+  const podiumColors  = [
+    'rgba(184,188,194,.2)',
+    'rgba(212,175,55,.25)',
+    'rgba(184,115,51,.2)',
+  ];
+  const podiumBorders = [
+    'rgba(184,188,194,.4)',
+    'rgba(212,175,55,.5)',
+    'rgba(184,115,51,.4)',
+  ];
 
   return (
     <div>
-      <div className="hero-header mb-4">
-        <div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>{timeNow}</div>
-        <div style={{fontSize:22,fontWeight:900,marginBottom:2}}>Welcome back!</div>
-        <div style={{fontSize:13,color:'var(--text2)'}}>Here's your business at a glance.</div>
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+        <div>
+          <div style={{fontSize:22,fontWeight:900}}>Leaderboard</div>
+          <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{tabLabels[tab]} · {ranked.filter(r=>r.cars>0).length} active washers</div>
+        </div>
+        {campaign?.is_active && (
+          <div style={{background:'rgba(212,175,55,.1)',border:'1px solid rgba(212,175,55,.3)',borderRadius:10,padding:'7px 13px',fontSize:12,fontWeight:700,color:'var(--gold)'}}>
+            {Ic.star} {campaign.campaign_name}
+          </div>
+        )}
+      </div>
+
+      {/* Period Tabs */}
+      <div className="rank-tabs">
+        {['today','7days','month'].map(t => (
+          <div key={t} className={`rank-tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
+            {tabLabels[t]}
+          </div>
+        ))}
+      </div>
+
+      {ranked.filter(r=>r.cars>0).length === 0 ? (
+        <div className="card" style={{textAlign:'center',padding:'48px 24px'}}>
+          <div style={{fontSize:40,marginBottom:12,opacity:.4}}>{Ic.trophy}</div>
+          <div style={{fontSize:16,fontWeight:700,color:'var(--text2)'}}>No washes recorded yet</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginTop:4}}>Get washing to see the leaderboard!</div>
+        </div>
+      ) : (
+        <>
+          {/* ── PODIUM ── */}
+          {ranked.filter(r=>r.cars>0).length >= 2 && (
+            <div className="card mb-4" style={{paddingBottom:0,overflow:'hidden'}}>
+              <div style={{textAlign:'center',fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:20}}>
+                Podium
+              </div>
+              <div className="podium-wrap">
+                {podiumOrder.map((r,idx) => {
+                  if (!r) return <div key={idx} style={{flex:1,maxWidth:140}}></div>;
+                  const isFirst = idx === 1;
+                  const pColors = [posColor[1], posColor[0], posColor[2]];
+                  const pC = pColors[idx];
+                  return (
+                    <div key={r.id} className="podium-slot">
+                      <div className="podium-avatar-wrap">
+                        {isFirst && <div className="podium-crown">&#x1F451;</div>}
+                        <Av emp={r.emp||{full_name:r.name,avatar_color:'#D94A4A'}}
+                          size={isFirst?64:50} fs={isFirst?22:18}
+                          style={{border:`3px solid ${pC}`,borderRadius:'50%'}}
+                        />
+                      </div>
+                      <div style={{fontSize:isFirst?14:12,fontWeight:800,marginBottom:6,color:pC}}>{r.name.split(' ')[0]}</div>
+                      <div className="podium-bar" style={{height:podiumHeights[idx],background:podiumColors[idx],border:`1.5px solid ${podiumBorders[idx]}`,borderBottom:'none'}}>
+                        <div className="podium-cars" style={{color:pC}}>{r.cars}</div>
+                        <div className="podium-cars-label">CARS</div>
+                        <div style={{fontSize:11,color:pC,marginTop:4,fontWeight:700,opacity:.85}}>{peso(r.sales)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── GAP COMPARISON BOARD ── */}
+          {pos1 && pos1.cars > 0 && (
+            <div className="gap-board mb-4">
+              <div className="gap-board-title">
+                <span style={{color:'var(--red)'}}>{Ic.gap}</span>
+                Gap to Leader — {pos1.name.split(' ')[0]}
+              </div>
+
+              {ranked.filter(r=>r.cars>0).map((r, i) => {
+                const pct      = maxCars > 0 ? (r.cars / maxCars) * 100 : 0;
+                const gapCars  = pos1.cars - r.cars;
+                const gapSales = pos1.sales - r.sales;
+                const barColor = i===0 ? 'var(--gold)' : i===1 ? 'var(--silver)' : i===2 ? 'var(--bronze)' : 'var(--red)';
+
+                return (
+                  <div key={r.id} className="gap-row" style={{animationDelay:`${i*.06}s`}}>
+                    <div className="gap-pos" style={{color: i<3?posColor[i]:'var(--text2)'}}>
+                      {i<3 ? posLabel[i] : `#${i+1}`}
+                    </div>
+                    <div className="gap-bar-wrap">
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                        <span style={{fontSize:12,fontWeight:700}}>{r.name}</span>
+                        {i===0 ? (
+                          <span className="gap-behind leading">LEADER</span>
+                        ) : (
+                          <span className="gap-behind">
+                            -{gapCars} car{gapCars!==1?'s':''} · -{peso(gapSales)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="gap-bar-bg">
+                        <div className="gap-bar-fill" style={{width:`${pct}%`,background:barColor,opacity:.85}}>
+                          {pct > 20 && <span className="gap-bar-label">{r.cars} cars</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── COMMISSION CARDS ── */}
+          <div className="card mb-4">
+            <div className="section-title" style={{fontSize:13,marginBottom:16}}>
+              <span style={{color:'var(--gold)'}}>{Ic.bolt}</span> Commission Earned
+            </div>
+            <div className="comm-cards">
+              {ranked.filter(r=>r.cars>0).map((r,i) => (
+                <div key={r.id} className="comm-card" style={{borderColor: i<3 ? `${['rgba(212,175,55,.3)','rgba(184,188,194,.25)','rgba(184,115,51,.25)'][i]}` : 'var(--border)'}}>
+                  <div className="comm-card-rank" style={{color:i<3?posColor[i]:'var(--text2)'}}>{i<3?posLabel[i]:`#${i+1}`}</div>
+                  <div className="comm-card-avatar">
+                    <Av emp={r.emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={44} fs={16} />
+                  </div>
+                  <div className="comm-card-name">{r.name.split(' ')[0]}</div>
+                  <div className="comm-card-comm" style={{color:i<3?posColor[i]:'var(--text)'}}>{peso(r.commission)}</div>
+                  <div className="comm-card-cars">{r.cars} cars · {peso(r.sales)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── FULL RANKED LIST ── */}
+          <div className="card">
+            <div className="section-title" style={{fontSize:13,marginBottom:16}}>
+              Full Standings
+            </div>
+            {ranked.map((r,i) => {
+              const pct = maxCars > 0 ? (r.cars/maxCars)*100 : 0;
+              const bColor = i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--red)';
+              return (
+                <div key={r.id} className={`rank-list-item ${i<3?`pos-${i+1}`:''}`} style={{animationDelay:`${i*.05}s`}}>
+                  <div className="rl-pos" style={{color:i<3?posColor[i]:'var(--text2)',fontSize:i<3?'11px':'12px'}}>{i<3?posLabel[i]:`#${i+1}`}</div>
+                  <Av emp={r.emp||{full_name:r.name}} size={40} fs={14} />
+                  <div className="rl-info">
+                    <div className="rl-name">{r.name}</div>
+                    <div className="rl-bar">
+                      <div className="progress-bar">
+                        <div className="progress-fill" style={{width:`${pct}%`,background:bColor}}></div>
+                      </div>
+                    </div>
+                    <div className="rl-stats">{peso(r.sales)} · comm {peso(r.commission)}</div>
+                  </div>
+                  <div className="rl-right">
+                    <div className="rl-cars" style={{color:bColor}}>{r.cars}</div>
+                    <div className="rl-clabel">cars</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── ACTIVE CAMPAIGN REWARDS ── */}
+          {campaign?.is_active && (
+            <div style={{marginTop:18,background:'rgba(212,175,55,.07)',border:'1px solid rgba(212,175,55,.25)',borderRadius:16,padding:20}}>
+              <div style={{fontWeight:800,fontSize:14,color:'var(--gold)',marginBottom:14}}>Active Campaign Rewards — {campaign.campaign_name}</div>
+              <div className="grid-3" style={{gap:10}}>
+                {[
+                  {pos:'1ST',reward:campaign.first_place_reward,color:posColor[0],emp:ranked[0]},
+                  {pos:'2ND',reward:campaign.second_place_reward,color:posColor[1],emp:ranked[1]},
+                  {pos:'3RD',reward:campaign.third_place_reward, color:posColor[2],emp:ranked[2]},
+                ].map((x,i) => (
+                  <div key={i} style={{background:'rgba(255,255,255,.04)',border:`1px solid ${x.color}30`,borderRadius:12,padding:14,textAlign:'center'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:x.color,marginBottom:6}}>{x.pos} PLACE</div>
+                    {x.emp && x.emp.cars > 0 && <Av emp={x.emp.emp||{full_name:x.emp.name}} size={36} fs={13} />}
+                    <div style={{fontWeight:800,color:x.color,fontSize:18,marginTop:6}}>{peso(x.reward)}</div>
+                    <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{x.emp && x.emp.cars > 0 ? x.emp.name.split(' ')[0] : 'TBD'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════ */
+function Dashboard({ carWashes, employees, services, campaign, setPage }) {
+  const todayStr   = today();
+  const now        = new Date();
+  const todayW     = carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(todayStr));
+  const monthW     = carWashes.filter(w => { const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+  const todaySales = todayW.reduce((s,w)=>s+(w.total_amount||0),0);
+  const todayComm  = todayW.reduce((s,w)=>s+(w.commission_amount||0),0);
+  const monthSales = monthW.reduce((s,w)=>s+(w.total_amount||0),0);
+  const avgSale    = todayW.length>0 ? todaySales/todayW.length : 0;
+
+  const empMap = {};
+  todayW.forEach(w => {
+    if (!empMap[w.employee_id]) empMap[w.employee_id]={name:w.employee_name,id:w.employee_id,cars:0,sales:0};
+    empMap[w.employee_id].cars++;
+    empMap[w.employee_id].sales+=(w.total_amount||0);
+  });
+  const topEmp  = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales)[0];
+  const ranking = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales).slice(0,3);
+  const recent  = [...carWashes].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date)).slice(0,5);
+  const timeNow = now.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const posColors=['var(--gold)','var(--silver)','var(--bronze)'];
+  const posLabels=['1ST','2ND','3RD'];
+
+  return (
+    <div>
+      <div className="hero-header">
+        <div style={{position:'relative',zIndex:1}}>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>{timeNow}</div>
+          <div style={{fontSize:26,fontWeight:900,marginBottom:4}}>Welcome back!</div>
+          <div style={{fontSize:13,color:'var(--text2)'}}>Here's your car wash business overview.</div>
+        </div>
       </div>
 
       <div className="stats-grid">
         {[
-          { label:'Cars Today',       value:todayW.length,   sub:`${monthW.length} this month`,   color:'var(--red)',     stripe:'#D94A4A' },
-          { label:'Sales Today',      value:peso(todaySales),sub:peso(monthSales)+' this month',  color:'var(--success)', stripe:'#3DBE6E' },
-          { label:'Commission Today', value:peso(todayComm), sub:`avg ${peso(avgSale)} / car`,    color:'var(--gold)',    stripe:'#D4AF37' },
-          { label:'Top Today',        value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', color:'var(--silver)', stripe:'#B8BCC2' },
-        ].map((s,i) => (
-          <div key={i} className="stat-card">
-            <div className="stat-stripe" style={{background:s.stripe}}></div>
+          {label:'Cars Today',   value:todayW.length,    sub:`${monthW.length} this month`,   cls:'stat-red',   color:'var(--red)'},
+          {label:'Sales Today',  value:peso(todaySales), sub:`${peso(monthSales)} this month`, cls:'stat-green', color:'var(--success)'},
+          {label:'Commission',   value:peso(todayComm),  sub:`avg ${peso(avgSale)} / car`,     cls:'stat-yellow',color:'var(--gold)'},
+          {label:'Top Today',    value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray',color:'var(--silver)'},
+        ].map((s,i)=>(
+          <div key={i} className={`stat-card ${s.cls}`}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value" style={{color:s.color}}>{s.value}</div>
             <div className="stat-sub">{s.sub}</div>
@@ -445,39 +774,37 @@ function Dashboard({ carWashes, employees, campaign, setPage }) {
 
       <div className="grid-2">
         <div className="card">
-          <div className="section-title">Today's Ranking</div>
-          {ranking.length === 0
-            ? <div style={{textAlign:'center',padding:'20px 0',color:'var(--text2)',fontSize:13}}>No transactions today yet</div>
+          <div className="section-title">Today's Top Washers</div>
+          {ranking.length===0
+            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions today yet</div>
             : ranking.map((r,i) => {
-                const emp = employees.find(e => e.id === r.id);
+                const emp = employees.find(e=>e.id===r.id);
                 return (
-                  <div key={i} className={`rank-card rank-pos-${i+1}`}>
-                    <div className="rank-num">{i===0?'1ST':i===1?'2ND':'3RD'}</div>
-                    <Avatar employee={emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={38} fontSize={14} />
-                    <div className="rank-info">
-                      <div className="rank-name">{r.name}</div>
-                      <div className="rank-stat">{peso(r.sales)}</div>
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                    <div style={{fontSize:11,fontWeight:800,color:posColors[i],minWidth:28,textAlign:'center'}}>{posLabels[i]}</div>
+                    <Av emp={emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={36} fs={13} />
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:700}}>{r.name}</div>
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{peso(r.sales)}</div>
                     </div>
-                    <div style={{textAlign:'right'}}>
-                      <div className="rank-cars">{r.cars}</div>
-                      <div className="rank-label">cars</div>
-                    </div>
+                    <div style={{fontSize:18,fontWeight:900,color:posColors[i]}}>{r.cars}</div>
+                    <div style={{fontSize:10,color:'var(--text2)'}}>cars</div>
                   </div>
                 );
               })
           }
-          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:8}} onClick={()=>setPage('ranking')}>Full Rankings</button>
+          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('ranking')}>Full Leaderboard</button>
         </div>
 
         <div className="card">
           <div className="section-title">Recent Transactions</div>
-          {recent.length === 0
-            ? <div style={{textAlign:'center',padding:'20px 0',color:'var(--text2)',fontSize:13}}>No transactions yet.</div>
-            : recent.map((w,i) => {
-                const emp = employees.find(e => e.id === w.employee_id);
+          {recent.length===0
+            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions yet.</div>
+            : recent.map((w,i)=>{
+                const emp=employees.find(e=>e.id===w.employee_id);
                 return (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
-                    <Avatar employee={emp||{full_name:w.employee_name,avatar_color:'#D94A4A'}} size={34} fontSize={12} />
+                    <Av emp={emp||{full_name:w.employee_name}} size={32} fs={12} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:600}}>{w.employee_name}</div>
                       <div style={{fontSize:11,color:'var(--text2)'}}>{fmtTime(w.created_date)} · {w.services?.length||0} svc</div>
@@ -492,85 +819,86 @@ function Dashboard({ carWashes, employees, campaign, setPage }) {
       </div>
 
       {campaign?.is_active && (
-        <div style={{marginTop:14,background:'var(--bg2)',border:'1px solid rgba(212,175,55,0.3)',borderRadius:12,padding:16}}>
-          <div style={{fontWeight:800,color:'var(--gold)',marginBottom:4,fontSize:13}}>Active Campaign — {campaign.campaign_name}</div>
-          <div style={{display:'flex',gap:20,fontSize:12,color:'var(--text2)'}}>
-            <span>1st: <b style={{color:'var(--gold)'}}>{peso(campaign.first_place_reward)}</b></span>
-            <span>2nd: <b style={{color:'var(--silver)'}}>{peso(campaign.second_place_reward)}</b></span>
-            <span>3rd: <b style={{color:'var(--bronze)'}}>{peso(campaign.third_place_reward)}</b></span>
+        <div style={{marginTop:16,background:'rgba(212,175,55,.08)',border:'1px solid rgba(212,175,55,.25)',borderRadius:16,padding:18}}>
+          <div style={{fontWeight:800,color:'var(--gold)',marginBottom:10,fontSize:14}}>Active Campaign — {campaign.campaign_name}</div>
+          <div style={{display:'flex',gap:10}}>
+            {[{pos:'1st',r:campaign.first_place_reward,c:'var(--gold)'},{pos:'2nd',r:campaign.second_place_reward,c:'var(--silver)'},{pos:'3rd',r:campaign.third_place_reward,c:'var(--bronze)'}].map((x,i)=>(
+              <div key={i} style={{flex:1,background:'rgba(255,255,255,.04)',border:`1px solid ${x.c}30`,borderRadius:10,padding:12,textAlign:'center'}}>
+                <div style={{fontWeight:800,color:x.c,fontSize:16}}>{peso(x.r)}</div>
+                <div style={{fontSize:11,color:'var(--text2)'}}>{x.pos} Place</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      <div style={{marginTop:16,textAlign:'center'}}>
+        <button className="btn btn-primary btn-lg" onClick={()=>setPage('record')} style={{gap:10}}>
+          {Ic.plus} Record New Car Wash
+        </button>
+      </div>
     </div>
   );
 }
 
-/* ── RECORD CAR WASH ── */
+/* ═══════════════════════════════════════════
+   RECORD CAR WASH
+═══════════════════════════════════════════ */
 function RecordCarWash({ employees, services, onSave, showToast }) {
-  const [customerName,   setCustomerName]   = useState('');
-  const [plateNumber,    setPlateNumber]    = useState('');
-  const [selectedSvcs,   setSelectedSvcs]   = useState([]);
-  const [selectedEmp,    setSelectedEmp]    = useState(null);
-  const [amountPaid,     setAmountPaid]     = useState('');
-  const [saving,         setSaving]         = useState(false);
-  const [showSuccess,    setShowSuccess]    = useState(false);
+  const [selectedSvcs, setSelectedSvcs] = useState([]);
+  const [selectedEmp,  setSelectedEmp]  = useState(null);
+  const [custName,     setCustName]     = useState('');
+  const [plate,        setPlate]        = useState('');
+  const [amtPaid,      setAmtPaid]      = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const [showOK,       setShowOK]       = useState(false);
 
-  const activeSvcs = services.filter(s => s.is_active);
-  const activeEmps = employees.filter(e => e.is_active);
-  const total      = selectedSvcs.reduce((s,v) => s+(v.price||0), 0);
-  const commRate   = selectedEmp?.commission_percentage || 0;
-  const commAmt    = (total * commRate) / 100;
+  const activeSvcs = services.filter(s=>s.is_active);
+  const activeEmps = employees.filter(e=>e.is_active);
+  const total   = selectedSvcs.reduce((s,v)=>s+(v.price||0),0);
+  const commR   = selectedEmp?.commission_percentage||0;
+  const commAmt = (total*commR)/100;
 
-  const toggle = svc => setSelectedSvcs(prev =>
-    prev.find(s=>s.id===svc.id) ? prev.filter(s=>s.id!==svc.id) : [...prev,svc]
-  );
+  const toggleSvc = svc => setSelectedSvcs(p => p.find(s=>s.id===svc.id) ? p.filter(s=>s.id!==svc.id) : [...p,svc]);
 
-  const reset = () => {
-    setCustomerName(''); setPlateNumber('');
-    setSelectedSvcs([]); setSelectedEmp(null); setAmountPaid('');
-  };
+  const reset = () => { setSelectedSvcs([]); setSelectedEmp(null); setCustName(''); setPlate(''); setAmtPaid(''); };
 
   const handleSave = async () => {
-    if (!selectedEmp)          return showToast('Select an employee', 'warning');
-    if (!selectedSvcs.length)  return showToast('Select at least one service', 'warning');
+    if (!selectedEmp)       return showToast('Select an employee','warning');
+    if (!selectedSvcs.length) return showToast('Select at least one service','warning');
     setSaving(true);
     try {
-      const data = {
-        customer_name:    customerName,
-        plate_number:     plateNumber,
-        employee_id:      selectedEmp.id,
-        employee_name:    selectedEmp.full_name,
-        services:         selectedSvcs,
-        total_amount:     total,
-        amount_paid:      parseFloat(amountPaid) || total,
-        commission_rate:  commRate,
-        commission_amount:commAmt,
-        transaction_date: new Date().toISOString(),
-      };
-      const saved = await api('create','CarWash',{data});
+      const saved = await api('create','CarWash',{data:{
+        customer_name:custName, plate_number:plate,
+        employee_id:selectedEmp.id, employee_name:selectedEmp.full_name,
+        services:selectedSvcs, total_amount:total,
+        amount_paid:parseFloat(amtPaid)||total,
+        commission_rate:commR, commission_amount:commAmt,
+        transaction_date:new Date().toISOString(),
+      }});
       onSave(saved);
-      setShowSuccess(true);
-      setTimeout(() => { setShowSuccess(false); reset(); }, 2800);
+      setShowOK(true);
+      setTimeout(()=>{setShowOK(false);reset();},2800);
     } catch(e) { showToast('Error: '+e.message,'error'); }
     finally { setSaving(false); }
   };
 
-  if (showSuccess) return (
+  if (showOK) return (
     <div className="success-overlay">
       <div className="success-card">
-        <div style={{width:64,height:64,background:'rgba(61,190,110,.15)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="32" height="32"><polyline points="20 6 9 17 4 12"/></svg>
+        <div style={{width:64,height:64,background:'rgba(34,197,94,.15)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="34" height="34"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <div style={{fontSize:20,fontWeight:900,marginBottom:6}}>Wash Recorded!</div>
-        <div style={{color:'var(--text2)',fontSize:13,marginBottom:20}}>Transaction saved successfully.</div>
-        <div style={{background:'var(--bg3)',borderRadius:10,padding:14}}>
+        <div style={{color:'var(--text2)',fontSize:13,marginBottom:18}}>Transaction saved successfully.</div>
+        <div style={{background:'var(--glass)',borderRadius:12,padding:14,border:'1px solid var(--border)'}}>
           <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
             <span style={{color:'var(--text2)',fontSize:12}}>Total</span>
-            <span style={{fontWeight:800,color:'var(--text)',fontSize:16}}>{peso(total)}</span>
+            <span style={{fontWeight:800,fontSize:17,color:'var(--red)'}}>{peso(total)}</span>
           </div>
           <div style={{display:'flex',justifyContent:'space-between'}}>
             <span style={{color:'var(--text2)',fontSize:12}}>Commission</span>
-            <span style={{fontWeight:700,color:'var(--success)',fontSize:14}}>{peso(commAmt)}</span>
+            <span style={{fontWeight:700,color:'var(--success)'}}>{peso(commAmt)}</span>
           </div>
         </div>
         <div style={{color:'var(--text2)',fontSize:11,marginTop:12}}>Ready for next customer...</div>
@@ -582,33 +910,33 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
 
   return (
     <div>
-      <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:14,marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:14,padding:14,marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div style={{fontWeight:700,fontSize:14}}>Quick Entry</div>
         <div style={{fontSize:11,color:'var(--text2)'}}>{timeStr}</div>
       </div>
 
       <div className="card mb-4">
-        <div className="section-title" style={{fontSize:13,marginBottom:10}}>Customer Info <span style={{fontWeight:400,color:'var(--text2)',fontSize:11}}>(optional)</span></div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:12,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.5px',fontSize:11}}>Customer Info <span style={{fontWeight:400}}>(optional)</span></div>
         <div className="grid-2">
           <div className="form-group" style={{marginBottom:0}}>
             <label className="form-label">Customer Name</label>
-            <input className="form-input" placeholder="Juan dela Cruz" value={customerName} onChange={e=>setCustomerName(e.target.value)} />
+            <input className="form-input" placeholder="Juan dela Cruz" value={custName} onChange={e=>setCustName(e.target.value)} />
           </div>
           <div className="form-group" style={{marginBottom:0}}>
             <label className="form-label">Plate Number</label>
-            <input className="form-input" placeholder="ABC 1234" value={plateNumber} onChange={e=>setPlateNumber(e.target.value.toUpperCase())} />
+            <input className="form-input" placeholder="ABC 1234" value={plate} onChange={e=>setPlate(e.target.value.toUpperCase())} />
           </div>
         </div>
       </div>
 
       <div className="card mb-4">
-        <div className="section-title" style={{fontSize:13,marginBottom:10}}>Select Services</div>
+        <div style={{fontWeight:700,fontSize:11,marginBottom:12,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.5px'}}>Select Services</div>
         <div className="service-grid">
           {activeSvcs.map(svc => {
             const sel = selectedSvcs.find(s=>s.id===svc.id);
             return (
-              <div key={svc.id} className={`service-item ${sel?'selected':''}`} onClick={()=>toggle(svc)}>
-                <div className="svc-check">{Ic.check}</div>
+              <div key={svc.id} className={`service-item ${sel?'selected':''}`} onClick={()=>toggleSvc(svc)}>
+                <div className="svc-check">{sel && Ic.check}</div>
                 <div style={{flex:1}}>
                   <div className="svc-name">{svc.name}</div>
                   <div className="svc-price">{peso(svc.price)}</div>
@@ -620,11 +948,11 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
       </div>
 
       <div className="card mb-4">
-        <div className="section-title" style={{fontSize:13,marginBottom:10}}>Who did the wash?</div>
+        <div style={{fontWeight:700,fontSize:11,marginBottom:12,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.5px'}}>Who did the wash?</div>
         <div className="emp-grid">
           {activeEmps.map(emp => (
             <div key={emp.id} className={`emp-card ${selectedEmp?.id===emp.id?'selected':''}`} onClick={()=>setSelectedEmp(emp)}>
-              <Avatar employee={emp} size={48} fontSize={17} />
+              <Av emp={emp} size={48} fs={17} />
               <div className="emp-name">{emp.full_name.split(' ')[0]}</div>
               <div className="emp-comm">{emp.commission_percentage}%</div>
             </div>
@@ -632,23 +960,22 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         </div>
       </div>
 
-      {(selectedSvcs.length > 0 || selectedEmp) && (
+      {(selectedSvcs.length>0||selectedEmp) && (
         <div className="summary-box mb-4">
-          <div style={{fontWeight:700,fontSize:12,marginBottom:10,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.5px'}}>Summary</div>
-          {selectedSvcs.map(s => (
+          <div style={{fontWeight:700,fontSize:11,marginBottom:10,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.5px'}}>Summary</div>
+          {selectedSvcs.map(s=>(
             <div key={s.id} className="summary-row">
-              <span className="lbl">{s.name}</span>
-              <span className="val">{peso(s.price)}</span>
+              <span className="lbl">{s.name}</span><span className="val">{peso(s.price)}</span>
             </div>
           ))}
           <hr className="divider" />
           <div className="summary-row">
             <span className="lbl">Total</span>
-            <span className="val" style={{fontSize:17,color:'var(--red)'}}>{peso(total)}</span>
+            <span className="val" style={{fontSize:18,color:'var(--red)'}}>{peso(total)}</span>
           </div>
           {selectedEmp && (
             <div className="summary-row">
-              <span className="lbl">Commission ({commRate}%)</span>
+              <span className="lbl">Commission ({commR}%)</span>
               <span className="val" style={{color:'var(--success)'}}>{peso(commAmt)}</span>
             </div>
           )}
@@ -658,8 +985,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
       <div className="card mb-4">
         <div className="form-group" style={{marginBottom:0}}>
           <label className="form-label">Amount Paid</label>
-          <input className="form-input" type="number" placeholder={total||0} value={amountPaid} onChange={e=>setAmountPaid(e.target.value)}
-            style={{fontSize:22,fontWeight:800,textAlign:'center',padding:14}} />
+          <input className="form-input" type="number" placeholder={total||0} value={amtPaid} onChange={e=>setAmtPaid(e.target.value)} style={{fontSize:24,fontWeight:800,textAlign:'center',padding:16}} />
         </div>
       </div>
 
@@ -670,105 +996,71 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
   );
 }
 
-/* ── TRANSACTIONS ── */
+/* ═══════════════════════════════════════════
+   TRANSACTIONS
+═══════════════════════════════════════════ */
 function Transactions({ carWashes, employees, onDelete, showToast }) {
   const [filter,  setFilter]  = useState('today');
   const [search,  setSearch]  = useState('');
   const [confirm, setConfirm] = useState(null);
-  const now      = new Date();
-  const todayStr = today();
+  const now=new Date(), todayStr=today();
 
   const filtered = carWashes.filter(w => {
-    const d       = new Date(w.transaction_date||w.created_date);
-    const dateStr = (w.transaction_date||w.created_date||'').substring(0,10);
-    let pass = filter==='today' ? dateStr===todayStr
-             : filter==='week'  ? d >= new Date(now - 7*86400000)
-             : filter==='month' ? (d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear())
-             : true;
-    if (search) {
-      const q = search.toLowerCase();
-      pass = pass && (w.employee_name?.toLowerCase().includes(q)||w.customer_name?.toLowerCase().includes(q)||w.plate_number?.toLowerCase().includes(q));
-    }
+    const d=new Date(w.transaction_date||w.created_date), dStr=(w.transaction_date||w.created_date||'').substring(0,10);
+    let pass = filter==='today'?dStr===todayStr:filter==='week'?d>=new Date(now-7*86400000):filter==='month'?(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()):true;
+    if (search) { const q=search.toLowerCase(); pass=pass&&(w.employee_name?.toLowerCase().includes(q)||w.customer_name?.toLowerCase().includes(q)||w.plate_number?.toLowerCase().includes(q)); }
     return pass;
-  }).sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
+  }).sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
 
-  const totalSales = filtered.reduce((s,w) => s+(w.total_amount||0), 0);
-  const totalComm  = filtered.reduce((s,w) => s+(w.commission_amount||0), 0);
+  const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
+  const tComm=filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
 
-  const handleDelete = async id => {
-    try {
-      await api('delete','CarWash',{id});
-      onDelete(id);
-      showToast('Transaction deleted','success');
-      setConfirm(null);
-    } catch(e) { showToast('Error: '+e.message,'error'); }
+  const handleDelete=async id=>{
+    try { await api('delete','CarWash',{id}); onDelete(id); showToast('Deleted','success'); setConfirm(null); }
+    catch(e){showToast('Error: '+e.message,'error');}
   };
 
   return (
     <div>
       <div className="flex-between mb-4">
         <div className="section-title" style={{marginBottom:0}}>Transactions</div>
-        <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} records · {peso(totalSales)}</div>
+        <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} records · {peso(tSales)}</div>
       </div>
-
       <div className="tabs">
-        {['today','week','month','all'].map(t => (
-          <div key={t} className={`tab ${filter===t?'active':''}`} onClick={()=>setFilter(t)}>
-            {t.charAt(0).toUpperCase()+t.slice(1)}
-          </div>
+        {['today','week','month','all'].map(t=>(
+          <div key={t} className={`tab ${filter===t?'active':''}`} onClick={()=>setFilter(t)}>{t.charAt(0).toUpperCase()+t.slice(1)}</div>
         ))}
       </div>
-
       <div className="form-group mb-4" style={{position:'relative'}}>
-        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',width:15,height:15,color:'var(--text2)'}}>{Ic.search}</div>
+        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>{Ic.search}</div>
         <input className="form-input" placeholder="Search employee, customer, plate..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}} />
       </div>
-
-      <div className="grid-3 mb-4">
-        {[
-          { label:'Cars',       value:filtered.length,    color:'var(--red)' },
-          { label:'Revenue',    value:peso(totalSales),   color:'var(--success)' },
-          { label:'Commission', value:peso(totalComm),    color:'var(--gold)' },
-        ].map((s,i) => (
-          <div key={i} className="stat-card" style={{padding:12}}>
-            <div className="stat-label">{s.label}</div>
-            <div className="stat-value" style={{fontSize:18,color:s.color}}>{s.value}</div>
+      <div className="stats-grid" style={{gridTemplateColumns:'1fr 1fr 1fr',marginBottom:16}}>
+        {[{l:'Cars',v:filtered.length,c:'var(--red)',cls:'stat-red'},{l:'Revenue',v:peso(tSales),c:'var(--success)',cls:'stat-green'},{l:'Commission',v:peso(tComm),c:'var(--gold)',cls:'stat-yellow'}].map((s,i)=>(
+          <div key={i} className={`stat-card ${s.cls}`} style={{padding:14}}>
+            <div className="stat-label">{s.l}</div>
+            <div className="stat-value" style={{fontSize:20,color:s.c}}>{s.v}</div>
           </div>
         ))}
       </div>
-
       <div className="card">
         <div className="table-wrap">
           <table>
-            <thead><tr>
-              <th>Date / Time</th><th>Employee</th><th>Plate</th><th>Services</th><th>Total</th><th>Comm.</th><th></th>
-            </tr></thead>
+            <thead><tr><th>Date / Time</th><th>Employee</th><th>Plate</th><th>Services</th><th>Total</th><th>Comm.</th><th></th></tr></thead>
             <tbody>
-              {filtered.length === 0
+              {filtered.length===0
                 ? <tr><td colSpan={7} style={{textAlign:'center',padding:28,color:'var(--text2)'}}>No transactions found.</td></tr>
-                : filtered.map(w => {
-                    const emp = employees.find(e=>e.id===w.employee_id);
+                : filtered.map(w=>{
+                    const emp=employees.find(e=>e.id===w.employee_id);
                     return (
                       <tr key={w.id}>
-                        <td style={{fontSize:11}}>
-                          <div>{fmt(w.transaction_date||w.created_date)}</div>
-                          <div style={{color:'var(--text2)'}}>{fmtTime(w.transaction_date||w.created_date)}</div>
-                        </td>
-                        <td>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <Avatar employee={emp||{full_name:w.employee_name}} size={28} fontSize={10} />
-                            <span style={{fontWeight:600}}>{w.employee_name}</span>
-                          </div>
-                        </td>
+                        <td style={{fontSize:11}}><div>{fmt(w.transaction_date||w.created_date)}</div><div style={{color:'var(--text2)'}}>{fmtTime(w.transaction_date||w.created_date)}</div></td>
+                        <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:w.employee_name}} size={26} fs={10} /><span style={{fontWeight:600}}>{w.employee_name}</span></div></td>
                         <td style={{fontWeight:600}}>{w.plate_number||'—'}</td>
                         <td style={{color:'var(--text2)'}}>{(w.services||[]).map(s=>s.name).join(', ')||'—'}</td>
                         <td style={{fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</td>
                         <td style={{color:'var(--success)'}}>{peso(w.commission_amount)}</td>
-                        <td>
-                          <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>
-                            {Ic.trash}
-                          </button>
-                        </td>
+                        <td><button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button></td>
                       </tr>
                     );
                   })
@@ -777,12 +1069,11 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
           </table>
         </div>
       </div>
-
       {confirm && (
         <div className="modal-overlay" onClick={()=>setConfirm(null)}>
-          <div className="modal" style={{maxWidth:340}} onClick={e=>e.stopPropagation()}>
-            <div className="modal-title">Delete Transaction?</div>
-            <p style={{color:'var(--text2)',fontSize:13,marginBottom:20}}>This action cannot be undone.</p>
+          <div className="modal" style={{maxWidth:320}} onClick={e=>e.stopPropagation()}>
+            <div className="modal-title">Delete this transaction?</div>
+            <p style={{color:'var(--text2)',fontSize:13,marginBottom:18}}>This cannot be undone.</p>
             <div style={{display:'flex',gap:10}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirm(null)}>Cancel</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={()=>handleDelete(confirm)}>Delete</button>
@@ -794,128 +1085,54 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
   );
 }
 
-/* ── RANKING ── */
-function Ranking({ carWashes, employees, campaign }) {
-  const [mode, setMode] = useState('daily');
-  const now      = new Date();
-  const todayStr = today();
-
-  const filtered = mode === 'daily'
-    ? carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(todayStr))
-    : carWashes.filter(w => {
-        const d = new Date(w.transaction_date||w.created_date);
-        return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-      });
-
-  const empMap = {};
-  employees.filter(e=>e.is_active).forEach(e => {
-    empMap[e.id] = { id:e.id, name:e.full_name, cars:0, sales:0, commission:0 };
-  });
-  filtered.forEach(w => {
-    if (empMap[w.employee_id]) {
-      empMap[w.employee_id].cars++;
-      empMap[w.employee_id].sales      += (w.total_amount||0);
-      empMap[w.employee_id].commission += (w.commission_amount||0);
-    }
-  });
-  const ranked = Object.values(empMap).sort((a,b) => b.cars-a.cars||b.sales-a.sales);
-  const maxCars = ranked[0]?.cars || 1;
-
-  const posColors = ['var(--gold)','var(--silver)','var(--bronze)'];
-  const posLabels = ['1ST','2ND','3RD'];
-
-  return (
-    <div>
-      <div className="flex-between mb-4">
-        <div className="section-title" style={{marginBottom:0}}>Rankings</div>
-        {campaign?.is_active && <span className="badge badge-gold">{campaign.campaign_name}</span>}
-      </div>
-
-      <div className="tabs" style={{maxWidth:300}}>
-        <div className={`tab ${mode==='daily'?'active':''}`}   onClick={()=>setMode('daily')}>Today</div>
-        <div className={`tab ${mode==='monthly'?'active':''}`} onClick={()=>setMode('monthly')}>This Month</div>
-      </div>
-
-      {ranked.map((r,i) => {
-        const emp = employees.find(e=>e.id===r.id);
-        const pct = maxCars > 0 ? (r.cars/maxCars)*100 : 0;
-        return (
-          <div key={r.id} className={`rank-card${i<3?' rank-pos-'+(i+1):''}`} style={{animation:`fadeUp ${.1+i*.06}s ease`}}>
-            <div className="rank-num" style={{fontSize:11,fontWeight:800,color:i<3?posColors[i]:'var(--text2)'}}>
-              {i<3 ? posLabels[i] : `#${i+1}`}
-            </div>
-            <Avatar employee={emp||{full_name:r.name}} size={42} fontSize={15} />
-            <div style={{flex:1}}>
-              <div className="rank-name">{r.name}</div>
-              <div className="rank-stat" style={{marginBottom:4}}>{peso(r.sales)} · comm {peso(r.commission)}</div>
-              <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%',background:i<3?posColors[i]:'var(--bg3)'}}></div></div>
-            </div>
-            <div style={{textAlign:'right',minWidth:40}}>
-              <div className="rank-cars">{r.cars}</div>
-              <div className="rank-label">cars</div>
-            </div>
-          </div>
-        );
-      })}
-
-      {ranked.length===0 && <div style={{textAlign:'center',padding:'32px 0',color:'var(--text2)',fontSize:13}}>No data yet for this period.</div>}
-    </div>
-  );
-}
-
-/* ── EMPLOYEES ── */
+/* ═══════════════════════════════════════════
+   EMPLOYEES
+═══════════════════════════════════════════ */
 function Employees({ employees, carWashes, showToast, onRefresh }) {
-  const [showModal, setShowModal] = useState(false);
-  const [editing,   setEditing]   = useState(null);
-  const [viewEmp,   setViewEmp]   = useState(null);
-  const [saving,    setSaving]    = useState(false);
-  const [form, setForm] = useState({ full_name:'', contact_number:'', commission_percentage:40, is_active:true, avatar_color:'#D94A4A', avatar_url:'' });
-  const [previewUrl, setPreviewUrl] = useState('');
-  const fileRef = useRef();
+  const [showModal,setShowModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [viewEmp,setViewEmp]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:''});
+  const [preview,setPreview]=useState('');
+  const fileRef=useRef();
+  const COLORS=['#D94A4A','#22C55E','#D4AF37','#B8BCC2','#B87333','#6C63FF','#E91E8C','#00BCD4'];
 
-  const COLORS = ['#D94A4A','#3DBE6E','#D4AF37','#B8BCC2','#B87333','#6C63FF','#E91E8C','#00BCD4'];
+  const openAdd =()=>{setEditing(null);setForm({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:''});setPreview('');setShowModal(true);};
+  const openEdit=emp=>{setEditing(emp);setForm({...emp,avatar_url:emp.avatar_url||''});setPreview(emp.avatar_url||'');setShowModal(true);};
 
-  const openAdd  = () => { setEditing(null); setForm({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:''}); setPreviewUrl(''); setShowModal(true); };
-  const openEdit = emp => { setEditing(emp); setForm({...emp}); setPreviewUrl(emp.avatar_url||''); setShowModal(true); };
-
-  const handleImgChange = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => { setPreviewUrl(ev.target.result); setForm(f=>({...f, avatar_url:ev.target.result})); };
-    reader.readAsDataURL(file);
+  const handleImg=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=ev=>{setPreview(ev.target.result);setForm(x=>({...x,avatar_url:ev.target.result}));};
+    r.readAsDataURL(f);
   };
 
-  const handleSave = async () => {
+  const handleSave=async()=>{
     if (!form.full_name.trim()) return showToast('Enter employee name','warning');
     setSaving(true);
     try {
-      if (editing) await api('update','Employee',{id:editing.id, data:form});
-      else         await api('create','Employee',{data:form});
-      await onRefresh();
-      setShowModal(false);
+      if(editing) await api('update','Employee',{id:editing.id,data:form});
+      else        await api('create','Employee',{data:form});
+      await onRefresh(); setShowModal(false);
       showToast(editing?'Employee updated!':'Employee added!','success');
-    } catch(e) { showToast('Error: '+e.message,'error'); }
-    finally { setSaving(false); }
+    } catch(e){showToast('Error: '+e.message,'error');}
+    finally{setSaving(false);}
   };
 
-  const toggleActive = async emp => {
-    try {
-      await api('update','Employee',{id:emp.id, data:{is_active:!emp.is_active}});
-      await onRefresh();
-      showToast(`${emp.full_name} ${emp.is_active?'deactivated':'activated'}`,'success');
-    } catch(e) { showToast('Error','error'); }
+  const toggleActive=async emp=>{
+    try{await api('update','Employee',{id:emp.id,data:{is_active:!emp.is_active}});await onRefresh();showToast(`${emp.full_name} ${emp.is_active?'deactivated':'activated'}`,'success');}
+    catch(e){showToast('Error','error');}
   };
 
-  const getStats = id => {
-    const ws = carWashes.filter(w=>w.employee_id===id);
-    const now = new Date();
+  const getStats=id=>{
+    const ws=carWashes.filter(w=>w.employee_id===id),now=new Date();
     return {
-      total: ws.length,
-      today: ws.filter(w=>(w.transaction_date||w.created_date||'').startsWith(today())).length,
-      month: ws.filter(w=>{ const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).length,
-      sales: ws.reduce((s,w)=>s+(w.total_amount||0),0),
-      comm:  ws.reduce((s,w)=>s+(w.commission_amount||0),0),
+      total:ws.length,
+      today:ws.filter(w=>(w.transaction_date||w.created_date||'').startsWith(today())).length,
+      month:ws.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length,
+      sales:ws.reduce((s,w)=>s+(w.total_amount||0),0),
+      comm:ws.reduce((s,w)=>s+(w.commission_amount||0),0),
     };
   };
 
@@ -925,33 +1142,29 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
         <div className="section-title" style={{marginBottom:0}}>Employees</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} Add Employee</button>
       </div>
-
       <div className="grid-2">
-        {employees.map(emp => {
-          const s = getStats(emp.id);
+        {employees.map(emp=>{
+          const s=getStats(emp.id);
           return (
             <div key={emp.id} className="card" style={{cursor:'pointer'}} onClick={()=>setViewEmp(emp)}>
-              <div className="flex-between mb-3">
+              <div className="flex-between mb-4">
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
-                  <Avatar employee={emp} size={46} fontSize={16} />
-                  <div>
-                    <div style={{fontWeight:800,fontSize:14}}>{emp.full_name}</div>
-                    <div style={{fontSize:11,color:'var(--text2)'}}>{emp.contact_number||'—'}</div>
-                  </div>
+                  <Av emp={emp} size={48} fs={17} />
+                  <div><div style={{fontWeight:800,fontSize:15}}>{emp.full_name}</div><div style={{fontSize:12,color:'var(--text2)'}}>{emp.contact_number||'—'}</div></div>
                 </div>
                 <span className={`badge ${emp.is_active?'badge-green':'badge-red'}`}>{emp.is_active?'Active':'Inactive'}</span>
               </div>
-              <div className="grid-3 mb-3" style={{gap:8}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
                 {[{l:'Today',v:s.today,c:'var(--red)'},{l:'Month',v:s.month,c:'var(--success)'},{l:'Comm%',v:emp.commission_percentage+'%',c:'var(--gold)'}].map((x,i)=>(
-                  <div key={i} style={{background:'var(--bg3)',borderRadius:8,padding:8,textAlign:'center'}}>
+                  <div key={i} style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
                     <div style={{fontSize:15,fontWeight:800,color:x.c}}>{x.v}</div>
                     <div style={{fontSize:10,color:'var(--text2)'}}>{x.l}</div>
                   </div>
                 ))}
               </div>
               <div style={{display:'flex',gap:8}}>
-                <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={e=>{e.stopPropagation();openEdit(emp)}}>{Ic.edit} Edit</button>
-                <button className={`btn btn-sm ${emp.is_active?'btn-danger':'btn-success'}`} style={{flex:1}} onClick={e=>{e.stopPropagation();toggleActive(emp)}}>
+                <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={e=>{e.stopPropagation();openEdit(emp);}}>{Ic.edit} Edit</button>
+                <button className={`btn btn-sm ${emp.is_active?'btn-danger':''}`} style={{flex:1,background:emp.is_active?undefined:'rgba(34,197,94,.15)',color:emp.is_active?undefined:'var(--success)',border:emp.is_active?undefined:'1px solid rgba(34,197,94,.2)'}} onClick={e=>{e.stopPropagation();toggleActive(emp);}}>
                   {emp.is_active?'Deactivate':'Activate'}
                 </button>
               </div>
@@ -960,79 +1173,37 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
         })}
       </div>
 
-      {/* Add / Edit Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-title">{editing?'Edit Employee':'Add Employee'}</div>
-
-            {/* Avatar Upload */}
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:18}}>
-              <div style={{position:'relative',marginBottom:8}}>
-                <div style={{
-                  width:72, height:72, borderRadius:'50%',
-                  background: previewUrl ? 'transparent' : form.avatar_color,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  color:'white', fontWeight:800, fontSize:24, overflow:'hidden',
-                  border:'2px dashed rgba(255,255,255,.15)', cursor:'pointer'
-                }} onClick={()=>fileRef.current?.click()}>
-                  {previewUrl
-                    ? <img src={previewUrl} style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                    : initials(form.full_name||'?')
-                  }
+              <div style={{position:'relative',marginBottom:6}}>
+                <div style={{width:72,height:72,borderRadius:'50%',background:preview?'transparent':form.avatar_color,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:24,overflow:'hidden',cursor:'pointer',border:'2px dashed rgba(255,255,255,.15)'}} onClick={()=>fileRef.current?.click()}>
+                  {preview ? <img src={preview} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(form.full_name||'?')}
                 </div>
-                <div style={{
-                  position:'absolute',bottom:0,right:0,width:22,height:22,
-                  background:'var(--red)',borderRadius:'50%',display:'flex',
-                  alignItems:'center',justifyContent:'center',cursor:'pointer'
-                }} onClick={()=>fileRef.current?.click()}>
+                <div style={{position:'absolute',bottom:0,right:0,width:22,height:22,background:'var(--red)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}} onClick={()=>fileRef.current?.click()}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 </div>
-                <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleImgChange} />
+                <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleImg} />
               </div>
-              <div style={{fontSize:11,color:'var(--text2)'}}>Click avatar to upload photo</div>
+              <div style={{fontSize:11,color:'var(--text2)'}}>Click to upload photo</div>
             </div>
-
-            {/* Color Picker */}
-            {!previewUrl && (
+            {!preview && (
               <div className="form-group">
                 <label className="form-label">Avatar Color</label>
                 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                  {COLORS.map(c => (
-                    <div key={c} onClick={()=>setForm({...form,avatar_color:c})} style={{
-                      width:28, height:28, borderRadius:'50%', background:c, cursor:'pointer',
-                      outline: form.avatar_color===c ? '2px solid white' : '2px solid transparent',
-                      outlineOffset:2, transition:'all .15s'
-                    }}></div>
+                  {COLORS.map(c=>(
+                    <div key={c} onClick={()=>setForm({...form,avatar_color:c})} style={{width:28,height:28,borderRadius:'50%',background:c,cursor:'pointer',outline:form.avatar_color===c?'2px solid white':'2px solid transparent',outlineOffset:2,transition:'all .15s'}}></div>
                   ))}
                 </div>
               </div>
             )}
-            {previewUrl && (
-              <div className="form-group">
-                <button className="btn btn-ghost btn-sm" onClick={()=>{setPreviewUrl('');setForm(f=>({...f,avatar_url:''}));}}>Remove photo</button>
-              </div>
-            )}
-
-            <div className="form-group">
-              <label className="form-label">Full Name *</label>
-              <input className="form-input" value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="Juan dela Cruz" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Contact Number</label>
-              <input className="form-input" value={form.contact_number} onChange={e=>setForm({...form,contact_number:e.target.value})} placeholder="09XXXXXXXXX" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Commission %</label>
-              <input className="form-input" type="number" min="0" max="100" value={form.commission_percentage} onChange={e=>setForm({...form,commission_percentage:parseFloat(e.target.value)})} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </div>
+            {preview && <div className="form-group"><button className="btn btn-ghost btn-sm" onClick={()=>{setPreview('');setForm(f=>({...f,avatar_url:''}));}}>Remove photo</button></div>}
+            <div className="form-group"><label className="form-label">Full Name *</label><input className="form-input" value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="Juan dela Cruz" /></div>
+            <div className="form-group"><label className="form-label">Contact Number</label><input className="form-input" value={form.contact_number} onChange={e=>setForm({...form,contact_number:e.target.value})} placeholder="09XXXXXXXXX" /></div>
+            <div className="form-group"><label className="form-label">Commission %</label><input className="form-input" type="number" min="0" max="100" value={form.commission_percentage} onChange={e=>setForm({...form,commission_percentage:parseFloat(e.target.value)})} /></div>
+            <div className="form-group"><label className="form-label">Status</label><select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}><option value="true">Active</option><option value="false">Inactive</option></select></div>
             <div style={{display:'flex',gap:10}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setShowModal(false)}>Cancel</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving...':'Save'}</button>
@@ -1041,34 +1212,25 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
         </div>
       )}
 
-      {/* View Employee Modal */}
       {viewEmp && (
         <div className="modal-overlay" onClick={()=>setViewEmp(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div style={{textAlign:'center',marginBottom:18}}>
-              <Avatar employee={viewEmp} size={72} fontSize={26} />
+              <Av emp={viewEmp} size={72} fs={26} />
               <div style={{fontSize:18,fontWeight:900,marginTop:10}}>{viewEmp.full_name}</div>
               <div style={{color:'var(--text2)',fontSize:12}}>{viewEmp.contact_number}</div>
               <span className={`badge ${viewEmp.is_active?'badge-green':'badge-red'}`} style={{marginTop:6}}>{viewEmp.is_active?'Active':'Inactive'}</span>
             </div>
-            {(()=>{
-              const s = getStats(viewEmp.id);
-              return (
-                <div className="grid-2" style={{gap:10}}>
-                  {[
-                    {label:'Total Washed', value:s.total,      color:'var(--red)'},
-                    {label:'This Month',   value:s.month,      color:'var(--success)'},
-                    {label:'Total Revenue',value:peso(s.sales), color:'var(--gold)'},
-                    {label:'Total Comm.',  value:peso(s.comm),  color:'var(--silver)'},
-                  ].map((x,i) => (
-                    <div key={i} style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,padding:14,textAlign:'center'}}>
-                      <div style={{fontSize:16,fontWeight:800,color:x.color}}>{x.value}</div>
-                      <div style={{fontSize:11,color:'var(--text2)'}}>{x.label}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+            {(()=>{const s=getStats(viewEmp.id);return(
+              <div className="grid-2" style={{gap:10}}>
+                {[{l:'Total Washed',v:s.total,c:'var(--red)'},{l:'This Month',v:s.month,c:'var(--success)'},{l:'Total Revenue',v:peso(s.sales),c:'var(--gold)'},{l:'Total Comm.',v:peso(s.comm),c:'var(--silver)'}].map((x,i)=>(
+                  <div key={i} style={{background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14,textAlign:'center'}}>
+                    <div style={{fontSize:16,fontWeight:800,color:x.c}}>{x.v}</div>
+                    <div style={{fontSize:11,color:'var(--text2)'}}>{x.l}</div>
+                  </div>
+                ))}
+              </div>
+            );})()}
             <div style={{display:'flex',gap:10,marginTop:16}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setViewEmp(null)}>Close</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={()=>{setViewEmp(null);openEdit(viewEmp);}}>Edit</button>
@@ -1080,92 +1242,63 @@ function Employees({ employees, carWashes, showToast, onRefresh }) {
   );
 }
 
-/* ── SERVICES ── */
+/* ═══════════════════════════════════════════
+   SERVICES
+═══════════════════════════════════════════ */
 function Services({ services, showToast, onRefresh }) {
-  const [showModal, setShowModal] = useState(false);
-  const [editing,   setEditing]   = useState(null);
-  const [saving,    setSaving]    = useState(false);
-  const [form, setForm] = useState({ name:'', description:'', price:0, is_active:true });
-
-  const openAdd  = () => { setEditing(null); setForm({name:'',description:'',price:0,is_active:true}); setShowModal(true); };
-  const openEdit = svc => { setEditing(svc); setForm({...svc}); setShowModal(true); };
-
-  const handleSave = async () => {
-    if (!form.name.trim()) return showToast('Enter service name','warning');
+  const [showModal,setShowModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState({name:'',description:'',price:0,is_active:true});
+  const openAdd=()=>{setEditing(null);setForm({name:'',description:'',price:0,is_active:true});setShowModal(true);};
+  const openEdit=svc=>{setEditing(svc);setForm({...svc});setShowModal(true);};
+  const handleSave=async()=>{
+    if(!form.name.trim()) return showToast('Enter service name','warning');
     setSaving(true);
-    try {
-      if (editing) await api('update','Service',{id:editing.id, data:form});
-      else         await api('create','Service',{data:form});
-      await onRefresh();
-      setShowModal(false);
+    try{
+      if(editing) await api('update','Service',{id:editing.id,data:form});
+      else await api('create','Service',{data:form});
+      await onRefresh();setShowModal(false);
       showToast(editing?'Service updated!':'Service added!','success');
-    } catch(e) { showToast('Error: '+e.message,'error'); }
-    finally { setSaving(false); }
+    }catch(e){showToast('Error: '+e.message,'error');}
+    finally{setSaving(false);}
   };
-
-  const toggle = async svc => {
-    try {
-      await api('update','Service',{id:svc.id, data:{is_active:!svc.is_active}});
-      await onRefresh();
-    } catch(e) { showToast('Error','error'); }
-  };
-
+  const toggle=async svc=>{try{await api('update','Service',{id:svc.id,data:{is_active:!svc.is_active}});await onRefresh();}catch(e){showToast('Error','error');}};
   return (
     <div>
       <div className="flex-between mb-4">
         <div className="section-title" style={{marginBottom:0}}>Services</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} Add Service</button>
       </div>
-
       <div className="card">
         <div className="table-wrap">
           <table>
             <thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {services.map(svc => (
+              {services.map(svc=>(
                 <tr key={svc.id}>
                   <td style={{fontWeight:700}}>{svc.name}</td>
                   <td style={{color:'var(--text2)'}}>{svc.description||'—'}</td>
                   <td style={{fontWeight:700,color:'var(--gold)'}}>{peso(svc.price)}</td>
                   <td><span className={`badge ${svc.is_active?'badge-green':'badge-red'}`}>{svc.is_active?'Active':'Inactive'}</span></td>
-                  <td>
-                    <div style={{display:'flex',gap:6}}>
-                      <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(svc)}>{Ic.edit}</button>
-                      <button className={`btn btn-sm ${svc.is_active?'btn-danger':'btn-success'}`} onClick={()=>toggle(svc)} style={{fontSize:11}}>
-                        {svc.is_active?'Deactivate':'Activate'}
-                      </button>
-                    </div>
-                  </td>
+                  <td><div style={{display:'flex',gap:6}}>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(svc)}>{Ic.edit}</button>
+                    <button className={`btn btn-sm ${svc.is_active?'btn-danger':''}`} style={!svc.is_active?{background:'rgba(34,197,94,.15)',color:'var(--success)',border:'1px solid rgba(34,197,94,.2)'}:{}} onClick={()=>toggle(svc)} style={{fontSize:11}}>{svc.is_active?'Deactivate':'Activate'}</button>
+                  </div></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-
       {showModal && (
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-title">{editing?'Edit Service':'Add Service'}</div>
-            <div className="form-group">
-              <label className="form-label">Name *</label>
-              <input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="e.g. Premium Wash" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Description</label>
-              <input className="form-input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Short description" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Price (₱) *</label>
-              <input className="form-input" type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:parseFloat(e.target.value)})} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </div>
+            <div className="form-group"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="e.g. Premium Wash" /></div>
+            <div className="form-group"><label className="form-label">Description</label><input className="form-input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Short description" /></div>
+            <div className="form-group"><label className="form-label">Price (₱) *</label><input className="form-input" type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:parseFloat(e.target.value)})} /></div>
+            <div className="form-group"><label className="form-label">Status</label><select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}><option value="true">Active</option><option value="false">Inactive</option></select></div>
             <div style={{display:'flex',gap:10}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setShowModal(false)}>Cancel</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving...':'Save'}</button>
@@ -1177,70 +1310,56 @@ function Services({ services, showToast, onRefresh }) {
   );
 }
 
-/* ── REWARDS ── */
+/* ═══════════════════════════════════════════
+   REWARDS
+═══════════════════════════════════════════ */
 function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
-  const [showModal, setShowModal] = useState(false);
-  const [editing,   setEditing]   = useState(null);
-  const [saving,    setSaving]    = useState(false);
-  const [form, setForm] = useState({ campaign_name:'', month:new Date().getMonth()+1, year:new Date().getFullYear(), first_place_reward:3000, second_place_reward:2000, third_place_reward:1000, is_active:false, description:'' });
-
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-  const openAdd  = () => { setEditing(null); setForm({campaign_name:'',month:new Date().getMonth()+1,year:new Date().getFullYear(),first_place_reward:3000,second_place_reward:2000,third_place_reward:1000,is_active:false,description:''}); setShowModal(true); };
-  const openEdit = c => { setEditing(c); setForm({...c}); setShowModal(true); };
-
-  const handleSave = async () => {
-    if (!form.campaign_name.trim()) return showToast('Enter campaign name','warning');
+  const [showModal,setShowModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState({campaign_name:'',month:new Date().getMonth()+1,year:new Date().getFullYear(),first_place_reward:3000,second_place_reward:2000,third_place_reward:1000,is_active:false,description:''});
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const openAdd=()=>{setEditing(null);setForm({campaign_name:'',month:new Date().getMonth()+1,year:new Date().getFullYear(),first_place_reward:3000,second_place_reward:2000,third_place_reward:1000,is_active:false,description:''});setShowModal(true);};
+  const openEdit=c=>{setEditing(c);setForm({...c});setShowModal(true);};
+  const handleSave=async()=>{
+    if(!form.campaign_name.trim()) return showToast('Enter campaign name','warning');
     setSaving(true);
-    try {
-      if (editing) await api('update','RewardCampaign',{id:editing.id,data:form});
-      else         await api('create','RewardCampaign',{data:form});
-      await onRefresh();
-      setShowModal(false);
-      showToast('Campaign saved!','success');
-    } catch(e) { showToast('Error: '+e.message,'error'); }
-    finally { setSaving(false); }
+    try{
+      if(editing) await api('update','RewardCampaign',{id:editing.id,data:form});
+      else await api('create','RewardCampaign',{data:form});
+      await onRefresh();setShowModal(false);showToast('Campaign saved!','success');
+    }catch(e){showToast('Error: '+e.message,'error');}
+    finally{setSaving(false);}
   };
-
-  const getCampaignLeader = c => {
-    const ws = carWashes.filter(w => {
-      const d = new Date(w.transaction_date||w.created_date);
-      return d.getMonth()+1===c.month && d.getFullYear()===c.year;
-    });
-    const map = {};
-    ws.forEach(w => {
-      if (!map[w.employee_id]) map[w.employee_id] = { name:w.employee_name, cars:0 };
-      map[w.employee_id].cars++;
-    });
+  const getLeaders=c=>{
+    const ws=carWashes.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()+1===c.month&&d.getFullYear()===c.year;});
+    const map={};
+    ws.forEach(w=>{if(!map[w.employee_id])map[w.employee_id]={name:w.employee_name,cars:0};map[w.employee_id].cars++;});
     return Object.values(map).sort((a,b)=>b.cars-a.cars).slice(0,3);
   };
-
+  const posColor=['var(--gold)','var(--silver)','var(--bronze)'];
   return (
     <div>
       <div className="flex-between mb-4">
         <div className="section-title" style={{marginBottom:0}}>Reward Campaigns</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} New Campaign</button>
       </div>
-
-      {campaigns.map(c => {
-        const leaders = getCampaignLeader(c);
+      {campaigns.map(c=>{
+        const leaders=getLeaders(c);
         return (
           <div key={c.id} className="card mb-4">
-            <div className="flex-between mb-3">
-              <div>
-                <div style={{fontSize:15,fontWeight:800}}>{c.campaign_name}</div>
-                <div style={{fontSize:12,color:'var(--text2)'}}>{months[c.month-1]} {c.year}</div>
-              </div>
+            <div className="flex-between mb-4">
+              <div><div style={{fontSize:15,fontWeight:800}}>{c.campaign_name}</div><div style={{fontSize:12,color:'var(--text2)'}}>{months[c.month-1]} {c.year}</div></div>
               <div style={{display:'flex',gap:8,alignItems:'center'}}>
                 <span className={`badge ${c.is_active?'badge-gold':'badge-gray'}`}>{c.is_active?'Active':'Inactive'}</span>
                 <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(c)}>{Ic.edit}</button>
               </div>
             </div>
-            <div className="grid-3 mb-3" style={{gap:8}}>
-              {[{pos:'1st',reward:c.first_place_reward,color:'var(--gold)'},{pos:'2nd',reward:c.second_place_reward,color:'var(--silver)'},{pos:'3rd',reward:c.third_place_reward,color:'var(--bronze)'}].map((x,i)=>(
-                <div key={i} style={{background:'var(--bg3)',borderRadius:8,padding:10,textAlign:'center'}}>
-                  <div style={{fontSize:11,color:x.color,fontWeight:700,marginBottom:2}}>{x.pos} Place</div>
-                  <div style={{fontSize:15,fontWeight:800,color:x.color}}>{peso(x.reward)}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
+              {[{pos:'1ST',r:c.first_place_reward,c:posColor[0]},{pos:'2ND',r:c.second_place_reward,c:posColor[1]},{pos:'3RD',r:c.third_place_reward,c:posColor[2]}].map((x,i)=>(
+                <div key={i} style={{background:'var(--glass)',border:`1px solid ${x.c}30`,borderRadius:10,padding:12,textAlign:'center'}}>
+                  <div style={{fontSize:11,fontWeight:700,color:x.c,marginBottom:4}}>{x.pos} Place</div>
+                  <div style={{fontSize:16,fontWeight:800,color:x.c}}>{peso(x.r)}</div>
                   {leaders[i] && <div style={{fontSize:10,color:'var(--text2)',marginTop:4}}>{leaders[i].name.split(' ')[0]} · {leaders[i].cars} cars</div>}
                 </div>
               ))}
@@ -1249,48 +1368,21 @@ function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
           </div>
         );
       })}
-
       {campaigns.length===0 && <div style={{textAlign:'center',padding:'32px 0',color:'var(--text2)',fontSize:13}}>No campaigns yet.</div>}
-
       {showModal && (
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-title">{editing?'Edit Campaign':'New Campaign'}</div>
-            <div className="form-group">
-              <label className="form-label">Campaign Name *</label>
-              <input className="form-input" value={form.campaign_name} onChange={e=>setForm({...form,campaign_name:e.target.value})} placeholder="e.g. June 2026 Champions" />
-            </div>
+            <div className="form-group"><label className="form-label">Campaign Name *</label><input className="form-input" value={form.campaign_name} onChange={e=>setForm({...form,campaign_name:e.target.value})} placeholder="e.g. June 2026 Champions" /></div>
             <div className="grid-2">
-              <div className="form-group">
-                <label className="form-label">Month</label>
-                <select className="form-input" value={form.month} onChange={e=>setForm({...form,month:parseInt(e.target.value)})}>
-                  {months.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Year</label>
-                <input className="form-input" type="number" value={form.year} onChange={e=>setForm({...form,year:parseInt(e.target.value)})} />
-              </div>
+              <div className="form-group"><label className="form-label">Month</label><select className="form-input" value={form.month} onChange={e=>setForm({...form,month:parseInt(e.target.value)})}>{months.map((m,i)=><option key={i} value={i+1}>{m}</option>)}</select></div>
+              <div className="form-group"><label className="form-label">Year</label><input className="form-input" type="number" value={form.year} onChange={e=>setForm({...form,year:parseInt(e.target.value)})} /></div>
             </div>
-            <div className="grid-3">
-              {['first','second','third'].map((p,i)=>(
-                <div key={p} className="form-group">
-                  <label className="form-label">{['1st','2nd','3rd'][i]} Reward</label>
-                  <input className="form-input" type="number" value={form[`${p}_place_reward`]} onChange={e=>setForm({...form,[`${p}_place_reward`]:parseFloat(e.target.value)})} />
-                </div>
-              ))}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+              {['first','second','third'].map((p,i)=>(<div key={p} className="form-group"><label className="form-label">{['1st','2nd','3rd'][i]} Reward</label><input className="form-input" type="number" value={form[`${p}_place_reward`]} onChange={e=>setForm({...form,[`${p}_place_reward`]:parseFloat(e.target.value)})} /></div>))}
             </div>
-            <div className="form-group">
-              <label className="form-label">Description</label>
-              <input className="form-input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Optional description" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}>
-                <option value="false">Inactive</option>
-                <option value="true">Active</option>
-              </select>
-            </div>
+            <div className="form-group"><label className="form-label">Description</label><input className="form-input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Optional" /></div>
+            <div className="form-group"><label className="form-label">Status</label><select className="form-input" value={form.is_active} onChange={e=>setForm({...form,is_active:e.target.value==='true'})}><option value="false">Inactive</option><option value="true">Active</option></select></div>
             <div style={{display:'flex',gap:10}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setShowModal(false)}>Cancel</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving...':'Save'}</button>
@@ -1302,225 +1394,138 @@ function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
   );
 }
 
-/* ── REPORTS ── */
+/* ═══════════════════════════════════════════
+   REPORTS
+═══════════════════════════════════════════ */
 function Reports({ carWashes, employees, showToast }) {
-  const [period, setPeriod] = useState('month');
-  const now = new Date();
-
-  const filtered = period==='today'
-    ? carWashes.filter(w=>(w.transaction_date||w.created_date||'').startsWith(today()))
-    : carWashes.filter(w=>{ const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
-
-  const totalSales = filtered.reduce((s,w)=>s+(w.total_amount||0),0);
-  const totalComm  = filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
-  const totalPaid  = filtered.reduce((s,w)=>s+(w.amount_paid||0),0);
-
-  const empMap = {};
-  filtered.forEach(w=>{
-    if (!empMap[w.employee_id]) empMap[w.employee_id]={name:w.employee_name,cars:0,sales:0,comm:0,id:w.employee_id};
-    empMap[w.employee_id].cars++;
-    empMap[w.employee_id].sales+=(w.total_amount||0);
-    empMap[w.employee_id].comm+=(w.commission_amount||0);
-  });
-  const empRows = Object.values(empMap).sort((a,b)=>b.cars-a.cars);
-
-  const svcMap = {};
-  filtered.forEach(w=>(w.services||[]).forEach(s=>{
-    if (!svcMap[s.id]) svcMap[s.id]={name:s.name,count:0,revenue:0};
-    svcMap[s.id].count++;
-    svcMap[s.id].revenue+=(s.price||0);
-  }));
-  const svcRows = Object.values(svcMap).sort((a,b)=>b.count-a.count);
-
-  const exportCSV = () => {
-    const rows = [
-      ['Date','Employee','Customer','Plate','Services','Total','Commission','Paid'],
-      ...filtered.map(w=>[
-        fmt(w.transaction_date||w.created_date),
-        w.employee_name, w.customer_name||'', w.plate_number||'',
-        (w.services||[]).map(s=>s.name).join('; '),
-        w.total_amount, w.commission_amount, w.amount_paid
-      ])
-    ];
-    const csv = rows.map(r=>r.join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-    a.download = `carwash-report-${today()}.csv`;
-    a.click();
+  const [period,setPeriod]=useState('month');
+  const now=new Date();
+  const filtered=period==='today'?carWashes.filter(w=>(w.transaction_date||w.created_date||'').startsWith(today())):carWashes.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
+  const tComm=filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
+  const tPaid=filtered.reduce((s,w)=>s+(w.amount_paid||0),0);
+  const empMap={};
+  filtered.forEach(w=>{if(!empMap[w.employee_id])empMap[w.employee_id]={name:w.employee_name,id:w.employee_id,cars:0,sales:0,comm:0};empMap[w.employee_id].cars++;empMap[w.employee_id].sales+=(w.total_amount||0);empMap[w.employee_id].comm+=(w.commission_amount||0);});
+  const empRows=Object.values(empMap).sort((a,b)=>b.cars-a.cars);
+  const svcMap={};
+  filtered.forEach(w=>(w.services||[]).forEach(s=>{if(!svcMap[s.id])svcMap[s.id]={name:s.name,count:0,revenue:0};svcMap[s.id].count++;svcMap[s.id].revenue+=(s.price||0);}));
+  const svcRows=Object.values(svcMap).sort((a,b)=>b.count-a.count);
+  const exportCSV=()=>{
+    const rows=[['Date','Employee','Customer','Plate','Services','Total','Commission','Paid'],...filtered.map(w=>[fmt(w.transaction_date||w.created_date),w.employee_name,w.customer_name||'',w.plate_number||'',(w.services||[]).map(s=>s.name).join('; '),w.total_amount,w.commission_amount,w.amount_paid])];
+    const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));a.download=`carwash-${today()}.csv`;a.click();
     showToast('CSV exported!','success');
   };
-
   return (
     <div>
       <div className="flex-between mb-4">
         <div className="section-title" style={{marginBottom:0}}>Reports</div>
         <div style={{display:'flex',gap:8}}>
           <div className="tabs" style={{marginBottom:0}}>
-            <div className={`tab ${period==='today'?'active':''}`}  onClick={()=>setPeriod('today')}>Today</div>
-            <div className={`tab ${period==='month'?'active':''}`}  onClick={()=>setPeriod('month')}>Month</div>
+            <div className={`tab ${period==='today'?'active':''}`} onClick={()=>setPeriod('today')}>Today</div>
+            <div className={`tab ${period==='month'?'active':''}`} onClick={()=>setPeriod('month')}>Month</div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={exportCSV}>Export CSV</button>
         </div>
       </div>
-
       <div className="stats-grid mb-4">
-        {[
-          {label:'Total Cars',  value:filtered.length,    color:'var(--red)',     stripe:'#D94A4A'},
-          {label:'Revenue',     value:peso(totalSales),   color:'var(--success)', stripe:'#3DBE6E'},
-          {label:'Commission',  value:peso(totalComm),    color:'var(--gold)',    stripe:'#D4AF37'},
-          {label:'Collected',   value:peso(totalPaid),    color:'var(--silver)',  stripe:'#B8BCC2'},
-        ].map((s,i)=>(
-          <div key={i} className="stat-card">
-            <div className="stat-stripe" style={{background:s.stripe}}></div>
-            <div className="stat-label">{s.label}</div>
-            <div className="stat-value" style={{color:s.color}}>{s.value}</div>
-          </div>
+        {[{l:'Total Cars',v:filtered.length,c:'var(--red)',cls:'stat-red'},{l:'Revenue',v:peso(tSales),c:'var(--success)',cls:'stat-green'},{l:'Commission',v:peso(tComm),c:'var(--gold)',cls:'stat-yellow'},{l:'Collected',v:peso(tPaid),c:'var(--silver)',cls:'stat-gray'}].map((s,i)=>(
+          <div key={i} className={`stat-card ${s.cls}`}><div className="stat-label">{s.l}</div><div className="stat-value" style={{color:s.c}}>{s.v}</div></div>
         ))}
       </div>
-
       <div className="grid-2">
         <div className="card">
-          <div className="section-title" style={{fontSize:13}}>Performance by Employee</div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Employee</th><th>Cars</th><th>Sales</th><th>Comm.</th></tr></thead>
-              <tbody>
-                {empRows.map((r,i)=>{
-                  const emp = employees.find(e=>e.id===r.id);
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <div style={{display:'flex',alignItems:'center',gap:8}}>
-                          <Avatar employee={emp||{full_name:r.name}} size={26} fontSize={10} />
-                          <span style={{fontWeight:600}}>{r.name}</span>
-                        </div>
-                      </td>
-                      <td style={{fontWeight:700,color:'var(--red)'}}>{r.cars}</td>
-                      <td>{peso(r.sales)}</td>
-                      <td style={{color:'var(--success)'}}>{peso(r.comm)}</td>
-                    </tr>
-                  );
-                })}
-                {empRows.length===0 && <tr><td colSpan={4} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No data.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <div className="section-title" style={{fontSize:13}}>By Employee</div>
+          <div className="table-wrap"><table><thead><tr><th>Employee</th><th>Cars</th><th>Sales</th><th>Comm.</th></tr></thead><tbody>
+            {empRows.map((r,i)=>{const emp=employees.find(e=>e.id===r.id);return(<tr key={i}><td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:r.name}} size={26} fs={10}/><span style={{fontWeight:600}}>{r.name}</span></div></td><td style={{fontWeight:700,color:'var(--red)'}}>{r.cars}</td><td>{peso(r.sales)}</td><td style={{color:'var(--success)'}}>{peso(r.comm)}</td></tr>);})}
+            {empRows.length===0&&<tr><td colSpan={4} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No data.</td></tr>}
+          </tbody></table></div>
         </div>
-
         <div className="card">
           <div className="section-title" style={{fontSize:13}}>Top Services</div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Service</th><th>Count</th><th>Revenue</th></tr></thead>
-              <tbody>
-                {svcRows.map((s,i)=>(
-                  <tr key={i}>
-                    <td style={{fontWeight:600}}>{s.name}</td>
-                    <td style={{color:'var(--red)',fontWeight:700}}>{s.count}</td>
-                    <td style={{color:'var(--gold)'}}>{peso(s.revenue)}</td>
-                  </tr>
-                ))}
-                {svcRows.length===0 && <tr><td colSpan={3} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No data.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <div className="table-wrap"><table><thead><tr><th>Service</th><th>Count</th><th>Revenue</th></tr></thead><tbody>
+            {svcRows.map((s,i)=>(<tr key={i}><td style={{fontWeight:600}}>{s.name}</td><td style={{color:'var(--red)',fontWeight:700}}>{s.count}</td><td style={{color:'var(--gold)'}}>{peso(s.revenue)}</td></tr>))}
+            {svcRows.length===0&&<tr><td colSpan={3} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No data.</td></tr>}
+          </tbody></table></div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── MAIN APP ── */
+/* ═══════════════════════════════════════════
+   MAIN APP
+═══════════════════════════════════════════ */
 function App() {
-  const [page,        setPage]        = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
-  const [employees,   setEmployees]   = useState([]);
-  const [services,    setServices]    = useState([]);
-  const [carWashes,   setCarWashes]   = useState([]);
-  const [campaigns,   setCampaigns]   = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [toast,       setToast]       = useState(null);
+  const [page,setPage]=useState('dashboard');
+  const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>768);
+  const [employees,setEmployees]=useState([]);
+  const [services,setServices]=useState([]);
+  const [carWashes,setCarWashes]=useState([]);
+  const [campaigns,setCampaigns]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [toast,setToast]=useState(null);
+  const showToast=(msg,type='info')=>setToast({msg,type});
 
-  const showToast = (msg, type='info') => setToast({ msg, type });
-
-  const loadAll = async () => {
-    try {
-      const [emps,svcs,washes,camps] = await Promise.all([
-        api('list','Employee'), api('list','Service'),
-        api('list','CarWash'),  api('list','RewardCampaign'),
-      ]);
-      setEmployees(emps||[]); setServices(svcs||[]);
-      setCarWashes(washes||[]); setCampaigns(camps||[]);
-    } catch(e) { showToast('Failed to load data: '+e.message,'error'); }
-    finally { setLoading(false); }
+  const loadAll=async()=>{
+    try{
+      const [e,s,w,c]=await Promise.all([api('list','Employee'),api('list','Service'),api('list','CarWash'),api('list','RewardCampaign')]);
+      setEmployees(e||[]);setServices(s||[]);setCarWashes(w||[]);setCampaigns(c||[]);
+    }catch(err){showToast('Failed to load: '+err.message,'error');}
+    finally{setLoading(false);}
   };
 
-  useEffect(() => { loadAll(); }, []);
-  useEffect(() => {
-    const fn = () => setSidebarOpen(window.innerWidth > 768);
-    window.addEventListener('resize', fn);
-    return () => window.removeEventListener('resize', fn);
-  }, []);
+  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{const fn=()=>setSidebarOpen(window.innerWidth>768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
 
-  const navItems = [
-    { id:'dashboard',    icon:Ic.home,   label:'Dashboard',    section:'Main' },
-    { id:'record',       icon:Ic.car,    label:'Record Wash',  section:'Main' },
-    { id:'transactions', icon:Ic.list,   label:'Transactions', section:'Main' },
-    { id:'ranking',      icon:Ic.trophy, label:'Rankings',     section:'Analytics' },
-    { id:'reports',      icon:Ic.chart,  label:'Reports',      section:'Analytics' },
-    { id:'employees',    icon:Ic.users,  label:'Employees',    section:'Admin' },
-    { id:'services',     icon:Ic.wrench, label:'Services',     section:'Admin' },
-    { id:'rewards',      icon:Ic.gift,   label:'Rewards',      section:'Admin' },
+  const navItems=[
+    {id:'dashboard',icon:Ic.home,  label:'Dashboard',   section:'Main'},
+    {id:'record',   icon:Ic.car,   label:'Record Wash', section:'Main'},
+    {id:'transactions',icon:Ic.list,label:'Transactions',section:'Main'},
+    {id:'ranking',  icon:Ic.trophy,label:'Rankings',    section:'Analytics'},
+    {id:'reports',  icon:Ic.chart, label:'Reports',     section:'Analytics'},
+    {id:'employees',icon:Ic.users, label:'Employees',   section:'Admin'},
+    {id:'services', icon:Ic.wrench,label:'Services',    section:'Admin'},
+    {id:'rewards',  icon:Ic.gift,  label:'Rewards',     section:'Admin'},
   ];
-  const sections       = [...new Set(navItems.map(n=>n.section))];
-  const activeCampaign = campaigns.find(c=>c.is_active);
-  const pageLabel      = navItems.find(n=>n.id===page)?.label || page;
-  const isMobile       = window.innerWidth <= 768;
+  const sections=[...new Set(navItems.map(n=>n.section))];
+  const activeCampaign=campaigns.find(c=>c.is_active);
+  const pageLabel=navItems.find(n=>n.id===page)?.label||page;
+  const isMobile=window.innerWidth<=768;
 
-  if (loading) return (
+  if(loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:14}}>
-      <div style={{width:48,height:48,background:'var(--red)',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center'}}>
-        {Ic.drop}
-      </div>
+      <div style={{width:48,height:48,background:'var(--red)',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center'}}>{Ic.drop}</div>
       <div style={{fontSize:18,fontWeight:800}}>CarWash Pro</div>
       <div style={{color:'var(--text2)',fontSize:13}}>Loading...</div>
-      <div style={{width:160,height:3,background:'var(--bg3)',borderRadius:2,overflow:'hidden'}}>
-        <div style={{height:'100%',width:'60%',background:'var(--red)',borderRadius:2,animation:'slideLoad 1s ease-in-out infinite alternate'}}></div>
+      <div style={{width:160,height:3,background:'var(--glass)',borderRadius:2,overflow:'hidden'}}>
+        <div style={{height:'100%',width:'60%',background:'var(--red)',borderRadius:2}}></div>
       </div>
     </div>
   );
 
   return (
     <div className="app">
-      {isMobile && sidebarOpen && <div className="sidebar-overlay visible" onClick={()=>setSidebarOpen(false)}></div>}
-
+      {isMobile&&sidebarOpen&&<div className="sidebar-overlay show" onClick={()=>setSidebarOpen(false)}></div>}
       <div className={`sidebar ${sidebarOpen?'open':'closed'}`}>
         <div className="sidebar-logo">
-          <div className="logo-mark">{Ic.drop}</div>
-          <div>
-            <div className="logo-name">CarWash Pro</div>
-            <div className="logo-sub">Sales Tracker</div>
-          </div>
+          <div className="logo-icon">{Ic.drop}</div>
+          <div><div className="logo-text">CarWash Pro</div><div className="logo-sub">Sales Tracker</div></div>
         </div>
-
         <nav className="nav">
-          {sections.map(sec => (
-            <div key={sec}>
+          {sections.map(sec=>(
+            <div key={sec} className="nav-section">
               <div className="nav-label">{sec}</div>
-              {navItems.filter(n=>n.section===sec).map(item => (
-                <div key={item.id} className={`nav-item ${page===item.id?'active':''}`}
-                  onClick={()=>{ setPage(item.id); if(isMobile) setSidebarOpen(false); }}>
-                  <span className="nav-icon">{item.icon}</span>
-                  {item.label}
+              {navItems.filter(n=>n.section===sec).map(item=>(
+                <div key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{setPage(item.id);if(isMobile)setSidebarOpen(false);}}>
+                  <span className="nav-icon">{item.icon}</span>{item.label}
                 </div>
               ))}
             </div>
           ))}
         </nav>
-
         <div className="sidebar-footer">
-          {activeCampaign && (
-            <div style={{background:'rgba(212,175,55,0.1)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:10,fontSize:11}}>
+          {activeCampaign&&(
+            <div style={{background:'rgba(212,175,55,.1)',border:'1px solid rgba(212,175,55,.2)',borderRadius:10,padding:10,fontSize:11}}>
               <div style={{fontWeight:700,color:'var(--gold)',marginBottom:2}}>Active Campaign</div>
               <div style={{color:'var(--text2)'}}>{activeCampaign.campaign_name}</div>
             </div>
@@ -1528,7 +1533,7 @@ function App() {
         </div>
       </div>
 
-      <div className="main" style={{marginLeft: !isMobile && sidebarOpen ? 240 : 0}}>
+      <div className="main" style={{marginLeft:!isMobile&&sidebarOpen?260:0}}>
         <div className="topbar">
           <div className="topbar-left">
             <div className="menu-btn" onClick={()=>setSidebarOpen(!sidebarOpen)}>{Ic.menu}</div>
@@ -1536,25 +1541,21 @@ function App() {
           </div>
           <div className="topbar-right">
             <div className="live-badge"><div className="live-dot"></div>Live</div>
-            <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')}>
-              {Ic.plus} New Wash
-            </button>
+            <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')}>{Ic.plus} New Wash</button>
           </div>
         </div>
-
         <div className="page-content">
-          {page==='dashboard'    && <Dashboard    carWashes={carWashes} employees={employees} campaign={activeCampaign} setPage={setPage} />}
-          {page==='record'       && <RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast} />}
-          {page==='transactions' && <Transactions  carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast} />}
-          {page==='ranking'      && <Ranking       carWashes={carWashes} employees={employees} campaign={activeCampaign} />}
-          {page==='reports'      && <Reports       carWashes={carWashes} employees={employees} showToast={showToast} />}
-          {page==='employees'    && <Employees     employees={employees} carWashes={carWashes} showToast={showToast} onRefresh={loadAll} />}
-          {page==='services'     && <Services      services={services} showToast={showToast} onRefresh={loadAll} />}
-          {page==='rewards'      && <Rewards       campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll} />}
+          {page==='dashboard'    && <Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/>}
+          {page==='record'       && <RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/>}
+          {page==='transactions' && <Transactions carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast}/>}
+          {page==='ranking'      && <Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/>}
+          {page==='reports'      && <Reports carWashes={carWashes} employees={employees} showToast={showToast}/>}
+          {page==='employees'    && <Employees employees={employees} carWashes={carWashes} showToast={showToast} onRefresh={loadAll}/>}
+          {page==='services'     && <Services services={services} showToast={showToast} onRefresh={loadAll}/>}
+          {page==='rewards'      && <Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/>}
         </div>
       </div>
-
-      {toast && <Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)} />}
+      {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     </div>
   );
 }
