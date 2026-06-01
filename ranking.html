@@ -180,13 +180,21 @@ function RankingPage() {
       map[e.id]={id:e.id,name:e.full_name,emp:e,cars:0,sales:0,commission:0};
     });
     filterWashes().forEach(w=>{
-      if (!map[w.employee_id]) {
-        const e=employees.find(x=>x.id===w.employee_id);
-        map[w.employee_id]={id:w.employee_id,name:w.employee_name,emp:e||null,cars:0,sales:0,commission:0};
-      }
-      map[w.employee_id].cars++;
-      map[w.employee_id].sales      +=(w.total_amount||0);
-      map[w.employee_id].commission +=(w.commission_amount||0);
+      // 1 car per wash — credit all employees in commission_splits
+      const splits = Array.isArray(w.commission_splits) && w.commission_splits.length > 0
+        ? w.commission_splits
+        : [{employee_id:w.employee_id, employee_name:w.employee_name, amount:w.commission_amount||0}];
+      splits.forEach((sp,idx)=>{
+        const empId   = sp.employee_id || sp.id;
+        const empName = sp.employee_name || sp.name || w.employee_name;
+        if (!map[empId]) {
+          const e=employees.find(x=>x.id===empId);
+          map[empId]={id:empId,name:empName,emp:e||null,cars:0,sales:0,commission:0};
+        }
+        map[empId].cars++;
+        if (idx===0) map[empId].sales+=(w.total_amount||0);
+        map[empId].commission+=(sp.amount||0);
+      });
     });
     return Object.values(map).sort((a,b)=>b.cars-a.cars||b.sales-a.sales);
   };

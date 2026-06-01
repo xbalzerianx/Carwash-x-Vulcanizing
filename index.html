@@ -528,20 +528,32 @@ function Ranking({ carWashes, employees, campaign={} }) {
     });
   };
 
-  /* Build leaderboard */
+  /* Build leaderboard — 1 car per wash, credit all employees in team */
   const buildBoard = () => {
     const map = {};
     employees.filter(e=>e.is_active).forEach(e => {
       map[e.id] = { id:e.id, name:e.full_name, emp:e, cars:0, sales:0, commission:0 };
     });
     filterWashes().forEach(w => {
-      if (!map[w.employee_id]) {
-        const e = employees.find(x=>x.id===w.employee_id);
-        map[w.employee_id] = { id:w.employee_id, name:w.employee_name, emp:e||null, cars:0, sales:0, commission:0 };
-      }
-      map[w.employee_id].cars++;
-      map[w.employee_id].sales      += (w.total_amount||0);
-      map[w.employee_id].commission += (w.commission_amount||0);
+      // Determine which employees worked this wash
+      const splits = Array.isArray(w.commission_splits) && w.commission_splits.length > 0
+        ? w.commission_splits
+        : [{ employee_id: w.employee_id, employee_name: w.employee_name, amount: w.commission_amount||0 }];
+
+      splits.forEach((sp, idx) => {
+        const empId   = sp.employee_id || sp.id;
+        const empName = sp.employee_name || sp.name || w.employee_name;
+        if (!map[empId]) {
+          const e = employees.find(x=>x.id===empId);
+          map[empId] = { id:empId, name:empName, emp:e||null, cars:0, sales:0, commission:0 };
+        }
+        // Each employee gets +1 car for the wash (they all worked on it)
+        map[empId].cars++;
+        // Sales credited to primary employee only (to avoid inflating totals)
+        if (idx === 0) map[empId].sales += (w.total_amount||0);
+        // Commission credited individually
+        map[empId].commission += (sp.amount || 0);
+      });
     });
     return Object.values(map).sort((a,b) => b.cars-a.cars || b.sales-a.sales);
   };
@@ -924,40 +936,49 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
     if (!selectedSvcs.length)   return showToast('Select at least one service','warning');
     setSaving(true);
     try {
-      const splits = splitCommission();
-      const txDate = new Date().toISOString();
-      const paid   = parseFloat(amtPaid)||total;
+      const splits   = splitCommission();
+      const txDate   = new Date().toISOString();
+      const paid     = parseFloat(amtPaid)||total;
       const empNames = splits.map(c=>c.emp.full_name).join(', ');
+      const totalCommissionAmt = splits.reduce((s,c)=>s+c.share,0);
 
-      // Create one CarWash record per employee (each gets their own commission record)
-      const saves = await Promise.all(splits.map(({emp, rate, share}) =>
-        api('create','CarWash',{data:{
-          customer_name: custName,
-          plate_number:  plate,
-          employee_id:   emp.id,
-          employee_name: emp.full_name,
-          services:      selectedSvcs,
-          total_amount:  total,
-          amount_paid:   paid / splits.length, // split payment proportionally
-          commission_rate:   rate,
-          commission_amount: share,
-          transaction_date:  txDate,
-          notes: splits.length > 1 ? `Team wash: ${empNames}` : '',
-        }})
-      ));
+      // Save ONE record per car wash (not per employee)
+      // All employees + their individual splits stored inside the record
+      const saved = await api('create','CarWash',{data:{
+        customer_name:      custName,
+        plate_number:       plate,
+        // Primary employee = first selected (for backward compat)
+        employee_id:        splits[0].emp.id,
+        employee_name:      empNames,
+        services:           selectedSvcs,
+        total_amount:       total,
+        amount_paid:        paid,
+        commission_rate:    splits[0].rate,
+        commission_amount:  totalCommissionAmt,
+        transaction_date:   txDate,
+        notes:              splits.length > 1 ? `Team wash: ${empNames}` : '',
+        // Multi-employee fields
+        employees:          splits.map(({emp,rate,share})=>({
+          id: emp.id, name: emp.full_name,
+          commission_rate: rate, commission_amount: share
+        })),
+        commission_splits:  splits.map(({emp,rate,share})=>({
+          employee_id: emp.id, employee_name: emp.full_name,
+          rate, amount: share
+        })),
+      }});
 
-      // Log a single event for the team wash
       logEvent({
         event_type:  'wash_recorded',
         title:       `Wash recorded — ${empNames}`,
         description: `${selectedSvcs.map(s=>s.name).join(', ')}${plate?' | '+plate:''}${custName?' | '+custName:''}`,
         actor_name:  splits[0].emp.full_name,
-        entity_id:   saves[0]?.id||'',
+        entity_id:   saved?.id||'',
         amount:      total,
       });
 
       setLastSaved({ total, splits, svcs: selectedSvcs, paid });
-      saves.forEach(s=>onSave(s));
+      onSave(saved);  // single record
       setShowOK(true);
       setTimeout(()=>{setShowOK(false);reset();},3200);
     } catch(e) { showToast('Error: '+e.message,'error'); }
@@ -2104,7 +2125,7 @@ function App() {
     {id:'dashboard',icon:Ic.home,  label:'Dashboard',   section:'Main'},
     {id:'record',   icon:Ic.car,   label:'Record Wash', section:'Main'},
     {id:'transactions',icon:Ic.list,label:'Transactions',section:'Main'},
-    {id:'ranking',  icon:Ic.trophy,label:'Rankings',    section:'Analytics'},
+    {id:'ranking',  icon:Ic.trophy,label:'Rankings',    section:'Analytics', externalUrl:'https://kgcarwash.vercel.app/ranking.html'},
     {id:'reports',  icon:Ic.chart, label:'Reports',     section:'Analytics'},
     {id:'employees',icon:Ic.users, label:'Employees',   section:'Admin'},
     {id:'services', icon:Ic.wrench,label:'Services',    section:'Admin'},
@@ -2140,8 +2161,8 @@ function App() {
             <div key={sec} className="nav-section">
               <div className="nav-label">{sec}</div>
               {navItems.filter(n=>n.section===sec).map(item=>(
-                <div key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{setPage(item.id);if(isMobile)setSidebarOpen(false);}}>
-                  <span className="nav-icon">{item.icon}</span>{item.label}
+                <div key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{if(item.externalUrl){window.open(item.externalUrl,'_blank');return;}setPage(item.id);if(isMobile)setSidebarOpen(false);}}>
+                  <span className="nav-icon">{item.icon}</span>{item.label}{item.externalUrl && <span style={{fontSize:9,marginLeft:4,opacity:.5}}>↗</span>}
                 </div>
               ))}
             </div>
