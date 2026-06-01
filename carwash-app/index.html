@@ -554,7 +554,7 @@ function LoginScreen({ onLogin }) {
 }
 
 
-async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
+async async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
   try {
     await api('create','ActivityLog',{data:{event_type,title,description,actor_name,entity_id,amount}});
   } catch(e) { console.warn('Log failed:',e.message); }
@@ -1364,7 +1364,8 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
   const [payoutEmp,setPayoutEmp]=useState(null);
   const [payoutAmt,setPayoutAmt]=useState('');
   const [payoutNote,setPayoutNote]=useState('');
-  const [payoutSaving,setPayoutSaving]=useState(false);
+  const [payoutSaving,setPayoutSaving]=useState(false)
+  const [confirmDeleteEmp,setConfirmDeleteEmp]=useState(null);
   const fileRef=useRef();
   const COLORS=['#D94A4A','#22C55E','#D4AF37','#B8BCC2','#B87333','#6C63FF','#E91E8C','#00BCD4'];
 
@@ -1437,7 +1438,6 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
     try{await api('update','Employee',{id:emp.id,data:{is_active:!emp.is_active}});await onRefresh();showToast(`${emp.full_name} ${emp.is_active?'deactivated':'activated'}`,'success');}
     catch(e){showToast('Error','error');}
   };
-  const [confirmDeleteEmp,setConfirmDeleteEmp]=useState(null);
   const deleteEmp=async()=>{
     if(!confirmDeleteEmp) return;
     try{
@@ -1649,6 +1649,7 @@ function Services({ services, showToast, onRefresh }) {
   const [editing,setEditing]=useState(null);
   const [saving,setSaving]=useState(false);
   const [form,setForm]=useState({name:'',description:'',price:0,is_active:true});
+  const [confirmDelete,setConfirmDelete]=useState(null);
   const openAdd=()=>{setEditing(null);setForm({name:'',description:'',price:0,is_active:true});setShowModal(true);};
   const openEdit=svc=>{setEditing(svc);setForm({...svc});setShowModal(true);};
   const handleSave=async()=>{
@@ -1668,7 +1669,6 @@ function Services({ services, showToast, onRefresh }) {
     finally{setSaving(false);}
   };
   const toggle=async svc=>{try{await api('update','Service',{id:svc.id,data:{is_active:!svc.is_active}});await onRefresh();}catch(e){showToast('Error','error');}};
-  const [confirmDelete,setConfirmDelete]=useState(null);
   const deleteSvc=async()=>{
     if(!confirmDelete) return;
     try{
