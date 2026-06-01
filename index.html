@@ -462,6 +462,58 @@ const parseArr = v => {
   }).filter(Boolean);
 };
 
+// ── Admin Auth ──
+const ADMIN_HASH = 'c49e7ae022624add43982e06e81604c11708b8bbabff41eb474327dd09e75b49';
+async function hashPassword(pw) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function useAdminAuth() {
+  const key = 'kgcar_admin_auth';
+  const [authed, setAuthed] = React.useState(() => sessionStorage.getItem(key) === ADMIN_HASH);
+  const login  = async pw => { const h = await hashPassword(pw); if (h===ADMIN_HASH){ sessionStorage.setItem(key,h); setAuthed(true); return true; } return false; };
+  const logout = () => { sessionStorage.removeItem(key); setAuthed(false); };
+  return { authed, login, logout };
+}
+
+function LoginScreen({ onLogin }) {
+  const [pw,setPw]   = React.useState('');
+  const [err,setErr] = React.useState('');
+  const [busy,setBusy] = React.useState(false);
+  const submit = async e => {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    const ok = await onLogin(pw);
+    if (!ok) { setErr('Incorrect password'); setBusy(false); }
+  };
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',fontFamily:'inherit'}}>
+      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:'48px 40px',width:360,maxWidth:'90vw',textAlign:'center',boxShadow:'0 8px 40px rgba(0,0,0,0.4)'}}>
+        <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+        <h2 style={{color:'var(--text)',margin:'0 0 6px',fontSize:22,fontWeight:700}}>Admin Access</h2>
+        <p style={{color:'var(--text2)',fontSize:14,margin:'0 0 28px'}}>KGCAR Carwash Management</p>
+        <form onSubmit={submit}>
+          <input
+            type="password"
+            value={pw}
+            onChange={e=>{setPw(e.target.value);setErr('');}}
+            placeholder="Enter admin password"
+            autoFocus
+            style={{width:'100%',padding:'12px 16px',borderRadius:10,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:16,marginBottom:12,boxSizing:'border-box',outline:'none'}}
+          />
+          {err && <p style={{color:'var(--red)',fontSize:13,margin:'0 0 12px'}}>{err}</p>}
+          <button type="submit" disabled={busy||!pw}
+            style={{width:'100%',padding:'13px',background:'var(--red)',color:'#fff',border:'none',borderRadius:10,fontSize:16,fontWeight:700,cursor:busy||!pw?'not-allowed':'pointer',opacity:busy||!pw?0.6:1,transition:'opacity .2s'}}>
+            {busy ? 'Checking…' : 'Enter'}
+          </button>
+        </form>
+        <p style={{color:'var(--text2)',fontSize:12,marginTop:20}}>Staff? Use the <a href="/ranking.html" style={{color:'var(--gold)',textDecoration:'none'}}>Rankings Board</a> instead.</p>
+      </div>
+    </div>
+  );
+}
+
+
 async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
   try {
     await api('create','ActivityLog',{data:{event_type,title,description,actor_name,entity_id,amount}});
@@ -2102,6 +2154,8 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
+  const { authed, login, logout } = useAdminAuth();
+  if (!authed) return <LoginScreen onLogin={login} />;
   const [page,setPage]=useState('dashboard');
   const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>768);
   const [employees,setEmployees]=useState([]);
@@ -2158,6 +2212,7 @@ function App() {
     </div>
   );
 
+  if (!authed) return <LoginScreen onLogin={login} />;
   return (
     <div className="app">
       {isMobile&&sidebarOpen&&<div className="sidebar-overlay show" onClick={()=>setSidebarOpen(false)}></div>}
@@ -2197,6 +2252,7 @@ function App() {
           <div className="topbar-right">
             <div className="live-badge"><div className="live-dot"></div>Live</div>
             <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')}>{Ic.plus} New Wash</button>
+            <button onClick={logout} title="Logout" style={{background:'none',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'var(--text2)',padding:'7px 13px',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:6}}>🔓 Logout</button>
           </div>
         </div>
         <div className="page-content">
