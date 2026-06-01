@@ -1397,6 +1397,16 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
     try{await api('update','Employee',{id:emp.id,data:{is_active:!emp.is_active}});await onRefresh();showToast(`${emp.full_name} ${emp.is_active?'deactivated':'activated'}`,'success');}
     catch(e){showToast('Error','error');}
   };
+  const [confirmDeleteEmp,setConfirmDeleteEmp]=useState(null);
+  const deleteEmp=async()=>{
+    if(!confirmDeleteEmp) return;
+    try{
+      await api('delete','Employee',{id:confirmDeleteEmp.id});
+      logEvent({event_type:'employee_deleted',title:`Employee removed — ${confirmDeleteEmp.full_name}`,description:'',actor_name:confirmDeleteEmp.full_name,entity_id:confirmDeleteEmp.id});
+      await onRefresh(); setConfirmDeleteEmp(null);
+      showToast(`${confirmDeleteEmp.full_name} removed`,'success');
+    }catch(e){showToast('Error: '+e.message,'error');}
+  };
 
   const getStats=id=>{
     const ws=carWashes.filter(w=>w.employee_id===id),now=new Date();
@@ -1459,6 +1469,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
                 <button className={`btn btn-sm ${emp.is_active?'btn-danger':''}`} style={{flex:1,background:emp.is_active?undefined:'rgba(34,197,94,.15)',color:emp.is_active?undefined:'var(--success)',border:emp.is_active?undefined:'1px solid rgba(34,197,94,.2)'}} onClick={e=>{e.stopPropagation();toggleActive(emp);}}>
                   {emp.is_active?'Deactivate':'Activate'}
                 </button>
+                <button className="btn btn-sm" style={{background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)'}} onClick={e=>{e.stopPropagation();setConfirmDeleteEmp(emp);}}>🗑</button>
               </div>
             </div>
           );
@@ -1605,6 +1616,16 @@ function Services({ services, showToast, onRefresh }) {
     finally{setSaving(false);}
   };
   const toggle=async svc=>{try{await api('update','Service',{id:svc.id,data:{is_active:!svc.is_active}});await onRefresh();}catch(e){showToast('Error','error');}};
+  const [confirmDelete,setConfirmDelete]=useState(null);
+  const deleteSvc=async()=>{
+    if(!confirmDelete) return;
+    try{
+      await api('delete','Service',{id:confirmDelete.id});
+      logEvent({event_type:'service_deleted',title:`Service removed — ${confirmDelete.name}`,description:`Price was ${peso(confirmDelete.price)}`,entity_id:confirmDelete.id});
+      await onRefresh(); setConfirmDelete(null);
+      showToast(`"${confirmDelete.name}" removed`,'success');
+    }catch(e){showToast('Error: '+e.message,'error');}
+  };;
   return (
     <div>
       <div className="flex-between mb-4">
@@ -1625,6 +1646,7 @@ function Services({ services, showToast, onRefresh }) {
                   <td><div style={{display:'flex',gap:6}}>
                     <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(svc)}>{Ic.edit}</button>
                     <button className={`btn btn-sm ${svc.is_active?'btn-danger':''}`} style={{fontSize:11,...(!svc.is_active?{background:'rgba(34,197,94,.15)',color:'var(--success)',border:'1px solid rgba(34,197,94,.2)'}:{})}} onClick={()=>toggle(svc)}>{svc.is_active?'Deactivate':'Activate'}</button>
+                    <button className="btn btn-sm" style={{fontSize:11,background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)'}} onClick={()=>setConfirmDelete(svc)}>🗑 Remove</button>
                   </div></td>
                 </tr>
               ))}
@@ -1646,6 +1668,32 @@ function Services({ services, showToast, onRefresh }) {
             </div>
           </div>
         </div>
+      )}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={()=>setConfirmDelete(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380,textAlign:'center'}}>
+            <div style={{fontSize:40,marginBottom:12}}>🗑️</div>
+            <div className="modal-title" style={{marginBottom:8}}>Remove Service?</div>
+            <p style={{color:'var(--text2)',fontSize:14,marginBottom:24}}>Are you sure you want to remove <strong style={{color:'var(--text)'}}>{confirmDelete.name}</strong>? This cannot be undone.</p>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmDelete(null)}>Cancel</button>
+              <button className="btn btn-danger" style={{flex:1}} onClick={deleteSvc}>Yes, Remove</button>
+            </div>
+          </div>
+        </div>
+      {confirmDeleteEmp && (
+        <div className="modal-overlay" onClick={()=>setConfirmDeleteEmp(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380,textAlign:'center'}}>
+            <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
+            <div className="modal-title" style={{marginBottom:8}}>Remove Employee?</div>
+            <p style={{color:'var(--text2)',fontSize:14,marginBottom:24}}>Are you sure you want to remove <strong style={{color:'var(--text)'}}>{confirmDeleteEmp.full_name}</strong>? Their transaction history will remain but they will no longer appear in new records.</p>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmDeleteEmp(null)}>Cancel</button>
+              <button className="btn btn-danger" style={{flex:1}} onClick={deleteEmp}>Yes, Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
       )}
     </div>
   );
