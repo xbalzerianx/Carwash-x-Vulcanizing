@@ -554,7 +554,7 @@ function LoginScreen({ onLogin }) {
 }
 
 
-async async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
+async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
   try {
     await api('create','ActivityLog',{data:{event_type,title,description,actor_name,entity_id,amount}});
   } catch(e) { console.warn('Log failed:',e.message); }
@@ -1624,6 +1624,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
             </div>
           </div>
         </div>
+      )}
       {confirmDeleteEmp && (
         <div className="modal-overlay" onClick={()=>setConfirmDeleteEmp(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380,textAlign:'center'}}>
