@@ -510,7 +510,7 @@ function Toast({ msg, type, onClose }) {
 /* ═══════════════════════════════════════════
    GAMIFIED RANKING PAGE
 ═══════════════════════════════════════════ */
-function Ranking({ carWashes, employees, campaign }) {
+function Ranking({ carWashes, employees, campaign={} }) {
   const [tab, setTab] = useState('today');
   const now = new Date();
   const todayStr = today();
@@ -641,7 +641,7 @@ function Ranking({ carWashes, employees, campaign }) {
           )}
 
           {/* ── GAP COMPARISON BOARD ── */}
-          {pos1 && pos1.cars > 0 && (
+          {ranked.length > 0 && ranked[0] && ranked[0].cars > 0 && (
             <div className="gap-board mb-4">
               <div className="gap-board-title">
                 <span style={{color:'var(--red)'}}>{Ic.gap}</span>
@@ -1126,7 +1126,7 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
 /* ═══════════════════════════════════════════
    EMPLOYEES
 ═══════════════════════════════════════════ */
-function Employees({ employees, carWashes, payouts, showToast, onRefresh }) {
+function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
   const [showModal,setShowModal]=useState(false);
   const [editing,setEditing]=useState(null);
   const [viewEmp,setViewEmp]=useState(null);
@@ -1551,7 +1551,69 @@ function Rewards({ campaigns, carWashes, employees, showToast, onRefresh }) {
 /* ═══════════════════════════════════════════
    REPORTS
 ═══════════════════════════════════════════ */
-function Reports({ carWashes, employees, payouts, showToast }) {
+/* CommissionSummary — extracted from Reports to avoid IIFE crashes */
+function CommissionSummary({ filtered, payouts, employees, period, customFrom, customTo, now, periodLabel }) {
+  if (!Array.isArray(payouts) || payouts.length === 0) return null;
+
+  const getPayoutsInPeriod = (empId) => {
+    return payouts.filter(p => {
+      if (p.employee_id !== empId) return false;
+      const d = new Date(p.payout_date||p.created_date||'');
+      if (period==='today') return (p.payout_date||p.created_date||'').startsWith(new Date().toISOString().split('T')[0]);
+      if (period==='7days') return d >= new Date((now||new Date()).getTime()-7*86400000);
+      if (period==='month') {
+        const n = now||new Date();
+        return d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear();
+      }
+      if (period==='custom' && customFrom && customTo) {
+        return d >= new Date(customFrom+'T00:00:00') && d <= new Date(customTo+'T23:59:59');
+      }
+      return true;
+    });
+  };
+
+  const empComm = {};
+  (filtered||[]).forEach(w => {
+    if (!empComm[w.employee_id]) empComm[w.employee_id] = {name:w.employee_name, id:w.employee_id, earned:0};
+    empComm[w.employee_id].earned += (w.commission_amount||0);
+  });
+
+  const rows = Object.values(empComm).map(e => {
+    const empPayouts = getPayoutsInPeriod(e.id);
+    const paid = empPayouts.reduce((s,p)=>s+(p.amount||0),0);
+    return {...e, paid, remaining:e.earned-paid, payoutList:empPayouts};
+  }).sort((a,b)=>b.earned-a.earned);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="card" style={{marginTop:16}}>
+      <div className="section-title" style={{fontSize:13,marginBottom:14}}>Commission Payouts — {periodLabel}</div>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Earned</th><th>Paid Out</th><th>Balance</th><th>History</th></tr></thead>
+          <tbody>
+            {rows.map((r,i) => {
+              const emp = (employees||[]).find(e=>e.id===r.id);
+              return (
+                <tr key={i}>
+                  <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:r.name}} size={26} fs={10}/><span style={{fontWeight:600}}>{r.name}</span></div></td>
+                  <td style={{fontWeight:700,color:'var(--gold)'}}>{peso(r.earned)}</td>
+                  <td style={{color:'var(--success)'}}>{peso(r.paid)}</td>
+                  <td><span style={{fontWeight:800,color:r.remaining>0?'var(--red)':'var(--text2)'}}>{peso(r.remaining)}</span></td>
+                  <td style={{color:'var(--text2)',fontSize:11}}>{r.payoutList.map(p=>`${peso(p.amount)} (${p.note||'payout'})`).join(', ')||'—'}</td>
+                </tr>
+              );
+            })}
+            {rows.length===0 && <tr><td colSpan={5} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No commission data.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Reports({ carWashes, employees, payouts=[], showToast }) {
   const [period, setPeriod] = useState('today');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
@@ -1733,62 +1795,7 @@ function Reports({ carWashes, employees, payouts, showToast }) {
       )}
 
       {/* Commission Payout Summary */}
-      {payouts && payouts.length > 0 && (
-        <div className="card" style={{marginTop:16}}>
-          <div className="section-title" style={{fontSize:13,marginBottom:14}}>Commission Payouts — {periodLabel}</div>
-          {(() => {
-            // Build per-employee commission summary for the filtered period
-            const empComm = {};
-            filtered.forEach(w => {
-              if (!empComm[w.employee_id]) empComm[w.employee_id]={name:w.employee_name,id:w.employee_id,earned:0};
-              empComm[w.employee_id].earned += (w.commission_amount||0);
-            });
-            // Match payouts in same period
-            const getPayoutsInPeriod = (empId) => {
-              return (payouts||[]).filter(p => {
-                if (p.employee_id !== empId) return false;
-                const d = new Date(p.payout_date||p.created_date);
-                if (period==='today') return (p.payout_date||p.created_date||'').startsWith(today());
-                if (period==='7days') return d >= new Date(now.getTime()-7*86400000);
-                if (period==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
-                if (period==='custom'&&customFrom&&customTo) {
-                  return d >= new Date(customFrom+'T00:00:00') && d <= new Date(customTo+'T23:59:59');
-                }
-                return true;
-              });
-            };
-
-            const rows = Object.values(empComm).map(e => {
-              const empPayouts = getPayoutsInPeriod(e.id);
-              const paid = empPayouts.reduce((s,p)=>s+(p.amount||0),0);
-              return {...e, paid, remaining: e.earned-paid, payouts:empPayouts};
-            }).sort((a,b)=>b.earned-a.earned);
-
-            return (
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Employee</th><th>Earned</th><th>Paid Out</th><th>Balance</th><th>History</th></tr></thead>
-                  <tbody>
-                    {rows.map((r,i)=>{
-                      const emp=employees.find(e=>e.id===r.id);
-                      return (
-                        <tr key={i}>
-                          <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:r.name}} size={26} fs={10}/><span style={{fontWeight:600}}>{r.name}</span></div></td>
-                          <td style={{fontWeight:700,color:'var(--gold)'}}>{peso(r.earned)}</td>
-                          <td style={{color:'var(--success)'}}>{peso(r.paid)}</td>
-                          <td><span style={{fontWeight:800,color:r.remaining>0?'var(--red)':'var(--text2)'}}>{peso(r.remaining)}</span></td>
-                          <td style={{color:'var(--text2)',fontSize:11}}>{r.payouts.map(p=>`${peso(p.amount)} (${p.note||'payout'})`).join(', ')||'—'}</td>
-                        </tr>
-                      );
-                    })}
-                    {rows.length===0&&<tr><td colSpan={5} style={{textAlign:'center',padding:20,color:'var(--text2)'}}>No commission data.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+      <CommissionSummary filtered={filtered} payouts={payouts} employees={employees} period={period} customFrom={customFrom} customTo={customTo} now={now} periodLabel={periodLabel} />
     </div>
   );
 }
@@ -1796,7 +1803,7 @@ function Reports({ carWashes, employees, payouts, showToast }) {
 /* ═══════════════════════════════════════════
    ACTIVITY LOG
 ═══════════════════════════════════════════ */
-function ActivityLogs({ logs, employees, onRefresh }) {
+function ActivityLogs({ logs=[], employees=[], onRefresh }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -1909,10 +1916,10 @@ function ActivityLogs({ logs, employees, onRefresh }) {
                 {emp
                   ? <Av emp={emp} size={38} fs={13} />
                   : <div style={{width:14,height:14,color:cfg.color}}>{
-                      log.event_type==='wash_recorded'    ? Ic.car    :
-                      log.event_type==='commission_paid'  ? Ic.gift   :
-                      log.event_type?.startsWith('emp')   ? Ic.users  :
-                      log.event_type?.startsWith('svc')   ? Ic.wrench :
+                      (log.event_type==='wash_recorded')   ? Ic.car    :
+                      (log.event_type==='commission_paid') ? Ic.gift   :
+                      (log.event_type||'').startsWith('emp') ? Ic.users  :
+                      (log.event_type||'').startsWith('svc') ? Ic.wrench :
                       Ic.log
                     }</div>
                 }
@@ -1942,6 +1949,23 @@ function ActivityLogs({ logs, employees, onRefresh }) {
 /* ═══════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════ */
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = {hasError:false,error:null}; }
+  static getDerivedStateFromError(error) { return {hasError:true,error}; }
+  componentDidCatch(error,info) { console.error('React Error:', error, info); }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:16,padding:24,background:'#1E1E22'}}>
+        <div style={{width:56,height:56,background:'#D94A4A',borderRadius:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>!</div>
+        <div style={{fontSize:18,fontWeight:800,color:'#F7F7F7'}}>Something went wrong</div>
+        <div style={{fontSize:13,color:'#7A7A85',maxWidth:400,textAlign:'center'}}>{this.state.error?.message}</div>
+        <button onClick={()=>window.location.reload()} style={{padding:'10px 24px',background:'#D94A4A',color:'white',border:'none',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer'}}>Reload App</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 function App() {
   const [page,setPage]=useState('dashboard');
   const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>768);
@@ -1955,10 +1979,16 @@ function App() {
 
   const loadAll=async()=>{
     try{
-      const [e,s,w,c,p,l]=await Promise.all([api('list','Employee'),api('list','Service'),api('list','CarWash'),api('list','RewardCampaign'),api('list','CommissionPayout'),api('list','ActivityLog')]);
-      setEmployees(e||[]);setServices(s||[]);setCarWashes(w||[]);setCampaigns(c||[]);setPayouts(p||[]);setLogs(l||[]);
-    }catch(err){showToast('Failed to load: '+err.message,'error');}
-    finally{setLoading(false);}
+      // Load each entity independently so one failure doesn't blank everything
+      const safe = async (entity) => { try { return await api('list', entity); } catch(e) { console.warn(entity+' load failed:', e.message); return []; } };
+      const [e,s,w,c,p,l] = await Promise.all([
+        safe('Employee'), safe('Service'), safe('CarWash'),
+        safe('RewardCampaign'), safe('CommissionPayout'), safe('ActivityLog')
+      ]);
+      setEmployees(e); setServices(s); setCarWashes(w);
+      setCampaigns(c); setPayouts(p); setLogs(l);
+    } catch(err) { showToast('Load error: '+err.message,'error'); }
+    finally { setLoading(false); }
   };
 
   useEffect(()=>{loadAll();},[]);
@@ -2033,15 +2063,15 @@ function App() {
           </div>
         </div>
         <div className="page-content">
-          {page==='dashboard'    && <Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/>}
-          {page==='record'       && <RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/>}
-          {page==='transactions' && <Transactions carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast}/>}
-          {page==='ranking'      && <Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/>}
-          {page==='reports'      && <Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/>}
-          {page==='employees'    && <Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/>}
-          {page==='services'     && <Services services={services} showToast={showToast} onRefresh={loadAll}/>}
-          {page==='rewards'      && <Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/>}
-          {page==='logs'         && <ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/>}
+          {page==='dashboard'    && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
+          {page==='record'       && <ErrorBoundary><RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
+          {page==='transactions' && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast}/></ErrorBoundary>}
+          {page==='ranking'      && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
+          {page==='reports'      && <ErrorBoundary><Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
+          {page==='employees'    && <ErrorBoundary><Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='services'     && <ErrorBoundary><Services services={services} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='logs'         && <ErrorBoundary><ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
       </div>
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
@@ -2049,7 +2079,7 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+ReactDOM.render(<ErrorBoundary><App /></ErrorBoundary>, document.getElementById('root'));
 </script>
 </body>
 </html>
