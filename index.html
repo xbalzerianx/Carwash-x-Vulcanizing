@@ -2153,9 +2153,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function App() {
-  const { authed, login, logout } = useAdminAuth();
-  if (!authed) return <LoginScreen onLogin={login} />;
+function AdminApp({ logout }) {
   const [page,setPage]=useState('dashboard');
   const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>768);
   const [employees,setEmployees]=useState([]);
@@ -2212,7 +2210,6 @@ function App() {
     </div>
   );
 
-  if (!authed) return <LoginScreen onLogin={login} />;
   return (
     <div className="app">
       {isMobile&&sidebarOpen&&<div className="sidebar-overlay show" onClick={()=>setSidebarOpen(false)}></div>}
@@ -2270,6 +2267,12 @@ function App() {
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     </div>
   );
+}
+
+function App() {
+  const { authed, login, logout } = useAdminAuth();
+  if (!authed) return <LoginScreen onLogin={login} />;
+  return <AdminApp logout={logout} />;
 }
 
 ReactDOM.render(<ErrorBoundary><App /></ErrorBoundary>, document.getElementById('root'));
