@@ -9,6 +9,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
       --red: #D94A4A;
       --red-hover: #C63E3E;
@@ -47,7 +48,7 @@
     @keyframes crownBob  { 0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-4px) rotate(5deg)} }
 
     /* ── LAYOUT ── */
-    .app { display:flex; min-height:100vh; }
+    .app { display:flex; min-height:100vh; overflow-x:hidden; width:100%; max-width:100vw; }
     .sidebar {
       width:260px; background:var(--bg2); border-right:1px solid var(--border);
       display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100;
@@ -78,7 +79,7 @@
     .nav-icon { width:18px; height:18px; flex-shrink:0; }
     .nav-icon svg { width:18px; height:18px; }
     .sidebar-footer { padding:14px; border-top:1px solid var(--border); }
-    .main { flex:1; margin-left:260px; min-height:100vh; display:flex; flex-direction:column; transition:margin-left .3s; }
+    .main { flex:1; margin-left:260px; min-height:100vh; display:flex; flex-direction:column; transition:margin-left .3s; min-width:0; overflow-x:hidden; }
     .topbar {
       background:rgba(30,30,34,.97); backdrop-filter:blur(20px);
       border-bottom:1px solid var(--border); padding:0 24px; height:62px;
@@ -101,7 +102,7 @@
       border-radius:20px; padding:4px 11px; font-size:11px; font-weight:600; color:var(--success);
     }
     .live-dot { width:6px; height:6px; background:var(--success); border-radius:50%; animation:pulseDot 1.5s infinite; }
-    .page-content { flex:1; padding:22px; max-width:1400px; width:100%; }
+    .page-content { flex:1; padding:22px; max-width:1400px; width:100%; box-sizing:border-box; overflow-x:hidden; }
 
     /* ── CARDS ── */
     .card {
@@ -211,7 +212,9 @@
     .summary-row .val { font-size:14px; font-weight:700; }
 
     /* ── TABLE ── */
-    .table-wrap { overflow-x:auto; border-radius:12px; }
+    .table-wrap { overflow-x:auto; border-radius:12px; -webkit-overflow-scrolling:touch; }
+    .hide-xs { }
+    @media (max-width:520px) { .hide-xs { display:none !important; } }
     table { width:100%; border-collapse:collapse; }
     thead tr { background:rgba(255,255,255,.04); }
     th { padding:11px 14px; text-align:left; font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
@@ -388,46 +391,83 @@
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99; }
 
     @media (max-width:768px) {
+      /* Sidebar */
       .sidebar { transform:translateX(-260px); }
       .sidebar.open { transform:translateX(0); }
       .sidebar-overlay.show { display:block; }
       .main { margin-left:0 !important; }
-      .stats-grid { grid-template-columns:1fr 1fr; gap:10px; }
+
+      /* Topbar — compact, hide live badge text on mobile */
+      .topbar { padding:0 12px; height:52px; }
+      .topbar-right { gap:6px; }
+      .live-badge { display:none; }
+      .page-title { font-size:14px; }
+
+      /* Page */
+      .page-content { padding:10px; }
+
+      /* Cards & grids */
+      .card { padding:12px; border-radius:14px; }
+      .stats-grid { grid-template-columns:1fr 1fr; gap:8px; }
       .grid-2 { grid-template-columns:1fr; }
       .grid-3 { grid-template-columns:1fr 1fr; }
       .service-grid { grid-template-columns:1fr; }
-      .page-content { padding:12px; }
-      .podium-wrap { gap:0; padding:0 4px; }
-      .comm-cards { grid-template-columns:1fr 1fr; }
-      .rank-tabs { gap:2px; }
-      .rank-tab { font-size:11px; padding:8px 4px; }
-      .gap-board { padding:14px 12px; }
-      .gap-row { gap:8px; }
-      .gap-behind { font-size:10px; padding:2px 6px; }
-      .card { padding:14px; }
-      .modal { padding:18px; }
-      .emp-grid { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
-      .podium-bar { padding:8px 4px; }
-      .podium-cars { font-size:20px; }
-      .podium-name { font-size:11px; }
-      .comm-card { padding:14px 10px; }
-      .comm-card-comm { font-size:18px; }
-      .topbar { padding:0 14px; height:54px; }
-      .page-title { font-size:15px; }
-      table { font-size:11px; }
-      th,td { padding:8px 10px; }
-      .stat-card { padding:14px; }
+      .stat-card { padding:12px; }
       .stat-value { font-size:20px; }
-      .hero-header { padding:16px; margin-bottom:14px; }
-      .rank-list-item { padding:11px 12px; gap:8px; }
-      .rl-cars { font-size:17px; }
-      .btn-xl { padding:14px 18px; font-size:14px; }
-    }
-    @media (max-width:400px) {
-      .stats-grid { grid-template-columns:1fr 1fr; }
-      .comm-cards { grid-template-columns:1fr 1fr; }
-      .grid-3 { grid-template-columns:1fr; }
+      .stat-label { font-size:11px; }
+
+      /* Tables — horizontal scroll, smaller text */
+      .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px; }
+      table { font-size:11px; min-width:480px; }
+      th,td { padding:8px 9px; white-space:nowrap; }
+
+      /* Modal — full width on mobile */
+      .modal-overlay { padding:0; align-items:flex-end; }
+      .modal { max-width:100% !important; width:100% !important; border-radius:20px 20px 0 0; max-height:92vh; padding:20px 16px; }
+      .modal-title { font-size:16px; }
+
+      /* Rankings */
+      .podium-wrap { gap:0; padding:0 2px; }
+      .podium-bar { padding:6px 2px; }
       .podium-cars { font-size:18px; }
+      .podium-name { font-size:10px; }
+      .comm-cards { grid-template-columns:1fr 1fr; }
+      .comm-card { padding:12px 8px; }
+      .comm-card-comm { font-size:16px; }
+      .rank-tabs { gap:2px; }
+      .rank-tab { font-size:10px; padding:7px 2px; }
+      .gap-board { padding:12px 10px; }
+      .gap-row { gap:6px; }
+      .gap-behind { font-size:10px; padding:2px 5px; }
+      .rank-list-item { padding:10px 12px; gap:8px; }
+      .rl-cars { font-size:16px; }
+      .hero-header { padding:14px; margin-bottom:12px; }
+
+      /* Employees */
+      .emp-grid { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
+
+      /* Buttons */
+      .btn-xl { padding:13px 16px; font-size:14px; }
+      .btn-sm { padding:6px 10px; font-size:12px; }
+    }
+    @media (max-width:480px) {
+      /* Small phones (iPhone SE, Galaxy A) */
+      .stats-grid { grid-template-columns:1fr 1fr; gap:6px; }
+      .stat-value { font-size:18px; }
+      .comm-cards { grid-template-columns:1fr 1fr; }
+      .grid-3 { grid-template-columns:1fr 1fr; }
+      .podium-cars { font-size:16px; }
+      .page-content { padding:8px; }
+      .card { padding:10px; }
+      /* Service table action buttons stack nicely */
+      th,td { padding:6px 7px; font-size:10px; }
+    }
+    @media (max-width:360px) {
+      /* Very small phones */
+      .stats-grid { grid-template-columns:1fr 1fr; }
+      .stat-value { font-size:16px; }
+      .stat-label { font-size:10px; }
+      .topbar { height:48px; padding:0 10px; }
     }
   </style>
 </head>
@@ -488,7 +528,7 @@ function LoginScreen({ onLogin }) {
   };
   return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',fontFamily:'inherit'}}>
-      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:'48px 40px',width:360,maxWidth:'90vw',textAlign:'center',boxShadow:'0 8px 40px rgba(0,0,0,0.4)'}}>
+      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:'48px 40px',width:360,maxWidth:'94vw',textAlign:'center',boxShadow:'0 8px 40px rgba(0,0,0,0.4)'}}>
         <div style={{fontSize:48,marginBottom:16}}>🔒</div>
         <h2 style={{color:'var(--text)',margin:'0 0 6px',fontSize:22,fontWeight:700}}>Admin Access</h2>
         <p style={{color:'var(--text2)',fontSize:14,margin:'0 0 28px'}}>KGCAR Carwash Management</p>
@@ -1282,9 +1322,9 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
                         <td style={{fontSize:11}}><div>{fmt(w.transaction_date||w.created_date)}</div><div style={{color:'var(--text2)'}}>{fmtTime(w.transaction_date||w.created_date)}</div></td>
                         <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:w.employee_name}} size={26} fs={10} /><span style={{fontWeight:600}}>{w.employee_name}</span></div></td>
                         <td style={{fontWeight:600}}>{w.plate_number||'—'}</td>
-                        <td style={{color:'var(--text2)'}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
+                        <td className='hide-xs' style={{color:'var(--text2)'}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
                         <td style={{fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</td>
-                        <td style={{color:'var(--success)'}}>{peso(w.commission_amount)}</td>
+                        <td className='hide-xs' style={{color:'var(--success)'}}>{peso(w.commission_amount)}</td>
                         <td><button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button></td>
                       </tr>
                     );
@@ -1464,12 +1504,12 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
                   </div>
                 ) : null;
               })()}
-              <div style={{display:'flex',gap:8}}>
-                <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={e=>{e.stopPropagation();openEdit(emp);}}>{Ic.edit} Edit</button>
-                <button className={`btn btn-sm ${emp.is_active?'btn-danger':''}`} style={{flex:1,background:emp.is_active?undefined:'rgba(34,197,94,.15)',color:emp.is_active?undefined:'var(--success)',border:emp.is_active?undefined:'1px solid rgba(34,197,94,.2)'}} onClick={e=>{e.stopPropagation();toggleActive(emp);}}>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                <button className="btn btn-ghost btn-sm" style={{flex:'1 1 60px',minWidth:0}} onClick={e=>{e.stopPropagation();openEdit(emp);}}>{Ic.edit} Edit</button>
+                <button className={`btn btn-sm ${emp.is_active?'btn-danger':''}`} style={{flex:'1 1 80px',minWidth:0,background:emp.is_active?undefined:'rgba(34,197,94,.15)',color:emp.is_active?undefined:'var(--success)',border:emp.is_active?undefined:'1px solid rgba(34,197,94,.2)'}} onClick={e=>{e.stopPropagation();toggleActive(emp);}}>
                   {emp.is_active?'Deactivate':'Activate'}
                 </button>
-                <button className="btn btn-sm" style={{background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)'}} onClick={e=>{e.stopPropagation();setConfirmDeleteEmp(emp);}}>🗑</button>
+                <button className="btn btn-sm" style={{background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)',minWidth:36}} onClick={e=>{e.stopPropagation();setConfirmDeleteEmp(emp);}}>🗑</button>
               </div>
             </div>
           );
@@ -1635,18 +1675,18 @@ function Services({ services, showToast, onRefresh }) {
       <div className="card">
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th className='hide-xs'>Description</th><th>Price</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {services.map(svc=>(
                 <tr key={svc.id}>
                   <td style={{fontWeight:700}}>{svc.name}</td>
-                  <td style={{color:'var(--text2)'}}>{svc.description||'—'}</td>
+                  <td className='hide-xs' style={{color:'var(--text2)'}}>{svc.description||'—'}</td>
                   <td style={{fontWeight:700,color:'var(--gold)'}}>{peso(svc.price)}</td>
                   <td><span className={`badge ${svc.is_active?'badge-green':'badge-red'}`}>{svc.is_active?'Active':'Inactive'}</span></td>
-                  <td><div style={{display:'flex',gap:6}}>
+                  <td><div style={{display:'flex',gap:4,flexWrap:'wrap',justifyContent:'flex-end'}}>
                     <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(svc)}>{Ic.edit}</button>
                     <button className={`btn btn-sm ${svc.is_active?'btn-danger':''}`} style={{fontSize:11,...(!svc.is_active?{background:'rgba(34,197,94,.15)',color:'var(--success)',border:'1px solid rgba(34,197,94,.2)'}:{})}} onClick={()=>toggle(svc)}>{svc.is_active?'Deactivate':'Activate'}</button>
-                    <button className="btn btn-sm" style={{fontSize:11,background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)'}} onClick={()=>setConfirmDelete(svc)}>🗑 Remove</button>
+                    <button className="btn btn-sm" style={{fontSize:11,background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)'}} onClick={()=>setConfirmDelete(svc)}>🗑</button>
                   </div></td>
                 </tr>
               ))}
@@ -2294,10 +2334,14 @@ function AdminApp({ logout }) {
             <div className="menu-btn" onClick={()=>setSidebarOpen(!sidebarOpen)}>{Ic.menu}</div>
             <div className="page-title">{pageLabel}</div>
           </div>
-          <div className="topbar-right">
-            <div className="live-badge"><div className="live-dot"></div>Live</div>
-            <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')}>{Ic.plus} New Wash</button>
-            <button onClick={logout} title="Logout" style={{background:'none',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'var(--text2)',padding:'7px 13px',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:6}}>🔓 Logout</button>
+          <div className="topbar-right" style={{display:'flex',alignItems:'center',gap:6}}>
+            <div className="live-badge"><div className="live-dot"></div><span className="hide-xs">Live</span></div>
+            <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')} style={{display:'flex',alignItems:'center',gap:4}}>
+              {Ic.plus}<span className="hide-xs"> New Wash</span>
+            </button>
+            <button onClick={logout} title="Logout" style={{background:'none',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'var(--text2)',padding:'7px 10px',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:4}}>
+              🔓<span className="hide-xs"> Logout</span>
+            </button>
           </div>
         </div>
         <div className="page-content">
