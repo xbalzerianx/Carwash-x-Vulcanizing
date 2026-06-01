@@ -103,7 +103,7 @@ const { useState, useEffect, useRef } = React;
 
 // ── CONFIG ──
 const APP_ID   = '6a1c42f697e43e4ff43a5097';
-const API_BASE = 'https://api.base44.com/api/apps/' + APP_ID + '/functions/apiHandler';
+const API_BASE = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
 
 async function fetchEntity(entity) {
   const r = await fetch(API_BASE, {
@@ -124,7 +124,11 @@ const parseArr = v => {
     return item;
   }).filter(Boolean);
 };
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => {
+  const d = new Date();
+  // Use Asia/Manila local date (UTC+8) not UTC
+  return d.toLocaleDateString('en-CA', {timeZone:'Asia/Manila'}); // returns YYYY-MM-DD
+};
 
 function Av({ emp, size=40, fs=15 }) {
   const name   = emp?.full_name || '?';
@@ -169,16 +173,25 @@ function RankingPage() {
 
   const now = new Date();
   const todayStr = today();
+  // nowPH: same moment but shifted to compare month/year in PH local time
+  const nowPH = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Manila'}));
 
   const filterWashes = () => {
-    if (tab === 'today') return carWashes.filter(w=>(w.transaction_date||w.created_date||'').startsWith(todayStr));
+    if (tab === 'today') return carWashes.filter(w=>{
+      const raw = w.transaction_date||w.created_date||'';
+      if (!raw) return false;
+      const localDate = new Date(raw).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return localDate === todayStr;
+    });
     if (tab === '7days') {
       const cutoff = new Date(now.getTime() - 7*24*60*60*1000);
       return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=cutoff);
     }
     return carWashes.filter(w=>{
       const d=new Date(w.transaction_date||w.created_date);
-      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+      // Compare month/year in PH timezone
+      const dPH = new Date(d.toLocaleString('en-US',{timeZone:'Asia/Manila'}));
+      return dPH.getMonth()===nowPH.getMonth()&&dPH.getFullYear()===nowPH.getFullYear();
     });
   };
 
