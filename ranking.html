@@ -1,220 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KGCAR Carwash — Live Rankings</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>KGCAR Live Rankings</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --gold:   #D4AF37;
-      --silver: #B8BCC2;
-      --bronze: #B87333;
-      --red:    #D94A4A;
-      --green:  #22C55E;
-      --bg:     #111114;
-      --bg2:    #1A1A1F;
-      --bg3:    #242429;
-      --border: rgba(255,255,255,0.07);
-      --text:   #F7F7F7;
-      --text2:  #6B6B75;
+      --bg:      #1E1E22;
+      --bg2:     #2B2B31;
+      --card:    #2B2B31;
+      --red:     #D94A4A;
+      --gold:    #D4AF37;
+      --silver:  #B8BCC2;
+      --bronze:  #B87333;
+      --text:    #F7F7F7;
+      --text2:   #7A7A85;
+      --border:  rgba(255,255,255,0.08);
+      --success: #22C55E;
     }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow: hidden;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
 
-    @keyframes fadeIn     { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes crownFloat { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-6px) rotate(4deg)} }
-    @keyframes glowPulse  { 0%,100%{opacity:1} 50%{opacity:.5} }
-    @keyframes barGrow    { from{width:0} to{width:var(--w)} }
-    @keyframes rankIn     { from{opacity:0;transform:translateX(-30px)} to{opacity:1;transform:translateX(0)} }
-    @keyframes numberPop  { 0%{transform:scale(1.3);opacity:0} 100%{transform:scale(1);opacity:1} }
-    @keyframes scanline   { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
-    @keyframes blink      { 0%,100%{opacity:1} 49%{opacity:1} 50%{opacity:0} 99%{opacity:0} }
+    /* ── TABS ── */
+    .rank-tabs { display:flex; gap:6px; margin-bottom:20px; background:var(--bg2); border-radius:12px; padding:4px; }
+    .rank-tab  { flex:1; padding:10px; text-align:center; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; color:var(--text2); transition:all .2s; }
+    .rank-tab.active { background:var(--red); color:#fff; }
 
-    /* ── SCANLINE OVERLAY ── */
-    body::after {
-      content:'';
-      position:fixed; inset:0;
-      background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-      pointer-events:none; z-index:999;
-    }
+    /* ── PODIUM ── */
+    .podium-wrap  { display:flex; align-items:flex-end; justify-content:center; gap:8px; padding:0 12px; }
+    .podium-slot  { flex:1; max-width:150px; display:flex; flex-direction:column; align-items:center; }
+    .podium-crown { font-size:24px; margin-bottom:4px; animation:bounce 1.2s ease infinite; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    .podium-bar   { width:100%; border-radius:10px 10px 0 0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:12px 8px; }
+    .podium-cars  { font-size:26px; font-weight:900; }
+    .podium-clabel{ font-size:10px; font-weight:700; letter-spacing:1px; opacity:.7; }
+    .podium-sales { font-size:12px; font-weight:700; margin-top:4px; opacity:.85; }
+    .podium-name  { font-size:12px; font-weight:800; margin-bottom:6px; text-align:center; }
+    .podium-avatar-wrap { position:relative; }
 
-    /* ── HEADER ── */
-    .header {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:20px 36px 16px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg2);
-    }
-    .header-brand { display:flex; align-items:center; gap:14px; }
-    .brand-logo {
-      width:48px; height:48px; background:var(--red); border-radius:14px;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .brand-logo svg { width:28px; height:28px; fill:white; }
-    .brand-name { font-size:22px; font-weight:900; letter-spacing:-.5px; }
-    .brand-sub  { font-size:12px; color:var(--text2); font-weight:500; margin-top:1px; }
-    .header-center { text-align:center; }
-    .header-title { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:3px; color:var(--gold); line-height:1; }
-    .header-sub   { font-size:12px; color:var(--text2); margin-top:2px; letter-spacing:1px; text-transform:uppercase; }
-    .header-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
-    .live-pill {
-      display:flex; align-items:center; gap:6px;
-      background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3);
-      border-radius:20px; padding:5px 12px; font-size:12px; font-weight:700; color:var(--green);
-    }
-    .live-dot { width:7px; height:7px; background:var(--green); border-radius:50%; animation:glowPulse 1.2s infinite; }
-    .clock { font-size:22px; font-weight:800; font-family:'Bebas Neue',sans-serif; letter-spacing:2px; color:var(--text); }
-    .clock-date { font-size:11px; color:var(--text2); text-align:right; }
+    /* ── RANKED LIST ── */
+    .rank-list-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); animation:fadeIn .4s ease both; }
+    .rank-list-item:last-child { border-bottom:none; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+    .rl-pos  { width:36px; text-align:center; font-size:11px; font-weight:900; flex-shrink:0; }
+    .rl-info { flex:1; min-width:0; }
+    .rl-name { font-size:14px; font-weight:700; }
+    .rl-bar  { margin:5px 0 3px; }
+    .rl-stats{ font-size:11px; color:var(--text2); }
+    .rl-right{ text-align:right; flex-shrink:0; }
+    .rl-cars { font-size:22px; font-weight:900; }
+    .rl-clabel{ font-size:10px; color:var(--text2); font-weight:700; letter-spacing:.5px; }
+    .progress-bar  { height:5px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:3px; transition:width .6s ease; }
 
-    /* ── TAB ROW ── */
-    .tab-row {
-      display:flex; gap:0; background:var(--bg2); border-bottom:1px solid var(--border);
-      padding:0 36px;
-    }
-    .tab-btn {
-      padding:12px 24px; font-size:13px; font-weight:700; color:var(--text2);
-      cursor:pointer; border-bottom:2px solid transparent; transition:all .2s;
-      letter-spacing:.5px; text-transform:uppercase;
-    }
-    .tab-btn:hover { color:var(--text); }
-    .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+    /* ── AVATAR ── */
+    .av { border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; flex-shrink:0; }
 
-    /* ── MAIN LAYOUT ── */
-    .main { display:flex; height:calc(100vh - 126px); }
+    /* ── GAP BOARD ── */
+    .gap-board { background:var(--bg2); border-radius:16px; padding:16px; border:1px solid var(--border); }
+    .gap-board-title { font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; display:flex; align-items:center; gap:6px; }
+    .gap-row   { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .gap-pos   { font-size:11px; font-weight:900; width:32px; text-align:center; flex-shrink:0; }
+    .gap-bar-wrap { flex:1; }
+    .gap-bar-bg   { height:8px; background:rgba(255,255,255,.08); border-radius:4px; overflow:hidden; margin-top:4px; }
+    .gap-bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:6px; transition:width .8s ease; }
+    .gap-bar-label{ font-size:9px; font-weight:900; color:#fff; white-space:nowrap; }
+    .gap-behind   { font-size:10px; color:var(--text2); }
+    .leading      { color:var(--gold); font-weight:800; }
 
-    /* ── PODIUM COLUMN ── */
-    .podium-col {
-      width:320px; flex-shrink:0;
-      background:var(--bg2); border-right:1px solid var(--border);
-      display:flex; flex-direction:column; align-items:center;
-      padding:24px 20px 20px;
-    }
-    .podium-label { font-size:10px; font-weight:700; color:var(--text2); letter-spacing:2px; text-transform:uppercase; margin-bottom:20px; }
-    .podium-stage {
-      display:flex; align-items:flex-end; justify-content:center;
-      gap:8px; width:100%; margin-bottom:20px;
-    }
-    .p-slot { display:flex; flex-direction:column; align-items:center; flex:1; }
-    .p-avatar {
-      border-radius:50%; display:flex; align-items:center; justify-content:center;
-      font-weight:900; color:white; overflow:hidden; position:relative; flex-shrink:0;
-    }
-    .p-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-    .p-crown { font-size:24px; margin-bottom:4px; animation:crownFloat 2.5s ease-in-out infinite; }
-    .p-name  { font-size:13px; font-weight:800; margin-top:6px; text-align:center; }
-    .p-bar {
-      border-radius:10px 10px 0 0; width:100%; display:flex; flex-direction:column;
-      align-items:center; justify-content:center; padding:10px 6px;
-      transform-origin:bottom; transition:height .6s cubic-bezier(.175,.885,.32,1.275);
-      position:relative; overflow:hidden;
-    }
-    .p-bar::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,.1),transparent); pointer-events:none; }
-    .p-cars  { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:1px; line-height:1; }
-    .p-clbl  { font-size:10px; font-weight:700; opacity:.7; letter-spacing:1px; }
-    .p-sales { font-size:12px; font-weight:700; margin-top:4px; opacity:.85; }
-
-    /* ── RANK LIST COLUMN ── */
-    .rank-col {
-      flex:1; overflow-y:auto; padding:20px 24px;
-    }
-    .rank-col::-webkit-scrollbar { width:3px; }
-    .rank-col::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-
-    .rank-item {
-      display:flex; align-items:center; gap:14px;
-      background:var(--bg3); border:1px solid var(--border);
-      border-radius:14px; padding:16px 20px; margin-bottom:10px;
-      animation:rankIn .4s ease both;
-      transition:border-color .2s;
-    }
-    .rank-item.pos1 { border-color:rgba(212,175,55,.5); background:rgba(212,175,55,.06); }
-    .rank-item.pos2 { border-color:rgba(184,188,194,.35); }
-    .rank-item.pos3 { border-color:rgba(184,115,51,.35); }
-    .ri-pos  { font-family:'Bebas Neue',sans-serif; font-size:18px; min-width:40px; text-align:center; }
-    .ri-name { font-size:15px; font-weight:800; }
-    .ri-bar-wrap { flex:1; }
-    .ri-bar-bg { height:8px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; margin:5px 0; }
-    .ri-bar-fill { height:100%; border-radius:4px; transition:width .8s cubic-bezier(.4,0,.2,1); }
-    .ri-stats { font-size:11px; color:var(--text2); }
-    .ri-right { text-align:right; }
-    .ri-cars  { font-family:'Bebas Neue',sans-serif; font-size:28px; line-height:1; }
-    .ri-clbl  { font-size:10px; color:var(--text2); letter-spacing:.5px; }
-    .ri-comm  { font-size:13px; font-weight:700; margin-top:2px; }
-
-    /* ── GAP COLUMN ── */
-    .gap-col {
-      width:280px; flex-shrink:0;
-      background:var(--bg2); border-left:1px solid var(--border);
-      padding:20px 20px; overflow-y:auto;
-    }
-    .gap-col::-webkit-scrollbar { width:3px; }
-    .gap-section-title {
-      font-size:10px; font-weight:700; color:var(--text2);
-      letter-spacing:2px; text-transform:uppercase; margin-bottom:14px;
-      display:flex; align-items:center; gap:6px;
-    }
-    .gap-item {
-      background:var(--bg3); border:1px solid var(--border); border-radius:10px;
-      padding:12px 14px; margin-bottom:8px; animation:fadeIn .4s ease;
-    }
-    .gap-name { font-size:13px; font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
-    .gap-behind-tag {
-      font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px;
-      background:rgba(255,255,255,.06); color:var(--text2);
-    }
-    .gap-behind-tag.leader { background:rgba(212,175,55,.15); color:var(--gold); }
-    .gap-bar-bg2 { height:6px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; margin:6px 0; }
-    .gap-bar-fill2 { height:100%; border-radius:3px; transition:width .8s ease; }
-    .gap-num { font-size:11px; color:var(--text2); }
-
-    /* ── COMMISSION STRIP ── */
-    .comm-strip {
-      display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-      gap:10px; padding:0 24px 20px;
-    }
-    .comm-card {
-      background:var(--bg3); border:1px solid var(--border); border-radius:12px;
-      padding:14px; display:flex; align-items:center; gap:12px;
-      animation:fadeIn .4s ease;
-    }
-    .cc-av {
-      width:42px; height:42px; border-radius:50%; display:flex; align-items:center;
-      justify-content:center; font-weight:900; font-size:15px; color:white; flex-shrink:0; overflow:hidden;
-    }
-    .cc-av img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-    .cc-name { font-size:13px; font-weight:700; }
-    .cc-comm { font-size:18px; font-weight:900; line-height:1.1; }
-    .cc-cars { font-size:11px; color:var(--text2); }
-
-    /* ── EMPTY ── */
-    .empty-state {
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      height:100%; color:var(--text2); gap:12px; padding:40px;
-    }
-    .empty-state svg { width:64px; height:64px; opacity:.3; }
-    .empty-state p { font-size:16px; font-weight:700; }
-
-    /* ── CAMPAIGN BANNER ── */
-    .campaign-banner {
-      background:rgba(212,175,55,.08); border-top:1px solid rgba(212,175,55,.2);
-      padding:10px 36px; display:flex; align-items:center; justify-content:space-between;
-      font-size:12px;
-    }
-    .cb-name { color:var(--gold); font-weight:800; font-size:14px; }
-    .cb-prizes { display:flex; gap:20px; }
-    .cb-prize { text-align:center; }
-    .cb-prize-amt { font-weight:800; font-size:15px; }
-    .cb-prize-lbl { font-size:10px; color:var(--text2); }
+    /* ── LAYOUT ── */
+    .page { max-width:640px; margin:0 auto; padding:16px; }
+    .card { background:var(--card); border-radius:16px; border:1px solid var(--border); padding:16px; margin-bottom:16px; overflow:hidden; }
+    .card.no-pad { padding:0; }
+    .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .logo-wrap { display:flex; align-items:center; gap:10px; }
+    .logo-icon { width:38px; height:38px; background:var(--red); border-radius:10px; display:flex; align-items:center; justify-content:center; }
+    .logo-text { font-size:16px; font-weight:900; }
+    .logo-sub  { font-size:11px; color:var(--text2); }
+    .live-badge { display:flex; align-items:center; gap:5px; background:rgba(217,74,74,.12); border:1px solid rgba(217,74,74,.3); border-radius:20px; padding:5px 12px; font-size:11px; font-weight:700; color:var(--red); }
+    .live-dot   { width:7px; height:7px; background:var(--red); border-radius:50%; animation:pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+    .clock { font-size:12px; color:var(--text2); font-weight:700; margin-top:2px; text-align:right; }
+    .empty-state { text-align:center; padding:48px 24px; color:var(--text2); }
+    .section-title { font-size:11px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+    .comm-cards { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+    .comm-card  { flex-shrink:0; width:110px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px; padding:12px 8px; text-align:center; }
+    .comm-rank  { font-size:10px; font-weight:900; margin-bottom:6px; }
+    .comm-name  { font-size:12px; font-weight:700; margin-top:6px; margin-bottom:2px; }
+    .comm-amt   { font-size:15px; font-weight:900; }
+    .comm-cars  { font-size:10px; color:var(--text2); margin-top:2px; }
+    .refresh-bar { font-size:10px; color:var(--text2); text-align:center; padding:8px 0; }
+    .mb-4 { margin-bottom:16px; }
   </style>
 </head>
 <body>
@@ -222,309 +101,283 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const API_URL = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
-const APP_ID  = '6a1c42f697e43e4ff43a5097';
-const REFRESH_INTERVAL = 30000; // 30 seconds auto-refresh
+// ── CONFIG ──
+const APP_ID   = '6a1c42f697e43e4ff43a5097';
+const API_BASE = 'https://api.base44.com/api/apps/' + APP_ID + '/functions/apiHandler';
 
-async function api(action, entity, extra = {}) {
-  const res  = await fetch(API_URL, {
-    method:'POST', headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID},
-    body: JSON.stringify({action, entity, ...extra})
+async function fetchEntity(entity) {
+  const r = await fetch(API_BASE, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-base44-app-id': APP_ID },
+    body: JSON.stringify({ action:'list', entity }),
   });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error);
-  return json.data;
+  const j = await r.json();
+  return j.data || [];
 }
 
-const peso     = n => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-const today    = () => new Date().toISOString().split('T')[0];
-const initials = n => n ? n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?';
+const peso = n => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+const today = () => new Date().toISOString().split('T')[0];
 
-function Av({ emp, size=42, fs=15 }) {
-  const [err,setErr] = useState(false);
-  const hasImg = emp?.avatar_url && !err;
-  return (
-    <div style={{width:size,height:size,borderRadius:'50%',background:hasImg?'transparent':(emp?.avatar_color||'#D94A4A'),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:900,fontSize:fs,overflow:'hidden',flexShrink:0}}>
-      {hasImg ? <img src={emp.avatar_url} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(emp?.full_name)}
-    </div>
-  );
+function Av({ emp, size=40, fs=15 }) {
+  const name   = emp?.full_name || '?';
+  const colors = ['#D94A4A','#E8735A','#D4AF37','#22C55E','#3B82F6','#8B5CF6','#F97316','#06B6D4'];
+  const bg     = emp?.avatar_color || colors[Math.abs(name.charCodeAt(0) + (name.charCodeAt(1)||0)) % colors.length];
+  const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  return <div className="av" style={{width:size,height:size,background:bg,fontSize:fs,color:'#fff'}}>{initials}</div>;
 }
 
-function Clock() {
-  const [t, setT] = useState(new Date());
-  useEffect(() => { const i = setInterval(()=>setT(new Date()),1000); return()=>clearInterval(i); },[]);
-  const timeStr = t.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const dateStr = t.toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  return (
-    <div className="header-right">
-      <div className="live-pill"><div className="live-dot"></div>LIVE</div>
-      <div className="clock">{timeStr}</div>
-      <div className="clock-date">{dateStr}</div>
-    </div>
-  );
-}
+function RankingPage() {
+  const [tab,        setTab]        = useState('today');
+  const [carWashes,  setCarWashes]  = useState([]);
+  const [employees,  setEmployees]  = useState([]);
+  const [campaigns,  setCampaigns]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [clock,      setClock]      = useState('');
+  const [nextRefresh,setNextRefresh]= useState(30);
+  const timerRef = useRef(null);
 
-function App() {
-  const [tab,       setTab]       = useState('today');
-  const [employees, setEmployees] = useState([]);
-  const [carWashes, setCarWashes] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [lastSync,  setLastSync]  = useState(null);
-
-  const load = async () => {
+  const loadData = async () => {
     try {
-      const [e,w,c] = await Promise.all([
-        api('list','Employee'),
-        api('list','CarWash'),
-        api('list','RewardCampaign'),
+      const [w, e, c] = await Promise.all([
+        fetchEntity('CarWash'),
+        fetchEntity('Employee'),
+        fetchEntity('RewardCampaign'),
       ]);
-      setEmployees(e||[]);
-      setCarWashes(w||[]);
-      setCampaigns(c||[]);
-      setLastSync(new Date());
+      setCarWashes(w); setEmployees(e); setCampaigns(c);
     } catch(err) { console.error(err); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setNextRefresh(30); }
   };
 
   useEffect(() => {
-    load();
-    const interval = setInterval(load, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
+    loadData();
+    const refreshInterval = setInterval(loadData, 30000);
+    const clockInterval   = setInterval(() => {
+      const now = new Date();
+      setClock(now.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+      setNextRefresh(n => n <= 1 ? 30 : n - 1);
+    }, 1000);
+    return () => { clearInterval(refreshInterval); clearInterval(clockInterval); };
   }, []);
 
   const now = new Date();
+  const todayStr = today();
+
   const filterWashes = () => {
-    if (tab === 'today') return carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(today()));
+    if (tab === 'today') return carWashes.filter(w=>(w.transaction_date||w.created_date||'').startsWith(todayStr));
     if (tab === '7days') {
-      const cut = new Date(now.getTime()-7*86400000);
-      return carWashes.filter(w => new Date(w.transaction_date||w.created_date) >= cut);
+      const cutoff = new Date(now.getTime() - 7*24*60*60*1000);
+      return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=cutoff);
     }
-    return carWashes.filter(w => {
-      const d = new Date(w.transaction_date||w.created_date);
-      return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    return carWashes.filter(w=>{
+      const d=new Date(w.transaction_date||w.created_date);
+      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     });
   };
 
   const buildBoard = () => {
     const map = {};
-    employees.filter(e=>e.is_active).forEach(e => {
-      map[e.id] = {id:e.id, name:e.full_name, emp:e, cars:0, sales:0, commission:0};
+    employees.filter(e=>e.is_active).forEach(e=>{
+      map[e.id]={id:e.id,name:e.full_name,emp:e,cars:0,sales:0,commission:0};
     });
-    filterWashes().forEach(w => {
+    filterWashes().forEach(w=>{
       if (!map[w.employee_id]) {
-        const e = employees.find(x=>x.id===w.employee_id);
-        map[w.employee_id] = {id:w.employee_id, name:w.employee_name, emp:e||null, cars:0, sales:0, commission:0};
+        const e=employees.find(x=>x.id===w.employee_id);
+        map[w.employee_id]={id:w.employee_id,name:w.employee_name,emp:e||null,cars:0,sales:0,commission:0};
       }
       map[w.employee_id].cars++;
-      map[w.employee_id].sales      += (w.total_amount||0);
-      map[w.employee_id].commission += (w.commission_amount||0);
+      map[w.employee_id].sales      +=(w.total_amount||0);
+      map[w.employee_id].commission +=(w.commission_amount||0);
     });
     return Object.values(map).sort((a,b)=>b.cars-a.cars||b.sales-a.sales);
   };
 
   const ranked   = buildBoard();
-  const active   = ranked.filter(r=>r.cars>0);
   const maxCars  = ranked[0]?.cars || 1;
-  const pos1=ranked[0], pos2=ranked[1], pos3=ranked[2];
-  const campaign = campaigns.find(c=>c.is_active);
-
   const posColor = ['var(--gold)','var(--silver)','var(--bronze)'];
-  const podiumOrder = [
-    {r:pos2, hi:130, bc:'rgba(184,188,194,.18)', br:'rgba(184,188,194,.35)', pc:posColor[1]},
-    {r:pos1, hi:175, bc:'rgba(212,175,55,.18)',  br:'rgba(212,175,55,.45)',  pc:posColor[0]},
-    {r:pos3, hi:100, bc:'rgba(184,115,51,.18)',  br:'rgba(184,115,51,.35)',  pc:posColor[2]},
-  ];
+  const posLabel = ['1ST','2ND','3RD'];
+  const tabLabels= { today:'Today', '7days':'7 Days', month:'This Month' };
+  const activeCampaign = campaigns.find(c=>c.is_active);
 
-  const tabLabels = {today:'Today', '7days':'7 Days', month:'This Month'};
+  const podiumOrder   = [ranked[1], ranked[0], ranked[2]];
+  const podiumHeights = [110, 150, 90];
+  const podiumColors  = ['rgba(184,188,194,.2)','rgba(212,175,55,.25)','rgba(184,115,51,.2)'];
+  const podiumBorders = ['rgba(184,188,194,.4)','rgba(212,175,55,.5)','rgba(184,115,51,.4)'];
 
   if (loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:16}}>
-      <div style={{width:56,height:56,background:'var(--red)',borderRadius:16,display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <svg viewBox="0 0 24 24" fill="white" width="32" height="32"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>
-      </div>
-      <div style={{fontSize:22,fontWeight:900,letterSpacing:-.5}}>KGCAR Carwash</div>
-      <div style={{color:'var(--text2)',fontSize:14}}>Loading live data...</div>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:14}}>
+      <div className="logo-icon"><svg viewBox="0 0 24 24" fill="white" width="22" height="22"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg></div>
+      <div style={{fontSize:16,fontWeight:800}}>Loading Rankings...</div>
     </div>
   );
 
   return (
-    <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
-      {/* HEADER */}
+    <div className="page">
+      {/* Header */}
       <div className="header">
-        <div className="header-brand">
-          <div className="brand-logo">
-            <svg viewBox="0 0 24 24" fill="white"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>
-          </div>
+        <div className="logo-wrap">
+          <div className="logo-icon"><svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg></div>
           <div>
-            <div className="brand-name">KGCAR Carwash</div>
-            <div className="brand-sub">Employee Leaderboard</div>
+            <div className="logo-text">KGCAR Carwash</div>
+            <div className="logo-sub">Live Leaderboard</div>
           </div>
         </div>
-        <div className="header-center">
-          <div className="header-title">LEADERBOARD</div>
-          <div className="header-sub">Live Rankings · {active.length} Active Washers</div>
+        <div style={{textAlign:'right'}}>
+          <div className="live-badge"><div className="live-dot"></div>LIVE</div>
+          <div className="clock">{clock}</div>
         </div>
-        <Clock />
       </div>
 
-      {/* TABS */}
-      <div className="tab-row">
-        {['today','7days','month'].map(t => (
-          <div key={t} className={`tab-btn ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
+      {/* Period Tabs */}
+      <div className="rank-tabs mb-4">
+        {['today','7days','month'].map(t=>(
+          <div key={t} className={`rank-tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
             {tabLabels[t]}
           </div>
         ))}
-        {lastSync && (
-          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',fontSize:11,color:'var(--text2)',padding:'0 4px'}}>
-            Synced {lastSync.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
-          </div>
-        )}
       </div>
 
-      {/* MAIN BODY */}
-      {active.length === 0 ? (
-        <div className="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
-          <p>No washes recorded yet for {tabLabels[tab]}</p>
-          <span style={{fontSize:13}}>Data refreshes every 30 seconds</span>
+      {ranked.filter(r=>r.cars>0).length === 0 ? (
+        <div className="empty-state card">
+          <div style={{fontSize:40,marginBottom:12,opacity:.4}}>🏆</div>
+          <div style={{fontSize:16,fontWeight:700}}>No washes yet for {tabLabels[tab]}</div>
+          <div style={{fontSize:13,marginTop:4}}>Get washing to claim the top spot!</div>
         </div>
-      ) : (
-        <div className="main">
-          {/* PODIUM */}
-          <div className="podium-col">
-            <div className="podium-label">Top Performers</div>
-            <div className="podium-stage">
-              {podiumOrder.map((slot, idx) => {
-                if (!slot.r) return <div key={idx} style={{flex:1}}></div>;
-                const r = slot.r;
+      ) : (<>
+
+        {/* Podium */}
+        {ranked.filter(r=>r.cars>0).length >= 2 && (
+          <div className="card mb-4" style={{paddingBottom:0}}>
+            <div className="section-title" style={{textAlign:'center'}}>Podium — {tabLabels[tab]}</div>
+            <div className="podium-wrap">
+              {podiumOrder.map((r,idx)=>{
+                if (!r) return <div key={idx} style={{flex:1,maxWidth:150}}></div>;
+                const isFirst = idx===1;
+                const pC = posColor[isFirst?0:idx===0?1:2];
                 return (
-                  <div key={r.id} className="p-slot">
-                    {idx===1 && <div className="p-crown">&#x1F451;</div>}
-                    <Av emp={r.emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={idx===1?64:50} fs={idx===1?22:18} />
-                    <div className="p-name" style={{color:slot.pc}}>{r.name.split(' ')[0]}</div>
-                    <div className="p-bar" style={{height:slot.hi,background:slot.bc,border:`1.5px solid ${slot.br}`,borderBottom:'none',marginTop:6}}>
-                      <div className="p-cars" style={{color:slot.pc}}>{r.cars}</div>
-                      <div className="p-clbl">CARS</div>
-                      <div className="p-sales" style={{color:slot.pc}}>{peso(r.sales)}</div>
+                  <div key={r.id} className="podium-slot">
+                    <div className="podium-avatar-wrap">
+                      {isFirst && <div className="podium-crown">👑</div>}
+                      <Av emp={r.emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={isFirst?64:50} fs={isFirst?22:18}/>
+                    </div>
+                    <div className="podium-name" style={{color:pC,marginTop:8}}>{r.name.split(' ')[0]}</div>
+                    <div className="podium-bar" style={{height:podiumHeights[idx],background:podiumColors[idx],border:`1.5px solid ${podiumBorders[idx]}`,borderBottom:'none',width:'100%'}}>
+                      <div className="podium-cars" style={{color:pC}}>{r.cars}</div>
+                      <div className="podium-clabel">CARS</div>
+                      <div className="podium-sales" style={{color:pC}}>{peso(r.sales)}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
-            {/* Mini commission summary for top 3 */}
-            <div style={{width:'100%',background:'var(--bg3)',borderRadius:10,padding:'10px 12px'}}>
-              <div style={{fontSize:10,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Commissions</div>
-              {ranked.filter(r=>r.cars>0).slice(0,3).map((r,i)=>(
-                <div key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:i<2?'1px solid var(--border)':'none'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <Av emp={r.emp||{full_name:r.name}} size={28} fs={10} />
-                    <span style={{fontSize:13,fontWeight:700}}>{r.name.split(' ')[0]}</span>
-                  </div>
-                  <span style={{fontSize:14,fontWeight:900,color:posColor[i]}}>{peso(r.commission)}</span>
-                </div>
-              ))}
-            </div>
           </div>
+        )}
 
-          {/* FULL RANK LIST */}
-          <div className="rank-col">
-            {ranked.map((r, i) => {
-              const pct = maxCars > 0 ? (r.cars/maxCars)*100 : 0;
-              const bColor = i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--red)';
-              const posLabel = i===0?'1ST':i===1?'2ND':i===2?'3RD':`#${i+1}`;
-              return (
-                <div key={r.id} className={`rank-item ${i<3?`pos${i+1}`:''}`} style={{animationDelay:`${i*.07}s`}}>
-                  <div className="ri-pos" style={{color:i<3?posColor[i]:'var(--text2)'}}>{posLabel}</div>
-                  <Av emp={r.emp||{full_name:r.name}} size={46} fs={17} />
-                  <div className="ri-bar-wrap">
-                    <div className="ri-name">{r.name}</div>
-                    <div className="ri-bar-bg">
-                      <div className="ri-bar-fill" style={{width:`${pct}%`,background:bColor}}></div>
-                    </div>
-                    <div className="ri-stats">{peso(r.sales)} revenue · {peso(r.commission)} commission</div>
-                  </div>
-                  <div className="ri-right">
-                    <div className="ri-cars" style={{color:bColor}}>{r.cars}</div>
-                    <div className="ri-clbl">CARS</div>
-                    {r.cars === 0 && <div style={{fontSize:11,color:'var(--text2)'}}>—</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* GAP BOARD */}
-          <div className="gap-col">
-            <div className="gap-section-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Gap to Leader
+        {/* Gap Board */}
+        {ranked[0] && ranked[0].cars > 0 && (
+          <div className="gap-board mb-4">
+            <div className="gap-board-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" width="14" height="14"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Gap to Leader — {ranked[0].name.split(' ')[0]}
             </div>
             {ranked.filter(r=>r.cars>0).map((r,i)=>{
-              const pct = maxCars > 0 ? (r.cars/maxCars)*100 : 0;
-              const gap = (ranked[0]?.cars||0) - r.cars;
-              const bColor = i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'rgba(217,74,74,.7)';
+              const pct     = maxCars>0?(r.cars/maxCars)*100:0;
+              const gapCars = ranked[0].cars - r.cars;
+              const barColor= i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--red)';
               return (
-                <div key={r.id} className="gap-item" style={{borderColor:i===0?'rgba(212,175,55,.3)':'var(--border)'}}>
-                  <div className="gap-name">
-                    <span style={{fontSize:12}}>{r.name.split(' ')[0]}</span>
-                    <span className={`gap-behind-tag ${i===0?'leader':''}`}>{i===0?'LEADER':`-${gap} car${gap!==1?'s':''}`}</span>
+                <div key={r.id} className="gap-row">
+                  <div className="gap-pos" style={{color:i<3?posColor[i]:'var(--text2)'}}>{i<3?posLabel[i]:`#${i+1}`}</div>
+                  <div className="gap-bar-wrap">
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <span style={{fontSize:12,fontWeight:700}}>{r.name}</span>
+                      {i===0
+                        ? <span className="leading gap-behind">LEADER</span>
+                        : <span className="gap-behind">-{gapCars} car{gapCars!==1?'s':''}</span>}
+                    </div>
+                    <div className="gap-bar-bg">
+                      <div className="gap-bar-fill" style={{width:`${pct}%`,background:barColor}}>
+                        {pct>18&&<span className="gap-bar-label">{r.cars}c</span>}
+                      </div>
+                    </div>
                   </div>
-                  <div className="gap-bar-bg2">
-                    <div className="gap-bar-fill2" style={{width:`${pct}%`,background:bColor}}></div>
-                  </div>
-                  <div className="gap-num">{r.cars} cars · {peso(r.sales)}</div>
                 </div>
               );
             })}
-
-            {/* Campaign rewards */}
-            {campaign && (
-              <div style={{marginTop:20,background:'rgba(212,175,55,.07)',border:'1px solid rgba(212,175,55,.2)',borderRadius:10,padding:'12px 14px'}}>
-                <div style={{fontSize:10,fontWeight:700,color:'var(--gold)',letterSpacing:1,textTransform:'uppercase',marginBottom:10}}>Active Campaign</div>
-                <div style={{fontWeight:800,fontSize:13,marginBottom:10}}>{campaign.campaign_name}</div>
-                {[
-                  {pos:'1ST',r:campaign.first_place_reward,c:'var(--gold)'},
-                  {pos:'2ND',r:campaign.second_place_reward,c:'var(--silver)'},
-                  {pos:'3RD',r:campaign.third_place_reward,c:'var(--bronze)'},
-                ].map((x,i)=>(
-                  <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:i<2?'1px solid rgba(255,255,255,.05)':'none'}}>
-                    <span style={{fontSize:12,color:x.c,fontWeight:700}}>{x.pos}</span>
-                    <span style={{fontSize:14,fontWeight:900,color:x.c}}>{peso(x.r)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* CAMPAIGN BOTTOM BANNER */}
-      {campaign && active.length > 0 && (
-        <div className="campaign-banner">
-          <div>
-            <div style={{fontSize:10,color:'var(--text2)',textTransform:'uppercase',letterSpacing:1,marginBottom:2}}>Active Campaign</div>
-            <div className="cb-name">{campaign.campaign_name}</div>
-          </div>
-          <div className="cb-prizes">
-            {[
-              {pos:'1st Place',r:campaign.first_place_reward,c:'var(--gold)',emp:ranked[0]},
-              {pos:'2nd Place',r:campaign.second_place_reward,c:'var(--silver)',emp:ranked[1]},
-              {pos:'3rd Place',r:campaign.third_place_reward,c:'var(--bronze)',emp:ranked[2]},
-            ].map((x,i)=>(
-              <div key={i} className="cb-prize">
-                <div className="cb-prize-amt" style={{color:x.c}}>{peso(x.r)}</div>
-                <div className="cb-prize-lbl">{x.pos}{x.emp&&x.emp.cars>0?` · ${x.emp.name.split(' ')[0]}`:''}</div>
+        {/* Commission Cards */}
+        <div className="card mb-4">
+          <div className="section-title">⚡ Commission Earned</div>
+          <div className="comm-cards">
+            {ranked.filter(r=>r.cars>0).map((r,i)=>(
+              <div key={r.id} className="comm-card" style={{borderColor:i<3?`${[posColor[0],posColor[1],posColor[2]][i].replace('var(','').replace(')','')}`:'var(--border)'}}>
+                <div className="comm-rank" style={{color:i<3?posColor[i]:'var(--text2)'}}>{i<3?posLabel[i]:`#${i+1}`}</div>
+                <Av emp={r.emp||{full_name:r.name}} size={40} fs={14}/>
+                <div className="comm-name">{r.name.split(' ')[0]}</div>
+                <div className="comm-amt" style={{color:i<3?posColor[i]:'var(--text)'}}>{peso(r.commission)}</div>
+                <div className="comm-cars">{r.cars} cars</div>
               </div>
             ))}
           </div>
         </div>
-      )}
+
+        {/* Full Standings */}
+        <div className="card no-pad mb-4">
+          <div style={{padding:'14px 16px 10px',borderBottom:'1px solid var(--border)'}}>
+            <div className="section-title" style={{marginBottom:0}}>Full Standings</div>
+          </div>
+          {ranked.map((r,i)=>{
+            const pct    = maxCars>0?(r.cars/maxCars)*100:0;
+            const bColor = i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--red)';
+            return (
+              <div key={r.id} className="rank-list-item" style={{animationDelay:`${i*.05}s`}}>
+                <div className="rl-pos" style={{color:i<3?posColor[i]:'var(--text2)'}}>{i<3?posLabel[i]:`#${i+1}`}</div>
+                <Av emp={r.emp||{full_name:r.name}} size={38} fs={14}/>
+                <div className="rl-info">
+                  <div className="rl-name">{r.name}</div>
+                  <div className="rl-bar"><div className="progress-bar"><div className="progress-fill" style={{width:`${pct}%`,background:bColor}}></div></div></div>
+                  <div className="rl-stats">{peso(r.sales)} · comm {peso(r.commission)}</div>
+                </div>
+                <div className="rl-right">
+                  <div className="rl-cars" style={{color:bColor}}>{r.cars}</div>
+                  <div className="rl-clabel">cars</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Campaign Rewards */}
+        {activeCampaign?.is_active && (
+          <div style={{background:'rgba(212,175,55,.07)',border:'1px solid rgba(212,175,55,.25)',borderRadius:16,padding:20,marginBottom:16}}>
+            <div style={{fontWeight:800,fontSize:14,color:'var(--gold)',marginBottom:14}}>
+              🏅 Active Campaign — {activeCampaign.campaign_name}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+              {[
+                {pos:'1ST',reward:activeCampaign.first_place_reward,color:posColor[0],emp:ranked[0]},
+                {pos:'2ND',reward:activeCampaign.second_place_reward,color:posColor[1],emp:ranked[1]},
+                {pos:'3RD',reward:activeCampaign.third_place_reward, color:posColor[2],emp:ranked[2]},
+              ].map((x,i)=>(
+                <div key={i} style={{background:'rgba(255,255,255,.04)',border:`1px solid ${['rgba(212,175,55,.3)','rgba(184,188,194,.25)','rgba(184,115,51,.25)'][i]}`,borderRadius:12,padding:14,textAlign:'center'}}>
+                  <div style={{fontSize:11,fontWeight:700,color:x.color,marginBottom:6}}>{x.pos}</div>
+                  {x.emp&&x.emp.cars>0&&<Av emp={x.emp.emp||{full_name:x.emp.name}} size={32} fs={12}/>}
+                  <div style={{fontWeight:800,color:x.color,fontSize:16,marginTop:4}}>{peso(x.reward)}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{x.emp&&x.emp.cars>0?x.emp.name.split(' ')[0]:'TBD'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </>)}
+
+      <div className="refresh-bar">Auto-refreshes every 30s · {nextRefresh}s until next refresh</div>
     </div>
   );
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+ReactDOM.render(<RankingPage/>, document.getElementById('root'));
 </script>
 </body>
 </html>
