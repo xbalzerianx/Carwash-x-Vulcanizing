@@ -450,7 +450,17 @@ async function api(action, entity, extra = {}) {
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
 // Base44 stores array fields as JSON strings — parse safely
-const parseArr = v => { if (!v) return []; if (Array.isArray(v)) return v; try { return JSON.parse(v); } catch { return []; } };
+// Base44 stores array items as individual JSON strings
+// e.g. services = ['{"name":"Wash","price":200}', '{"name":"Wax","price":500}']
+// but old records may have plain objects directly
+const parseArr = v => {
+  if (!v) return [];
+  const arr = Array.isArray(v) ? v : [];
+  return arr.map(item => {
+    if (typeof item === 'string') { try { return JSON.parse(item); } catch { return null; } }
+    return item; // already an object (old records)
+  }).filter(Boolean);
+};
 
 async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
   try {
@@ -957,15 +967,15 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         plate_number:       plate,
         employee_id:        splits[0].emp.id,
         employee_name:      empNames,
-        services:           JSON.stringify(selectedSvcs),
+        services:           selectedSvcs.map(s=>JSON.stringify(s)),
         total_amount:       total,
         amount_paid:        paid,
         commission_rate:    splits[0].rate,
         commission_amount:  totalCommissionAmt,
         transaction_date:   txDate,
         notes:              splits.length > 1 ? `Team wash: ${empNames}` : '',
-        employees:          JSON.stringify(empsSplit),
-        commission_splits:  JSON.stringify(commsSplit),
+        employees:          empsSplit.map(e=>JSON.stringify(e)),
+        commission_splits:  commsSplit.map(c=>JSON.stringify(c)),
       }});
 
       logEvent({
