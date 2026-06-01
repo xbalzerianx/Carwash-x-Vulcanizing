@@ -116,6 +116,7 @@ async function fetchEntity(entity) {
 }
 
 const peso = n => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+const parseArr = v => { if (!v) return []; if (Array.isArray(v)) return v; try { return JSON.parse(v); } catch { return []; } };
 const today = () => new Date().toISOString().split('T')[0];
 
 function Av({ emp, size=40, fs=15 }) {
@@ -181,9 +182,7 @@ function RankingPage() {
     });
     filterWashes().forEach(w=>{
       // 1 car per wash — credit all employees in commission_splits
-      const splits = Array.isArray(w.commission_splits) && w.commission_splits.length > 0
-        ? w.commission_splits
-        : [{employee_id:w.employee_id, employee_name:w.employee_name, amount:w.commission_amount||0}];
+      const splits = (()=>{ const arr=parseArr(w.commission_splits); return arr.length>0?arr:[{employee_id:w.employee_id,employee_name:w.employee_name,amount:w.commission_amount||0}]; })();
       splits.forEach((sp,idx)=>{
         const empId   = sp.employee_id || sp.id;
         const empName = sp.employee_name || sp.name || w.employee_name;

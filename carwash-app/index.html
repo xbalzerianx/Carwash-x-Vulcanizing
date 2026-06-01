@@ -449,6 +449,8 @@ async function api(action, entity, extra = {}) {
 }
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+// Base44 stores array fields as JSON strings — parse safely
+const parseArr = v => { if (!v) return []; if (Array.isArray(v)) return v; try { return JSON.parse(v); } catch { return []; } };
 
 async function logEvent({ event_type, title, description, actor_name='', entity_id='', amount=0 }) {
   try {
@@ -536,9 +538,7 @@ function Ranking({ carWashes, employees, campaign={} }) {
     });
     filterWashes().forEach(w => {
       // Determine which employees worked this wash
-      const splits = Array.isArray(w.commission_splits) && w.commission_splits.length > 0
-        ? w.commission_splits
-        : [{ employee_id: w.employee_id, employee_name: w.employee_name, amount: w.commission_amount||0 }];
+      const splits = (()=>{ const arr = parseArr(w.commission_splits); return arr.length>0 ? arr : [{employee_id:w.employee_id,employee_name:w.employee_name,amount:w.commission_amount||0}]; })();
 
       splits.forEach((sp, idx) => {
         const empId   = sp.employee_id || sp.id;
@@ -856,7 +856,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                     <Av emp={emp||{full_name:w.employee_name}} size={32} fs={12} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:600}}>{w.employee_name}</div>
-                      <div style={{fontSize:11,color:'var(--text2)'}}>{fmtTime(w.created_date)} · {w.services?.length||0} svc</div>
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{fmtTime(w.created_date)} · {parseArr(w.services).length||0} svc</div>
                     </div>
                     <div style={{fontSize:13,fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</div>
                   </div>
@@ -943,29 +943,29 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
       const totalCommissionAmt = splits.reduce((s,c)=>s+c.share,0);
 
       // Save ONE record per car wash (not per employee)
-      // All employees + their individual splits stored inside the record
+      // Array fields stored as JSON strings (Base44 requirement)
+      const empsSplit   = splits.map(({emp,rate,share})=>({
+        id: emp.id, name: emp.full_name,
+        commission_rate: rate, commission_amount: share
+      }));
+      const commsSplit  = splits.map(({emp,rate,share})=>({
+        employee_id: emp.id, employee_name: emp.full_name,
+        rate, amount: share
+      }));
       const saved = await api('create','CarWash',{data:{
         customer_name:      custName,
         plate_number:       plate,
-        // Primary employee = first selected (for backward compat)
         employee_id:        splits[0].emp.id,
         employee_name:      empNames,
-        services:           selectedSvcs,
+        services:           JSON.stringify(selectedSvcs),
         total_amount:       total,
         amount_paid:        paid,
         commission_rate:    splits[0].rate,
         commission_amount:  totalCommissionAmt,
         transaction_date:   txDate,
         notes:              splits.length > 1 ? `Team wash: ${empNames}` : '',
-        // Multi-employee fields
-        employees:          splits.map(({emp,rate,share})=>({
-          id: emp.id, name: emp.full_name,
-          commission_rate: rate, commission_amount: share
-        })),
-        commission_splits:  splits.map(({emp,rate,share})=>({
-          employee_id: emp.id, employee_name: emp.full_name,
-          rate, amount: share
-        })),
+        employees:          JSON.stringify(empsSplit),
+        commission_splits:  JSON.stringify(commsSplit),
       }});
 
       logEvent({
@@ -1220,7 +1220,7 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
                         <td style={{fontSize:11}}><div>{fmt(w.transaction_date||w.created_date)}</div><div style={{color:'var(--text2)'}}>{fmtTime(w.transaction_date||w.created_date)}</div></td>
                         <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:w.employee_name}} size={26} fs={10} /><span style={{fontWeight:600}}>{w.employee_name}</span></div></td>
                         <td style={{fontWeight:600}}>{w.plate_number||'—'}</td>
-                        <td style={{color:'var(--text2)'}}>{(w.services||[]).map(s=>s.name).join(', ')||'—'}</td>
+                        <td style={{color:'var(--text2)'}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
                         <td style={{fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</td>
                         <td style={{color:'var(--success)'}}>{peso(w.commission_amount)}</td>
                         <td><button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button></td>
@@ -1785,7 +1785,7 @@ function Reports({ carWashes, employees, payouts=[], showToast }) {
   const empRows = Object.values(empMap).sort((a,b)=>b.cars-a.cars);
 
   const svcMap = {};
-  filtered.forEach(w=>(w.services||[]).forEach(s=>{
+  filtered.forEach(w=>parseArr(w.services).forEach(s=>{
     if (!svcMap[s.id]) svcMap[s.id]={name:s.name,count:0,revenue:0};
     svcMap[s.id].count++;
     svcMap[s.id].revenue+=(s.price||0);
@@ -1795,7 +1795,7 @@ function Reports({ carWashes, employees, payouts=[], showToast }) {
   const exportCSV = () => {
     const rows = [
       ['Date','Employee','Customer','Plate','Services','Total','Commission','Paid'],
-      ...filtered.map(w=>[fmt(w.transaction_date||w.created_date),w.employee_name,w.customer_name||'',w.plate_number||'',(w.services||[]).map(s=>s.name).join('; '),w.total_amount,w.commission_amount,w.amount_paid])
+      ...filtered.map(w=>[fmt(w.transaction_date||w.created_date),w.employee_name,w.customer_name||'',w.plate_number||'',parseArr(w.services).map(s=>s.name).join('; '),w.total_amount,w.commission_amount,w.amount_paid])
     ];
     const a = document.createElement('a');
     a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
