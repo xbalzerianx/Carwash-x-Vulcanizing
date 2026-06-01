@@ -1624,6 +1624,18 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
             </div>
           </div>
         </div>
+      {confirmDeleteEmp && (
+        <div className="modal-overlay" onClick={()=>setConfirmDeleteEmp(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380,textAlign:'center'}}>
+            <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
+            <div className="modal-title" style={{marginBottom:8}}>Remove Employee?</div>
+            <p style={{color:'var(--text2)',fontSize:14,marginBottom:24}}>Are you sure you want to remove <strong style={{color:'var(--text)'}}>{confirmDeleteEmp.full_name}</strong>? Their transaction history will remain but they will no longer appear in new records.</p>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmDeleteEmp(null)}>Cancel</button>
+              <button className="btn btn-danger" style={{flex:1}} onClick={deleteEmp}>Yes, Remove</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1721,19 +1733,6 @@ function Services({ services, showToast, onRefresh }) {
             </div>
           </div>
         </div>
-      {confirmDeleteEmp && (
-        <div className="modal-overlay" onClick={()=>setConfirmDeleteEmp(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380,textAlign:'center'}}>
-            <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
-            <div className="modal-title" style={{marginBottom:8}}>Remove Employee?</div>
-            <p style={{color:'var(--text2)',fontSize:14,marginBottom:24}}>Are you sure you want to remove <strong style={{color:'var(--text)'}}>{confirmDeleteEmp.full_name}</strong>? Their transaction history will remain but they will no longer appear in new records.</p>
-            <div style={{display:'flex',gap:10}}>
-              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmDeleteEmp(null)}>Cancel</button>
-              <button className="btn btn-danger" style={{flex:1}} onClick={deleteEmp}>Yes, Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
       )}
     </div>
   );
