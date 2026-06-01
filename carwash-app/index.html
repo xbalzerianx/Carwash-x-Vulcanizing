@@ -1934,7 +1934,7 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
                 {log.amount > 0 && <div style={{fontSize:12,fontWeight:700,color:'var(--success)',marginTop:2}}>{peso(log.amount)}</div>}
               </div>
               {/* Time */}
-              <div style={{fontSize:11,color:'var(--text2)',white:'nowrap',flexShrink:0,textAlign:'right'}}>
+              <div style={{fontSize:11,color:'var(--text2)',whiteSpace:'nowrap',flexShrink:0,textAlign:'right'}}>
                 <div>{fmtAgo(log.created_date)}</div>
                 <div style={{fontSize:10,marginTop:2}}>{log.created_date ? new Date(log.created_date).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}) : ''}</div>
               </div>
@@ -1973,6 +1973,8 @@ function App() {
   const [services,setServices]=useState([]);
   const [carWashes,setCarWashes]=useState([]);
   const [campaigns,setCampaigns]=useState([]);
+  const [payouts,setPayouts]=useState([]);
+  const [logs,setLogs]=useState([]);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState(null);
   const showToast=(msg,type='info')=>setToast({msg,type});
