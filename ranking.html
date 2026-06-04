@@ -62,8 +62,8 @@
     /* ── GAP BOARD ── */
     .gap-board { background:var(--bg2); border-radius:16px; padding:16px; border:1px solid var(--border); }
     .gap-board-title { font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; display:flex; align-items:center; gap:6px; }
-    .gap-row   { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
-    .gap-pos   { font-size:11px; font-weight:900; width:32px; text-align:center; flex-shrink:0; }
+    .gap-row   { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .gap-pos   { font-size:11px; font-weight:900; width:36px; text-align:center; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
     .gap-bar-wrap { flex:1; }
     .gap-bar-bg   { height:8px; background:rgba(255,255,255,.08); border-radius:4px; overflow:hidden; margin-top:4px; }
     .gap-bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:6px; transition:width .8s ease; }
@@ -322,7 +322,7 @@ function RankingPage() {
                     </div>
                     <div className="gap-bar-bg">
                       <div className="gap-bar-fill" style={{width:`${pct}%`,background:barColor}}>
-                        {pct>18&&<span className="gap-bar-label">{r.cars}c</span>}
+                        {pct>18&&<span className="gap-bar-label">{r.cars} car{r.cars!==1?"s":""}</span>}
                       </div>
                     </div>
                   </div>
@@ -342,7 +342,7 @@ function RankingPage() {
                 <Av emp={r.emp||{full_name:r.name}} size={40} fs={14}/>
                 <div className="comm-name">{r.name.split(' ')[0]}</div>
                 <div className="comm-amt" style={{color:i<3?posColor[i]:'var(--text)'}}>{peso(r.commission)}</div>
-                <div className="comm-cars">{r.cars} cars</div>
+                <div className="comm-cars">{r.cars} car{r.cars!==1?"s":""}</div>
               </div>
             ))}
           </div>
@@ -367,7 +367,7 @@ function RankingPage() {
                 </div>
                 <div className="rl-right">
                   <div className="rl-cars" style={{color:bColor}}>{r.cars}</div>
-                  <div className="rl-clabel">cars</div>
+                  <div className="rl-clabel">{r.cars!==1?"cars":"car"}</div>
                 </div>
               </div>
             );
