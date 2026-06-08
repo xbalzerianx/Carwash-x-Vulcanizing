@@ -1513,12 +1513,13 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
   );
 }
 
-function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
+function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, bizType='carwash' }) {
+  const emptyEmpForm = {full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:'',business_type:bizType};
   const [showModal,setShowModal]=useState(false);
   const [editing,setEditing]=useState(null);
   const [viewEmp,setViewEmp]=useState(null);
   const [saving,setSaving]=useState(false);
-  const [form,setForm]=useState({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:'',business_type:bizType});
+  const [form,setForm]=useState(emptyEmpForm);
   const [preview,setPreview]=useState('');
   const [showPayoutModal,setShowPayoutModal]=useState(false);
   const [payoutEmp,setPayoutEmp]=useState(null);
@@ -1528,6 +1529,8 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
   const [confirmDeleteEmp,setConfirmDeleteEmp]=useState(null);
   const fileRef=useRef();
   const COLORS=['#D94A4A','#22C55E','#D4AF37','#B8BCC2','#B87333','#6C63FF','#E91E8C','#00BCD4'];
+  // Filter employees by business type
+  const displayEmployees = employees.filter(e=>bizType==='vulcanizing'?(e.business_type==='vulcanizing'):(e.business_type==='carwash'||!e.business_type));
 
   // Commission math
   const getCommStats = (empId) => {
@@ -1567,7 +1570,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
     finally{setPayoutSaving(false);}
   };
 
-  const openAdd =()=>{setEditing(null);setForm({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:''});setPreview('');setShowModal(true);};
+  const openAdd =()=>{setEditing(null);setForm(emptyEmpForm);setPreview('');setShowModal(true);};
   const openEdit=emp=>{setEditing(emp);setForm({...emp,avatar_url:emp.avatar_url||''});setPreview(emp.avatar_url||'');setShowModal(true);};
 
   const handleImg=e=>{
@@ -1626,7 +1629,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} Add Employee</button>
       </div>
       <div className="grid-2">
-        {employees.map(emp=>{
+        {displayEmployees.map(emp=>{
           const s=getStats(emp.id);
           return (
             <div key={emp.id} className="card" style={{cursor:'pointer'}} onClick={()=>setViewEmp(emp)}>
@@ -2392,7 +2395,12 @@ class ErrorBoundary extends React.Component {
 }
 
 function AdminApp({ logout }) {
-  const [page,setPage]=useState('dashboard');
+  const [biz,setBiz]=useState(()=>localStorage.getItem('kgBiz')||'carwash');
+  const setBizPersist=v=>{setBiz(v);localStorage.setItem('kgBiz',v);};
+  const [page,setPage]=useState(()=>{
+    const saved=localStorage.getItem('kgBiz')||'carwash';
+    return saved==='vulcanizing'?'vlc-dashboard':'dashboard';
+  });
   const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>768);
   const [employees,setEmployees]=useState([]);
   const [services,setServices]=useState([]);
@@ -2400,7 +2408,6 @@ function AdminApp({ logout }) {
   const [campaigns,setCampaigns]=useState([]);
   const [payouts,setPayouts]=useState([]);
   const [logs,setLogs]=useState([]);
-  // ── Vulcanizing state ──
   const [vlcJobs,setVlcJobs]=useState([]);
   const [vlcProducts,setVlcProducts]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -3001,9 +3008,7 @@ function VlcReports({ vlcJobs, employees, payouts, showToast }) {
 
 /* ── VlcEmployees — reuses Employees component filtered to vulcanizing ── */
 function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh }) {
-  // Reuse Employees component but filter to vulcanizing staff
-  const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
-  return <Employees employees={vlcEmps} carWashes={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={onRefresh} bizType="vulcanizing" allEmployees={employees}/>;
+  return <Employees employees={employees} carWashes={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={onRefresh} bizType="vulcanizing"/>;
 }
 
 /* ── VlcServices — reuses Services component filtered to vulcanizing ── */
