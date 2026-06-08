@@ -1601,24 +1601,141 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
 
       {viewEmp && (
         <div className="modal-overlay" onClick={()=>setViewEmp(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <div style={{textAlign:'center',marginBottom:18}}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,padding:0,overflow:'hidden'}}>
+            {/* ── Profile Header ── */}
+            <div style={{background:'var(--bg2)',padding:'28px 24px 20px',textAlign:'center',borderBottom:'1px solid var(--border)'}}>
               <Av emp={viewEmp} size={72} fs={26} />
               <div style={{fontSize:18,fontWeight:900,marginTop:10}}>{viewEmp.full_name}</div>
-              <div style={{color:'var(--text2)',fontSize:12}}>{viewEmp.contact_number}</div>
-              <span className={`badge ${viewEmp.is_active?'badge-green':'badge-red'}`} style={{marginTop:6}}>{viewEmp.is_active?'Active':'Inactive'}</span>
+              <div style={{color:'var(--text2)',fontSize:12,marginTop:2}}>{viewEmp.contact_number||'No contact'}</div>
+              <span className={`badge ${viewEmp.is_active?'badge-green':'badge-red'}`} style={{marginTop:6,display:'inline-block'}}>{viewEmp.is_active?'Active':'Inactive'}</span>
             </div>
+
+            {/* ── Stats Row ── */}
             {(()=>{const s=getStats(viewEmp.id);return(
-              <div className="grid-2" style={{gap:10}}>
-                {[{l:'Total Washed',v:s.total,c:'var(--red)'},{l:'This Month',v:s.month,c:'var(--success)'},{l:'Total Revenue',v:peso(s.sales),c:'var(--gold)'},{l:'Total Comm.',v:peso(s.comm),c:'var(--silver)'}].map((x,i)=>(
-                  <div key={i} style={{background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14,textAlign:'center'}}>
-                    <div style={{fontSize:16,fontWeight:800,color:x.c}}>{x.v}</div>
-                    <div style={{fontSize:11,color:'var(--text2)'}}>{x.l}</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderBottom:'1px solid var(--border)'}}>
+                {[{l:'Total Cars',v:s.total,c:'var(--red)'},{l:'This Month',v:s.month,c:'var(--success)'},{l:'Revenue',v:peso(s.sales),c:'var(--gold)'},{l:'Commission',v:peso(s.comm),c:'var(--silver)'}].map((x,i)=>(
+                  <div key={i} style={{padding:'14px 8px',textAlign:'center',borderRight:i<3?'1px solid var(--border)':'none'}}>
+                    <div style={{fontSize:15,fontWeight:800,color:x.c}}>{x.v}</div>
+                    <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
                   </div>
                 ))}
               </div>
             );})()}
-            <div style={{display:'flex',gap:10,marginTop:16}}>
+
+            {/* ── Tabs ── */}
+            {(()=>{
+              const [empTab,setEmpTab]=React.useState('washes');
+
+              /* --- get all car washes for this employee (including splits) --- */
+              const empWashes = carWashes.filter(w => {
+                if (w.employee_id === viewEmp.id) return true;
+                const splits = parseArr(w.commission_splits);
+                return splits.some(sp => sp.employee_id === viewEmp.id || sp.id === viewEmp.id);
+              }).sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
+
+              /* --- get payouts for this employee --- */
+              const empPayouts = (payouts||[]).filter(p=>p.employee_id===viewEmp.id)
+                .sort((a,b)=>new Date(b.payout_date||b.created_date)-new Date(a.payout_date||a.created_date));
+
+              /* --- helper: get this emp's commission from a wash --- */
+              const getEmpComm = w => {
+                const splits = parseArr(w.commission_splits);
+                const sp = splits.find(s=>s.employee_id===viewEmp.id||s.id===viewEmp.id);
+                if (sp) return sp.amount||0;
+                if (w.employee_id===viewEmp.id) return w.commission_amount||0;
+                return 0;
+              };
+
+              return (
+                <div>
+                  {/* Tab bar */}
+                  <div style={{display:'flex',borderBottom:'1px solid var(--border)',background:'var(--bg)'}}>
+                    {[{k:'washes',label:`🚗 Car Washes (${empWashes.length})`},{k:'payouts',label:`💰 Payouts (${empPayouts.length})`}].map(t=>(
+                      <button key={t.k} onClick={()=>setEmpTab(t.k)}
+                        style={{flex:1,padding:'12px 8px',fontSize:12,fontWeight:700,background:'none',border:'none',
+                          borderBottom:empTab===t.k?'2px solid var(--red)':'2px solid transparent',
+                          color:empTab===t.k?'var(--red)':'var(--text2)',cursor:'pointer',transition:'all .2s'}}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tab content */}
+                  <div style={{maxHeight:280,overflowY:'auto',padding:'0'}}>
+
+                    {/* ── CAR WASHES TAB ── */}
+                    {empTab==='washes' && (
+                      empWashes.length===0
+                        ? <div style={{padding:32,textAlign:'center',color:'var(--text2)'}}>
+                            <div style={{fontSize:32,marginBottom:8}}>🚗</div>
+                            <div style={{fontSize:13}}>No car washes yet</div>
+                          </div>
+                        : empWashes.map((w,i)=>{
+                            const comm = getEmpComm(w);
+                            const svcs = parseArr(w.services);
+                            const svcNames = svcs.map(s=>s.name||s).join(', ') || 'N/A';
+                            const txDate = new Date(w.transaction_date||w.created_date);
+                            const splits = parseArr(w.commission_splits);
+                            const isTeam = splits.length > 1;
+                            return (
+                              <div key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 20px',
+                                borderBottom:'1px solid var(--border)',background:i%2===0?'var(--bg)':'var(--bg2)'}}>
+                                <div style={{width:36,height:36,borderRadius:10,background:'rgba(217,74,74,0.12)',
+                                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🚗</div>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}>
+                                    {w.plate_number||'No Plate'}
+                                    {isTeam && <span style={{fontSize:9,background:'rgba(212,175,55,0.2)',color:'var(--gold)',padding:'2px 6px',borderRadius:20,fontWeight:800}}>TEAM</span>}
+                                  </div>
+                                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcNames}</div>
+                                  <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>
+                                    {txDate.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {txDate.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
+                                  </div>
+                                </div>
+                                <div style={{textAlign:'right',flexShrink:0}}>
+                                  <div style={{fontSize:13,fontWeight:800,color:'var(--gold)'}}>{peso(w.total_amount||0)}</div>
+                                  <div style={{fontSize:10,color:'var(--success)',marginTop:2}}>+{peso(comm)} comm</div>
+                                </div>
+                              </div>
+                            );
+                          })
+                    )}
+
+                    {/* ── PAYOUTS TAB ── */}
+                    {empTab==='payouts' && (
+                      empPayouts.length===0
+                        ? <div style={{padding:32,textAlign:'center',color:'var(--text2)'}}>
+                            <div style={{fontSize:32,marginBottom:8}}>💰</div>
+                            <div style={{fontSize:13}}>No payouts recorded yet</div>
+                          </div>
+                        : empPayouts.map((p,i)=>{
+                            const pd = new Date(p.payout_date||p.created_date);
+                            return (
+                              <div key={p.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 20px',
+                                borderBottom:'1px solid var(--border)',background:i%2===0?'var(--bg)':'var(--bg2)'}}>
+                                <div style={{width:36,height:36,borderRadius:10,background:'rgba(212,175,55,0.12)',
+                                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>💳</div>
+                                <div style={{flex:1}}>
+                                  <div style={{fontSize:13,fontWeight:700}}>{p.note||'Commission Payout'}</div>
+                                  <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>
+                                    {pd.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {pd.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
+                                  </div>
+                                </div>
+                                <div style={{textAlign:'right',flexShrink:0}}>
+                                  <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>{peso(p.amount||0)}</div>
+                                  <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Paid out</div>
+                                </div>
+                              </div>
+                            );
+                          })
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Footer Buttons ── */}
+            <div style={{display:'flex',gap:10,padding:'16px 20px',borderTop:'1px solid var(--border)',background:'var(--bg2)'}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setViewEmp(null)}>Close</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={()=>{setViewEmp(null);openEdit(viewEmp);}}>Edit</button>
             </div>
