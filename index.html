@@ -1518,7 +1518,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
   const [editing,setEditing]=useState(null);
   const [viewEmp,setViewEmp]=useState(null);
   const [saving,setSaving]=useState(false);
-  const [form,setForm]=useState({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:''});
+  const [form,setForm]=useState({full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:'',business_type:bizType});
   const [preview,setPreview]=useState('');
   const [showPayoutModal,setShowPayoutModal]=useState(false);
   const [payoutEmp,setPayoutEmp]=useState(null);
@@ -1791,23 +1791,27 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh }) {
 /* ═══════════════════════════════════════════
    SERVICES
 ═══════════════════════════════════════════ */
-function Services({ services, showToast, onRefresh }) {
+function Services({ services, showToast, onRefresh, bizFilter=null }) {
   const [showModal,setShowModal]=useState(false);
   const [editing,setEditing]=useState(null);
   const [saving,setSaving]=useState(false);
-  const [form,setForm]=useState({name:'',description:'',price:0,is_active:true});
+  const emptyForm = {name:'',description:'',price:0,is_active:true,business_type:bizFilter||'carwash'};
+  const [form,setForm]=useState(emptyForm);
   const [confirmDelete,setConfirmDelete]=useState(null);
-  const openAdd=()=>{setEditing(null);setForm({name:'',description:'',price:0,is_active:true});setShowModal(true);};
+  // Filter services by business type if bizFilter is set
+  const displayServices = bizFilter ? services.filter(s=>s.business_type===bizFilter||(bizFilter==='carwash'&&!s.business_type)) : services.filter(s=>!s.business_type||s.business_type==='carwash');
+  const openAdd=()=>{setEditing(null);setForm(emptyForm);setShowModal(true);};
   const openEdit=svc=>{setEditing(svc);setForm({...svc});setShowModal(true);};
   const handleSave=async()=>{
     if(!form.name.trim()) return showToast('Enter service name','warning');
     setSaving(true);
     try{
+      const saveData={...form,business_type:bizFilter||'carwash'};
       if(editing) {
-        await api('update','Service',{id:editing.id,data:form});
+        await api('update','Service',{id:editing.id,data:saveData});
         logEvent({event_type:'service_updated',title:`Service updated — ${form.name}`,description:`Price: ${peso(form.price)} | ${form.is_active?'Active':'Inactive'}`,entity_id:editing.id});
       } else {
-        const created = await api('create','Service',{data:form});
+        const created = await api('create','Service',{data:saveData});
         logEvent({event_type:'service_added',title:`New service added — ${form.name}`,description:`Price: ${peso(form.price)}`,entity_id:created?.id||''});
       }
       await onRefresh();setShowModal(false);
@@ -1828,7 +1832,7 @@ function Services({ services, showToast, onRefresh }) {
   return (
     <div>
       <div className="flex-between mb-4">
-        <div className="section-title" style={{marginBottom:0}}>Services</div>
+        <div className="section-title" style={{marginBottom:0}}>{bizFilter==='vulcanizing'?'🔧 Vulcanizing Services':'🚗 Car Wash Services'}</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} Add Service</button>
       </div>
       <div className="card">
@@ -1836,7 +1840,7 @@ function Services({ services, showToast, onRefresh }) {
           <table>
             <thead><tr><th>Name</th><th className='hide-xs'>Description</th><th>Price</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {services.map(svc=>(
+              {displayServices.map(svc=>(
                 <tr key={svc.id}>
                   <td style={{fontWeight:700}}>{svc.name}</td>
                   <td className='hide-xs' style={{color:'var(--text2)'}}>{svc.description||'—'}</td>
@@ -2396,20 +2400,24 @@ function AdminApp({ logout }) {
   const [campaigns,setCampaigns]=useState([]);
   const [payouts,setPayouts]=useState([]);
   const [logs,setLogs]=useState([]);
+  // ── Vulcanizing state ──
+  const [vlcJobs,setVlcJobs]=useState([]);
+  const [vlcProducts,setVlcProducts]=useState([]);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState(null);
   const showToast=(msg,type='info')=>setToast({msg,type});
 
   const loadAll=async()=>{
     try{
-      // Load each entity independently so one failure doesn't blank everything
       const safe = async (entity) => { try { return await api('list', entity); } catch(e) { console.warn(entity+' load failed:', e.message); return []; } };
-      const [e,s,w,c,p,l] = await Promise.all([
+      const [e,s,w,c,p,l,vj,vp] = await Promise.all([
         safe('Employee'), safe('Service'), safe('CarWash'),
-        safe('RewardCampaign'), safe('CommissionPayout'), safe('ActivityLog')
+        safe('RewardCampaign'), safe('CommissionPayout'), safe('ActivityLog'),
+        safe('VulcanizingJob'), safe('VulcanizingProduct')
       ]);
       setEmployees(e); setServices(s); setCarWashes(w);
       setCampaigns(c); setPayouts(p); setLogs(l);
+      setVlcJobs(vj); setVlcProducts(vp);
     } catch(err) { showToast('Load error: '+err.message,'error'); }
     finally { setLoading(false); }
   };
@@ -2417,16 +2425,27 @@ function AdminApp({ logout }) {
   useEffect(()=>{loadAll();},[]);
   useEffect(()=>{const fn=()=>setSidebarOpen(window.innerWidth>768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
 
-  const navItems=[
-    {id:'dashboard',icon:Ic.home,  label:'Dashboard',   section:'Main'},
-    {id:'record',   icon:Ic.car,   label:'Record Wash', section:'Main'},
-    {id:'transactions',icon:Ic.list,label:'Transactions',section:'Main'},
-    {id:'ranking',  icon:Ic.trophy,label:'Rankings',    section:'Analytics', externalUrl:'https://kgcarwash.vercel.app/ranking.html'},
-    {id:'reports',  icon:Ic.chart, label:'Reports',     section:'Analytics'},
-    {id:'employees',icon:Ic.users, label:'Employees',   section:'Admin'},
-    {id:'services', icon:Ic.wrench,label:'Services',    section:'Admin'},
-    {id:'rewards',  icon:Ic.gift,  label:'Rewards',     section:'Admin'},
-    {id:'logs',     icon:Ic.log,   label:'Activity Log', section:'Admin'},
+  // Nav items per business
+  const navItems = biz==='carwash' ? [
+    {id:'dashboard',    icon:Ic.home,  label:'Dashboard',    section:'Main'},
+    {id:'record',       icon:Ic.car,   label:'Record Wash',  section:'Main'},
+    {id:'transactions', icon:Ic.list,  label:'Transactions', section:'Main'},
+    {id:'ranking',      icon:Ic.trophy,label:'Rankings',     section:'Analytics', externalUrl:'https://kgcarwash.vercel.app/ranking.html'},
+    {id:'reports',      icon:Ic.chart, label:'Reports',      section:'Analytics'},
+    {id:'employees',    icon:Ic.users, label:'Employees',    section:'Admin'},
+    {id:'services',     icon:Ic.wrench,label:'Services',     section:'Admin'},
+    {id:'rewards',      icon:Ic.gift,  label:'Rewards',      section:'Admin'},
+    {id:'logs',         icon:Ic.log,   label:'Activity Log', section:'Admin'},
+  ] : [
+    {id:'vlc-dashboard',    icon:Ic.home,  label:'Dashboard',    section:'Main'},
+    {id:'vlc-record',       icon:'🔧',     label:'Record Job',   section:'Main'},
+    {id:'vlc-transactions', icon:Ic.list,  label:'Transactions', section:'Main'},
+    {id:'vlc-ranking',      icon:Ic.trophy,label:'Rankings',     section:'Analytics', externalUrl:'https://kgcarwash.vercel.app/vulcanizing-ranking.html'},
+    {id:'vlc-reports',      icon:Ic.chart, label:'Reports',      section:'Analytics'},
+    {id:'vlc-employees',    icon:Ic.users, label:'Employees',    section:'Admin'},
+    {id:'vlc-services',     icon:Ic.wrench,label:'Services',     section:'Admin'},
+    {id:'vlc-products',     icon:'📦',     label:'Products',     section:'Admin'},
+    {id:'vlc-rewards',      icon:Ic.gift,  label:'Rewards',      section:'Admin'},
   ];
   const sections=[...new Set(navItems.map(n=>n.section))];
   const activeCampaign=campaigns.find(c=>c.is_active);
@@ -2434,13 +2453,44 @@ function AdminApp({ logout }) {
   const isMobile=window.innerWidth<=768;
 
   if(loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:14}}>
-      <div style={{width:48,height:48,background:'var(--red)',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center'}}>{Ic.drop}</div>
-      <div style={{fontSize:18,fontWeight:800}}>KGCAR Carwash</div>
-      <div style={{color:'var(--text2)',fontSize:13}}>Loading...</div>
-      <div style={{width:160,height:3,background:'var(--glass)',borderRadius:2,overflow:'hidden'}}>
-        <div style={{height:'100%',width:'60%',background:'var(--red)',borderRadius:2}}></div>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:0,
+      background:'var(--bg)',position:'relative',overflow:'hidden'}}>
+      {/* radial glow */}
+      <div style={{position:'absolute',width:400,height:400,borderRadius:'50%',
+        background:'radial-gradient(circle,rgba(217,74,74,0.18) 0%,transparent 70%)',
+        top:'50%',left:'50%',transform:'translate(-50%,-60%)',pointerEvents:'none'}}/>
+      {/* animated logo */}
+      <div style={{animation:'splashPulse 1.8s ease-in-out infinite',marginBottom:28}}>
+        <div style={{width:88,height:88,background:'linear-gradient(135deg,#D94A4A,#a83232)',borderRadius:24,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:'0 0 40px rgba(217,74,74,0.5),0 8px 32px rgba(0,0,0,0.4)',fontSize:40}}>
+          🚗
+        </div>
       </div>
+      {/* brand name */}
+      <div style={{fontSize:26,fontWeight:900,letterSpacing:'-0.5px',animation:'splashFadeUp 0.6s ease both',animationDelay:'0.1s',opacity:0}}>
+        KG Car Services
+      </div>
+      <div style={{fontSize:13,color:'var(--text2)',marginTop:6,fontWeight:500,
+        animation:'splashFadeUp 0.6s ease both',animationDelay:'0.25s',opacity:0,letterSpacing:'0.5px'}}>
+        Car Wash &amp; Vulcanizing
+      </div>
+      {/* progress bar */}
+      <div style={{marginTop:36,width:200,height:3,background:'rgba(255,255,255,0.08)',borderRadius:99,overflow:'hidden',
+        animation:'splashFadeUp 0.6s ease both',animationDelay:'0.35s',opacity:0}}>
+        <div style={{height:'100%',background:'linear-gradient(90deg,#D94A4A,#ff7a7a)',borderRadius:99,
+          animation:'splashBar 1.8s ease-in-out infinite',boxShadow:'0 0 8px rgba(217,74,74,0.8)'}}/>
+      </div>
+      <div style={{fontSize:11,color:'var(--text2)',marginTop:12,letterSpacing:'2px',textTransform:'uppercase',
+        animation:'splashFadeUp 0.6s ease both',animationDelay:'0.45s',opacity:0}}>
+        Loading
+      </div>
+      <style>{`
+        @keyframes splashPulse{0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 0px rgba(217,74,74,0));}
+          50%{transform:scale(1.08) translateY(-4px);filter:drop-shadow(0 0 20px rgba(217,74,74,0.6));}}
+        @keyframes splashFadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes splashBar{0%{width:0%;margin-left:0;}60%{width:80%;margin-left:0;}80%{width:80%;margin-left:20%;}100%{width:0%;margin-left:100%;}}
+      `}</style>
     </div>
   );
 
@@ -2449,8 +2499,26 @@ function AdminApp({ logout }) {
       {isMobile&&sidebarOpen&&<div className="sidebar-overlay show" onClick={()=>setSidebarOpen(false)}></div>}
       <div className={`sidebar ${sidebarOpen?'open':'closed'}`}>
         <div className="sidebar-logo">
-          <div className="logo-icon">{Ic.drop}</div>
-          <div><div className="logo-text">KGCAR Carwash</div><div className="logo-sub">Car Wash</div></div>
+          <div className="logo-icon">{biz==='carwash'?Ic.drop:'🔧'}</div>
+          <div>
+            <div className="logo-text">KG Car Services</div>
+            <div className="logo-sub">{biz==='carwash'?'Car Wash':'Vulcanizing'}</div>
+          </div>
+        </div>
+        {/* ── Business Switcher ── */}
+        <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
+          <div style={{display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:10,padding:3,gap:3}}>
+            {[{k:'carwash',label:'🚗 Car Wash'},{k:'vulcanizing',label:'🔧 Vulcanizing'}].map(b=>(
+              <button key={b.k} onClick={()=>{setBizPersist(b.k);setPage(b.k==='carwash'?'dashboard':'vlc-dashboard');}}
+                style={{flex:1,padding:'7px 4px',fontSize:11,fontWeight:700,borderRadius:8,border:'none',cursor:'pointer',
+                  transition:'all .2s',
+                  background:biz===b.k?'var(--red)':'transparent',
+                  color:biz===b.k?'#fff':'var(--text2)',
+                  boxShadow:biz===b.k?'0 2px 8px rgba(217,74,74,0.4)':'none'}}>
+                {b.label}
+              </button>
+            ))}
+          </div>
         </div>
         <nav className="nav">
           {sections.map(sec=>(
@@ -2491,18 +2559,566 @@ function AdminApp({ logout }) {
           </div>
         </div>
         <div className="page-content">
-          {page==='dashboard'    && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
-          {page==='record'       && <ErrorBoundary><RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
-          {page==='transactions' && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast}/></ErrorBoundary>}
-          {page==='ranking'      && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
-          {page==='reports'      && <ErrorBoundary><Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
-          {page==='employees'    && <ErrorBoundary><Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
-          {page==='services'     && <ErrorBoundary><Services services={services} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
-          {page==='rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
-          {page==='logs'         && <ErrorBoundary><ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
+          {/* ── CAR WASH pages ── */}
+          {page==='dashboard'        && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
+          {page==='record'           && <ErrorBoundary><RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
+          {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast}/></ErrorBoundary>}
+          {page==='ranking'          && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
+          {page==='reports'          && <ErrorBoundary><Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
+          {page==='employees'        && <ErrorBoundary><Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='services'         && <ErrorBoundary><Services services={services} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='rewards'          && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='logs'             && <ErrorBoundary><ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
+          {/* ── VULCANIZING pages ── */}
+          {page==='vlc-dashboard'    && <ErrorBoundary><VlcDashboard vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} setPage={setPage}/></ErrorBoundary>}
+          {page==='vlc-record'       && <ErrorBoundary><RecordVlcJob employees={employees} services={services} vlcProducts={vlcProducts} onSave={j=>{setVlcJobs(p=>[j,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
+          {page==='vlc-transactions' && <ErrorBoundary><VlcTransactions vlcJobs={vlcJobs} employees={employees} onDelete={id=>setVlcJobs(p=>p.filter(j=>j.id!==id))} showToast={showToast}/></ErrorBoundary>}
+          {page==='vlc-ranking'      && <ErrorBoundary><VlcRanking vlcJobs={vlcJobs} employees={employees}/></ErrorBoundary>}
+          {page==='vlc-reports'      && <ErrorBoundary><VlcReports vlcJobs={vlcJobs} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
+          {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='vlc-services'     && <ErrorBoundary><VlcServices services={services} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
       </div>
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   VULCANIZING MODULE COMPONENTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── VlcDashboard ── */
+function VlcDashboard({ vlcJobs, employees, setPage }) {
+  const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
+  const todayStr = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  const todayJobs   = vlcJobs.filter(j=>(j.transaction_date||j.created_date||'').slice(0,10)===todayStr);
+  const monthJobs   = vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const todayRev    = todayJobs.reduce((s,j)=>s+(j.total_amount||0),0);
+  const monthRev    = monthJobs.reduce((s,j)=>s+(j.total_amount||0),0);
+  const todayComm   = todayJobs.reduce((s,j)=>s+(j.commission_amount||0),0);
+  const monthComm   = monthJobs.reduce((s,j)=>s+(j.commission_amount||0),0);
+
+  const stats=[
+    {label:'Jobs Today',    value:todayJobs.length,   color:'var(--red)',    icon:'🔧'},
+    {label:'Revenue Today', value:peso(todayRev),      color:'var(--gold)',   icon:'💰'},
+    {label:'Jobs This Month',value:monthJobs.length,  color:'var(--success)',icon:'📊'},
+    {label:'Month Revenue', value:peso(monthRev),      color:'var(--silver)', icon:'📈'},
+    {label:'Today Comm.',   value:peso(todayComm),     color:'var(--gold)',   icon:'👷'},
+    {label:'Month Comm.',   value:peso(monthComm),     color:'var(--silver)', icon:'🏆'},
+  ];
+
+  const recent = [...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).slice(0,5);
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>🔧 Vulcanizing Dashboard</div>
+        <button className="btn btn-primary btn-sm" onClick={()=>setPage('vlc-record')}>+ Record Job</button>
+      </div>
+      <div className="grid-3" style={{marginBottom:20}}>
+        {stats.map((s,i)=>(
+          <div key={i} className="card" style={{textAlign:'center',padding:'18px 12px'}}>
+            <div style={{fontSize:24,marginBottom:6}}>{s.icon}</div>
+            <div style={{fontSize:20,fontWeight:900,color:s.color}}>{s.value}</div>
+            <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      <div className="section-title">Recent Jobs</div>
+      {recent.length===0
+        ? <div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No jobs yet — <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={()=>setPage('vlc-record')}>Record First Job</button></div>
+        : recent.map((j,i)=>{
+          const d=new Date(j.transaction_date||j.created_date);
+          const svcs=parseArr(j.services).map(s=>s.name||s).join(', ')||'—';
+          return (
+            <div key={j.id} className="card" style={{display:'flex',alignItems:'center',gap:14,padding:'12px 16px',marginBottom:8}}>
+              <div style={{width:40,height:40,borderRadius:12,background:'rgba(217,74,74,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>🔧</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:13}}>{j.vehicle_info||j.customer_name||'Job #'+(i+1)}</div>
+                <div style={{fontSize:11,color:'var(--text2)',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{svcs}</div>
+                <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontWeight:800,color:'var(--gold)',fontSize:14}}>{peso(j.total_amount||0)}</div>
+                <div style={{fontSize:10,color:'var(--success)',marginTop:2}}>{j.employee_name||'—'}</div>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+/* ── RecordVlcJob ── */
+function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
+  const vlcEmps = employees.filter(e=>e.is_active&&e.business_type==='vulcanizing');
+  const vlcSvcs = services.filter(s=>s.is_active&&s.business_type==='vulcanizing');
+
+  const emptyForm = { customer_name:'', vehicle_info:'', employee_id:'', services:[], products_used:[], notes:'' };
+  const [form,setForm]=React.useState(emptyForm);
+  const [saving,setSaving]=React.useState(false);
+
+  const selEmp  = vlcEmps.find(e=>e.id===form.employee_id);
+  const commRate= selEmp ? (selEmp.commission_percentage||40) : 40;
+
+  const toggleSvc = svc => {
+    setForm(f=>({...f,services:f.services.find(s=>s.id===svc.id)?f.services.filter(s=>s.id!==svc.id):[...f.services,svc]}));
+  };
+  const addProduct = prod => {
+    setForm(f=>({...f,products_used:[...f.products_used,{id:prod.id,name:prod.name,cost:prod.default_cost}]}));
+  };
+  const removeProduct = idx => setForm(f=>({...f,products_used:f.products_used.filter((_,i)=>i!==idx)}));
+  const updateProductCost = (idx,val) => setForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,cost:parseFloat(val)||0}:p)}));
+
+  const totalAmount     = form.services.reduce((s,sv)=>s+(sv.price||0),0);
+  const totalProdCost   = form.products_used.reduce((s,p)=>s+(p.cost||0),0);
+  const netAmount       = Math.max(0, totalAmount - totalProdCost);
+  const commissionAmt   = Math.round(netAmount * commRate / 100);
+
+  const handleSave = async () => {
+    if (!form.employee_id)        { showToast('Select an employee','error'); return; }
+    if (form.services.length===0) { showToast('Select at least one service','error'); return; }
+    setSaving(true);
+    try {
+      const rec = {
+        customer_name:    form.customer_name||'',
+        vehicle_info:     form.vehicle_info||'',
+        employee_id:      form.employee_id,
+        employee_name:    selEmp?.full_name||'',
+        services:         form.services.map(s=>JSON.stringify(s)),
+        products_used:    form.products_used.map(p=>JSON.stringify(p)),
+        total_product_cost: totalProdCost,
+        total_amount:     totalAmount,
+        net_amount:       netAmount,
+        amount_paid:      totalAmount,
+        commission_rate:  commRate,
+        commission_amount: commissionAmt,
+        transaction_date: new Date().toISOString(),
+        notes:            form.notes||'',
+      };
+      const res = await api('create','VulcanizingJob',{data:rec});
+      await logEvent('vlc_job_created','Vulcanizing Job Recorded',
+        `${selEmp?.full_name||'—'} · ${form.services.map(s=>s.name).join(', ')} · ${peso(totalAmount)}`,
+        selEmp?.full_name||'', res.id, totalAmount);
+      onSave(res);
+      setForm(emptyForm);
+      showToast('Job recorded!','success');
+    } catch(e) { showToast('Save failed: '+e.message,'error'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{maxWidth:560,margin:'0 auto'}}>
+      <div className="section-title" style={{marginBottom:20}}>🔧 Record Vulcanizing Job</div>
+
+      {/* Employee */}
+      <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:10}}>EMPLOYEE</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {vlcEmps.length===0
+            ? <div style={{color:'var(--text2)',fontSize:13}}>No vulcanizing employees yet — add them in Employees section</div>
+            : vlcEmps.map(e=>(
+              <button key={e.id} onClick={()=>setForm(f=>({...f,employee_id:e.id}))}
+                style={{padding:'8px 14px',borderRadius:20,border:'2px solid',fontSize:12,fontWeight:700,cursor:'pointer',transition:'all .15s',
+                  borderColor:form.employee_id===e.id?'var(--red)':'var(--border)',
+                  background:form.employee_id===e.id?'rgba(217,74,74,0.15)':'transparent',
+                  color:form.employee_id===e.id?'var(--red)':'var(--text)'}}>
+                {e.full_name}
+              </button>
+            ))}
+        </div>
+      </div>
+
+      {/* Services */}
+      <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:10}}>SERVICES</div>
+        {vlcSvcs.length===0
+          ? <div style={{color:'var(--text2)',fontSize:13}}>No vulcanizing services yet — add them in Services section</div>
+          : <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+              {vlcSvcs.map(svc=>{
+                const sel=form.services.find(s=>s.id===svc.id);
+                return (
+                  <button key={svc.id} onClick={()=>toggleSvc(svc)}
+                    style={{padding:'8px 14px',borderRadius:20,border:'2px solid',fontSize:12,fontWeight:700,cursor:'pointer',transition:'all .15s',
+                      borderColor:sel?'var(--red)':'var(--border)',
+                      background:sel?'rgba(217,74,74,0.15)':'transparent',
+                      color:sel?'var(--red)':'var(--text)'}}>
+                    {svc.name} · {peso(svc.price||0)}
+                  </button>
+                );
+              })}
+            </div>}
+      </div>
+
+      {/* Products Used (optional) */}
+      <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:4}}>PRODUCTS USED <span style={{fontWeight:400,color:'var(--text2)',fontSize:11}}>(optional — deducted before commission)</span></div>
+        {/* Add product buttons */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10,marginTop:8}}>
+          {vlcProducts.filter(p=>p.is_active).map(prod=>(
+            <button key={prod.id} onClick={()=>addProduct(prod)}
+              style={{padding:'5px 12px',borderRadius:20,border:'1px solid var(--border)',fontSize:11,fontWeight:600,
+                background:'rgba(255,255,255,0.04)',color:'var(--text)',cursor:'pointer'}}>
+              + {prod.name} (₱{prod.default_cost})
+            </button>
+          ))}
+        </div>
+        {/* Added products with editable cost */}
+        {form.products_used.map((p,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,background:'rgba(217,74,74,0.08)',
+            borderRadius:8,padding:'6px 10px'}}>
+            <span style={{flex:1,fontSize:12,fontWeight:700}}>{p.name}</span>
+            <span style={{fontSize:11,color:'var(--text2)'}}>₱</span>
+            <input type="number" value={p.cost} onChange={e=>updateProductCost(i,e.target.value)}
+              style={{width:64,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:6,padding:'3px 6px',
+                color:'var(--text)',fontSize:12,textAlign:'right'}}/>
+            <button onClick={()=>removeProduct(i)} style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:16,padding:'0 2px'}}>×</button>
+          </div>
+        ))}
+        {form.products_used.length===0 && <div style={{fontSize:11,color:'var(--text2)'}}>No products added — commission calculated on full amount</div>}
+      </div>
+
+      {/* Vehicle info & notes */}
+      <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:10}}>DETAILS</div>
+        <input placeholder="Vehicle info (e.g. Honda Civic - front left)" value={form.vehicle_info}
+          onChange={e=>setForm(f=>({...f,vehicle_info:e.target.value}))}
+          style={{width:'100%',marginBottom:8,background:'var(--bg)',border:'1px solid var(--border)',
+            borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+        <input placeholder="Customer name (optional)" value={form.customer_name}
+          onChange={e=>setForm(f=>({...f,customer_name:e.target.value}))}
+          style={{width:'100%',marginBottom:8,background:'var(--bg)',border:'1px solid var(--border)',
+            borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+        <input placeholder="Notes (optional)" value={form.notes}
+          onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
+          style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',
+            borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+      </div>
+
+      {/* Summary */}
+      {form.services.length>0&&(
+        <div className="card" style={{marginBottom:12,padding:'14px 16px',background:'rgba(217,74,74,0.06)',border:'1px solid rgba(217,74,74,0.2)'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {[
+              {l:'Service Total',   v:peso(totalAmount),    c:'var(--text)'},
+              {l:'Product Costs',   v:`- ${peso(totalProdCost)}`,c:'var(--red)'},
+              {l:'Net Amount',      v:peso(netAmount),       c:'var(--gold)'},
+              {l:`Commission (${commRate}%)`,v:peso(commissionAmt),c:'var(--success)'},
+            ].map((x,i)=>(
+              <div key={i} style={{textAlign:'center',padding:'8px 4px'}}>
+                <div style={{fontSize:16,fontWeight:900,color:x.c}}>{x.v}</div>
+                <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button className="btn btn-primary" style={{width:'100%',padding:'14px',fontSize:15,fontWeight:800}}
+        onClick={handleSave} disabled={saving}>
+        {saving?'Saving…':'🔧 Record Job'}
+      </button>
+    </div>
+  );
+}
+
+/* ── VlcTransactions ── */
+function VlcTransactions({ vlcJobs, employees, onDelete, showToast }) {
+  const [search,setSearch]=React.useState('');
+  const [confirmDel,setConfirmDel]=React.useState(null);
+
+  const sorted=[...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
+  const filtered=sorted.filter(j=>{
+    const q=search.toLowerCase();
+    return !q||(j.vehicle_info||'').toLowerCase().includes(q)||(j.employee_name||'').toLowerCase().includes(q)||(j.customer_name||'').toLowerCase().includes(q);
+  });
+
+  const doDelete=async()=>{
+    if(!confirmDel)return;
+    try{ await api('delete','VulcanizingJob',{id:confirmDel}); onDelete(confirmDel); showToast('Deleted','success'); }
+    catch(e){ showToast('Delete failed','error'); }
+    finally{ setConfirmDel(null); }
+  };
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>🔧 Vulcanizing Jobs ({filtered.length})</div>
+        <input placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)}
+          style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',color:'var(--text)',fontSize:12,width:160}}/>
+      </div>
+      {filtered.length===0
+        ? <div className="card" style={{textAlign:'center',padding:40,color:'var(--text2)'}}>No jobs found</div>
+        : filtered.map((j,i)=>{
+          const d=new Date(j.transaction_date||j.created_date);
+          const svcs=parseArr(j.services).map(s=>s.name||s).join(', ')||'—';
+          const prods=parseArr(j.products_used);
+          return(
+            <div key={j.id} className="card" style={{marginBottom:8,padding:'12px 16px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:38,height:38,borderRadius:10,background:'rgba(217,74,74,0.12)',
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🔧</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:13,display:'flex',alignItems:'center',gap:6}}>
+                    {j.vehicle_info||j.customer_name||'Job'}
+                    <span style={{fontSize:10,color:'var(--text2)',fontWeight:400}}>· {j.employee_name||'—'}</span>
+                  </div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcs}</div>
+                  {prods.length>0&&<div style={{fontSize:10,color:'var(--red)',marginTop:1}}>Products: {prods.map(p=>p.name).join(', ')} · -{peso(j.total_product_cost||0)}</div>}
+                  <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <div style={{fontWeight:800,color:'var(--gold)',fontSize:14}}>{peso(j.total_amount||0)}</div>
+                  <div style={{fontSize:10,color:'var(--success)',marginTop:1}}>+{peso(j.commission_amount||0)} comm</div>
+                  <button onClick={()=>setConfirmDel(j.id)} style={{background:'none',border:'none',color:'var(--red)',fontSize:11,cursor:'pointer',marginTop:4,padding:0}}>Delete</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      {confirmDel&&(
+        <div className="modal-overlay" onClick={()=>setConfirmDel(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:340,textAlign:'center'}}>
+            <div style={{fontSize:36,marginBottom:8}}>🗑️</div>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:6}}>Delete this job?</div>
+            <div style={{fontSize:13,color:'var(--text2)',marginBottom:20}}>This cannot be undone.</div>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmDel(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={doDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── VlcRanking (in-app preview) ── */
+function VlcRanking({ vlcJobs, employees }) {
+  const vlcEmps=employees.filter(e=>e.business_type==='vulcanizing');
+  const now=new Date();
+  const board=vlcEmps.map(e=>{
+    const jobs=vlcJobs.filter(j=>j.employee_id===e.id);
+    const monthJobs=jobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+    return {id:e.id,name:e.full_name,color:e.avatar_color||'#D94A4A',
+      jobs:monthJobs.length,sales:monthJobs.reduce((s,j)=>s+(j.total_amount||0),0),
+      comm:monthJobs.reduce((s,j)=>s+(j.commission_amount||0),0)};
+  }).filter(e=>e.jobs>0).sort((a,b)=>b.jobs-a.jobs||b.sales-a.sales);
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>🏆 Vulcanizing Rankings — {now.toLocaleString('en-PH',{month:'long',year:'numeric'})}</div>
+        <a href="https://kgcarwash.vercel.app/vulcanizing-ranking.html" target="_blank"
+          className="btn btn-ghost btn-sm">Full Screen ↗</a>
+      </div>
+      {board.length===0
+        ? <div className="card" style={{textAlign:'center',padding:40,color:'var(--text2)'}}>No data yet this month</div>
+        : board.map((e,i)=>{
+          const medals=['🥇','🥈','🥉'];
+          return(
+            <div key={e.id} className="card" style={{marginBottom:8,padding:'14px 16px',display:'flex',alignItems:'center',gap:14,
+              border:i===0?'1px solid rgba(212,175,55,0.4)':undefined}}>
+              <div style={{fontSize:26,width:32,textAlign:'center',flexShrink:0}}>{medals[i]||`#${i+1}`}</div>
+              <div style={{width:38,height:38,borderRadius:50,background:e.color,display:'flex',alignItems:'center',
+                justifyContent:'center',fontWeight:900,fontSize:14,color:'#fff',flexShrink:0}}>
+                {e.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:14}}>{e.name}</div>
+                <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{e.jobs} job{e.jobs!==1?'s':''} · {peso(e.sales)}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontWeight:800,color:'var(--gold)',fontSize:14}}>{peso(e.comm)}</div>
+                <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>commission</div>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+/* ── VlcReports ── */
+function VlcReports({ vlcJobs, employees, payouts, showToast }) {
+  const now=new Date();
+  const vlcEmps=employees.filter(e=>e.business_type==='vulcanizing');
+  const monthJobs=vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+
+  const empStats=vlcEmps.map(e=>{
+    const jobs=monthJobs.filter(j=>j.employee_id===e.id);
+    const paid=(payouts||[]).filter(p=>p.employee_id===e.id&&p.business_type==='vulcanizing').reduce((s,p)=>s+(p.amount||0),0);
+    const earned=jobs.reduce((s,j)=>s+(j.commission_amount||0),0);
+    return {...e,jobs:jobs.length,earned,paid,balance:earned-paid};
+  });
+
+  return (
+    <div>
+      <div className="section-title" style={{marginBottom:16}}>📊 Vulcanizing Reports — {now.toLocaleString('en-PH',{month:'long',year:'numeric'})}</div>
+      <div className="grid-3" style={{marginBottom:20}}>
+        {[
+          {l:'Total Jobs',   v:monthJobs.length,                                            c:'var(--red)'},
+          {l:'Total Revenue',v:peso(monthJobs.reduce((s,j)=>s+(j.total_amount||0),0)),      c:'var(--gold)'},
+          {l:'Total Comm.',  v:peso(monthJobs.reduce((s,j)=>s+(j.commission_amount||0),0)), c:'var(--success)'},
+        ].map((x,i)=>(
+          <div key={i} className="card" style={{textAlign:'center',padding:'18px 12px'}}>
+            <div style={{fontSize:20,fontWeight:900,color:x.c}}>{x.v}</div>
+            <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{x.l}</div>
+          </div>
+        ))}
+      </div>
+      {empStats.filter(e=>e.jobs>0).map(e=>(
+        <div key={e.id} className="card" style={{marginBottom:10,padding:'14px 16px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+            <div style={{width:36,height:36,borderRadius:50,background:e.avatar_color||'var(--red)',
+              display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,color:'#fff',flexShrink:0}}>
+              {e.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14}}>{e.full_name}</div>
+              <div style={{fontSize:11,color:'var(--text2)'}}>{e.jobs} job{e.jobs!==1?'s':''} this month</div>
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,textAlign:'center'}}>
+            {[{l:'Earned',v:peso(e.earned),c:'var(--gold)'},{l:'Paid Out',v:peso(e.paid),c:'var(--success)'},{l:'Balance',v:peso(e.balance),c:e.balance>0?'var(--red)':'var(--text2)'}].map((x,i)=>(
+              <div key={i} style={{background:'var(--glass)',borderRadius:8,padding:'8px 4px'}}>
+                <div style={{fontWeight:800,color:x.c,fontSize:14}}>{x.v}</div>
+                <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {empStats.filter(e=>e.jobs>0).length===0&&<div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No vulcanizing data this month</div>}
+    </div>
+  );
+}
+
+/* ── VlcEmployees — reuses Employees component filtered to vulcanizing ── */
+function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh }) {
+  // Reuse Employees component but filter to vulcanizing staff
+  const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
+  return <Employees employees={vlcEmps} carWashes={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={onRefresh} bizType="vulcanizing" allEmployees={employees}/>;
+}
+
+/* ── VlcServices — reuses Services component filtered to vulcanizing ── */
+function VlcServices({ services, showToast, onRefresh }) {
+  return <Services services={services} showToast={showToast} onRefresh={onRefresh} bizFilter="vulcanizing"/>;
+}
+
+/* ── VlcProducts — manage the products list (PP1, Sealant, etc.) ── */
+function VlcProducts({ vlcProducts, showToast, onRefresh }) {
+  const [showModal,setShowModal]=React.useState(false);
+  const [editing,setEditing]=React.useState(null);
+  const [form,setForm]=React.useState({name:'',default_cost:0,description:'',is_active:true});
+  const [saving,setSaving]=React.useState(false);
+  const [confirmDel,setConfirmDel]=React.useState(null);
+
+  const openAdd=()=>{setForm({name:'',default_cost:0,description:'',is_active:true});setEditing(null);setShowModal(true);};
+  const openEdit=p=>{setForm({name:p.name,default_cost:p.default_cost||0,description:p.description||'',is_active:p.is_active!==false});setEditing(p);setShowModal(true);};
+
+  const handleSave=async()=>{
+    if(!form.name.trim()){showToast('Product name required','error');return;}
+    setSaving(true);
+    try{
+      if(editing){
+        await api('update','VulcanizingProduct',{id:editing.id,data:{name:form.name.trim(),default_cost:parseFloat(form.default_cost)||0,description:form.description,is_active:form.is_active}});
+        showToast('Product updated','success');
+      } else {
+        await api('create','VulcanizingProduct',{data:{name:form.name.trim(),default_cost:parseFloat(form.default_cost)||0,description:form.description,is_active:form.is_active}});
+        showToast('Product added','success');
+      }
+      setShowModal(false); onRefresh();
+    } catch(e){showToast('Save failed','error');}
+    finally{setSaving(false);}
+  };
+
+  const handleDelete=async()=>{
+    if(!confirmDel)return;
+    try{ await api('delete','VulcanizingProduct',{id:confirmDel}); showToast('Deleted','success'); onRefresh(); }
+    catch(e){ showToast('Delete failed','error'); }
+    finally{ setConfirmDel(null); }
+  };
+
+  const active=vlcProducts.filter(p=>p.is_active!==false);
+  const inactive=vlcProducts.filter(p=>p.is_active===false);
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>📦 Vulcanizing Products</div>
+        <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Product</button>
+      </div>
+      <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 12px'}}>
+        💡 Product costs are deducted from the service charge <strong>before</strong> calculating commission. Example: ₱200 service − ₱30 PP1 = ₱170 net → commission on ₱170.
+      </div>
+      {[{label:'Active',list:active},{label:'Inactive',list:inactive}].map(({label,list})=>list.length>0&&(
+        <div key={label}>
+          <div style={{fontSize:11,fontWeight:800,color:'var(--text2)',textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>{label}</div>
+          {list.map(p=>(
+            <div key={p.id} className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',marginBottom:8}}>
+              <div style={{width:40,height:40,borderRadius:12,background:'rgba(212,175,55,0.15)',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>📦</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+                <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{p.description||'No description'}</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontWeight:800,color:'var(--gold)',fontSize:16}}>₱{p.default_cost||0}</div>
+                <div style={{fontSize:10,color:'var(--text2)'}}>default cost</div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:4,marginLeft:4}}>
+                <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(p)} style={{padding:'4px 10px',fontSize:11}}>Edit</button>
+                <button className="btn btn-sm" onClick={()=>setConfirmDel(p.id)} style={{padding:'4px 10px',fontSize:11,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',borderRadius:6}}>Del</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+      {vlcProducts.length===0&&<div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No products yet</div>}
+
+      {/* Add/Edit Modal */}
+      {showModal&&(
+        <div className="modal-overlay" onClick={()=>setShowModal(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380}}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:16}}>{editing?'Edit':'Add'} Product</div>
+            <input placeholder="Product name (e.g. PP1)" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
+              style={{width:'100%',marginBottom:10,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+              <span style={{fontSize:13,color:'var(--text2)',flexShrink:0}}>Default cost ₱</span>
+              <input type="number" placeholder="0" value={form.default_cost} onChange={e=>setForm(f=>({...f,default_cost:e.target.value}))}
+                style={{flex:1,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',color:'var(--text)',fontSize:13}}/>
+            </div>
+            <input placeholder="Description (optional)" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}
+              style={{width:'100%',marginBottom:10,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+            <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:16,cursor:'pointer'}}>
+              <input type="checkbox" checked={form.is_active} onChange={e=>setForm(f=>({...f,is_active:e.target.checked}))}/>
+              Active
+            </label>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setShowModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving…':'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmDel&&(
+        <div className="modal-overlay" onClick={()=>setConfirmDel(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:320,textAlign:'center'}}>
+            <div style={{fontSize:32,marginBottom:8}}>🗑️</div>
+            <div style={{fontWeight:800,marginBottom:6}}>Delete this product?</div>
+            <div style={{display:'flex',gap:10,marginTop:16}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmDel(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

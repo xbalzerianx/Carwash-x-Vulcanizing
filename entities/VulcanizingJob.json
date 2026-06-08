@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "properties": {
+    "customer_name": {
+      "type": "string"
+    },
+    "vehicle_info": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "employees": {
+      "type": "string"
+    },
+    "services": {
+      "type": "string"
+    },
+    "products_used": {
+      "type": "string"
+    },
+    "total_product_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "total_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "net_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "amount_paid": {
+      "type": "number",
+      "default": 0
+    },
+    "commission_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "commission_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "commission_splits": {
+      "type": "string"
+    },
+    "transaction_date": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [],
+  "name": "VulcanizingJob"
+}

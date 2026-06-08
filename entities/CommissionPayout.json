@@ -20,6 +20,14 @@
     "payout_date": {
       "type": "string",
       "title": "Payout Date (ISO)"
+    },
+    "business_type": {
+      "type": "string",
+      "enum": [
+        "carwash",
+        "vulcanizing"
+      ],
+      "default": "carwash"
     }
   },
   "required": [],

@@ -16,6 +16,14 @@
     },
     "avatar_color": {
       "type": "string"
+    },
+    "business_type": {
+      "type": "string",
+      "enum": [
+        "carwash",
+        "vulcanizing"
+      ],
+      "default": "carwash"
     }
   },
   "required": [],

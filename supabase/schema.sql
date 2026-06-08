@@ -370,3 +370,71 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_event  ON activity_logs(event_type)
 CREATE INDEX IF NOT EXISTS idx_activity_logs_date   ON activity_logs(created_at DESC);
 
 COMMENT ON TABLE activity_logs IS 'Audit trail for all key events: washes, payouts, employee/service changes';
+
+-- ═══════════════════════════════════════════════════════════
+-- VULCANIZING MODULE — added 2026-06-09
+-- ═══════════════════════════════════════════════════════════
+
+-- Add business_type to employees (carwash | vulcanizing)
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'carwash'
+  CHECK (business_type IN ('carwash','vulcanizing'));
+
+-- Add business_type to services
+ALTER TABLE services ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'carwash'
+  CHECK (business_type IN ('carwash','vulcanizing'));
+
+-- Add business_type to reward_campaigns
+ALTER TABLE reward_campaigns ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'carwash'
+  CHECK (business_type IN ('carwash','vulcanizing'));
+
+-- Add business_type to commission_payouts
+ALTER TABLE commission_payouts ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'carwash'
+  CHECK (business_type IN ('carwash','vulcanizing'));
+
+-- ── Vulcanizing Products (manageable list, e.g. PP1 ₱30) ──
+CREATE TABLE IF NOT EXISTS vulcanizing_products (
+  id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              TEXT         NOT NULL,
+  default_cost      NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (default_cost >= 0),
+  description       TEXT,
+  is_active         BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+COMMENT ON TABLE vulcanizing_products IS 'Products used in vulcanizing jobs (e.g. PP1, Sealant) with default costs deducted before commission calc';
+
+CREATE TRIGGER trg_vulc_products_updated_at
+  BEFORE UPDATE ON vulcanizing_products
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ── Vulcanizing Jobs (mirrors car_washes) ──
+CREATE TABLE IF NOT EXISTS vulcanizing_jobs (
+  id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_name     TEXT,
+  vehicle_info      TEXT,                          -- e.g. tire size, vehicle type
+  employee_id       UUID         REFERENCES employees(id) ON DELETE SET NULL,
+  employee_name     TEXT,
+  employees         JSONB,                         -- array for multi-employee
+  services          JSONB,                         -- array of service objects
+  products_used     JSONB,                         -- array of {id,name,cost} — optional
+  total_product_cost NUMERIC(10,2) NOT NULL DEFAULT 0,
+  total_amount      NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
+  net_amount        NUMERIC(10,2) NOT NULL DEFAULT 0, -- total_amount - total_product_cost
+  amount_paid       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  commission_rate   NUMERIC(5,2)  NOT NULL DEFAULT 0,
+  commission_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  commission_splits JSONB,                         -- multi-employee splits
+  transaction_date  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  notes             TEXT,
+  created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+COMMENT ON TABLE vulcanizing_jobs IS 'Vulcanizing transactions — commission is based on net_amount (after product costs)';
+
+CREATE INDEX IF NOT EXISTS idx_vlc_employee_id ON vulcanizing_jobs(employee_id);
+CREATE INDEX IF NOT EXISTS idx_vlc_date        ON vulcanizing_jobs(transaction_date DESC);
+
+CREATE TRIGGER trg_vulc_jobs_updated_at
+  BEFORE UPDATE ON vulcanizing_jobs
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
