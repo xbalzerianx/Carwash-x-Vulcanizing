@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>KG Car Services — Vulcanizing Rankings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --red:#D94A4A; --gold:#D4AF37; --silver:#B8BCC2; --bronze:#B87333;
+      --bg:#1E1E22; --bg2:#2B2B31; --bg3:#3A3A42;
+      --text:#F7F7F7; --text2:#7A7A85; --border:rgba(255,255,255,0.08);
+      --success:#22C55E;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-thumb{background:var(--red);border-radius:2px;}
+
+    @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+    @keyframes crownBob{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-6px) rotate(5deg)}}
+    @keyframes rankSlide{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes barGrow{from{width:0}to{width:var(--w)}}
+    @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(217,74,74,0.3)}50%{box-shadow:0 0 40px rgba(217,74,74,0.6)}}
+    @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    @keyframes ticker{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}
+
+    .header{
+      padding:24px 32px 20px;border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,rgba(217,74,74,0.08) 0%,transparent 100%);
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .header-brand{display:flex;align-items:center;gap:14px;}
+    .header-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--red),#a83232);border-radius:16px;
+      display:flex;align-items:center;justify-content:center;font-size:26px;
+      box-shadow:0 4px 20px rgba(217,74,74,0.4);animation:glow 3s ease-in-out infinite;}
+    .header-title{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
+    .header-sub{font-size:12px;color:var(--text2);margin-top:2px;font-weight:600;}
+    .header-time{text-align:right;}
+    .time-val{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;}
+    .time-date{font-size:12px;color:var(--text2);margin-top:2px;}
+
+    .period-tabs{display:flex;gap:8px;padding:16px 32px;border-bottom:1px solid var(--border);}
+    .period-tab{padding:7px 18px;border-radius:20px;border:none;font-size:12px;font-weight:700;cursor:pointer;
+      background:rgba(255,255,255,0.05);color:var(--text2);transition:all .2s;}
+    .period-tab.active{background:var(--red);color:#fff;box-shadow:0 2px 12px rgba(217,74,74,0.4);}
+
+    .board{padding:24px 32px;display:flex;flex-direction:column;gap:12px;}
+
+    /* TOP 3 PODIUM */
+    .podium{display:flex;align-items:flex-end;justify-content:center;gap:16px;padding:24px 32px 0;min-height:240px;}
+    .pod{display:flex;flex-direction:column;align-items:center;animation:fadeIn 0.6s ease both;}
+    .pod-avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;font-size:26px;font-weight:900;color:#fff;flex-shrink:0;position:relative;
+      border:3px solid transparent;}
+    .pod-1 .pod-avatar{width:88px;height:88px;font-size:32px;animation:pulse 2.5s ease-in-out infinite;}
+    .pod-crown{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:22px;animation:crownBob 2s ease-in-out infinite;}
+    .pod-name{font-weight:800;font-size:13px;text-align:center;margin-top:8px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .pod-jobs{font-size:11px;color:var(--text2);margin-top:2px;}
+    .pod-earn{font-size:16px;font-weight:900;margin-top:4px;}
+    .pod-base{border-radius:12px 12px 0 0;width:120px;display:flex;align-items:center;justify-content:center;
+      font-size:28px;font-weight:900;color:rgba(255,255,255,0.3);padding-top:16px;}
+    .pod-1 .pod-base{height:120px;background:linear-gradient(180deg,rgba(212,175,55,0.25),rgba(212,175,55,0.08));border:1px solid rgba(212,175,55,0.3);}
+    .pod-2 .pod-base{height:88px;background:linear-gradient(180deg,rgba(184,188,194,0.2),rgba(184,188,194,0.06));border:1px solid rgba(184,188,194,0.25);}
+    .pod-3 .pod-base{height:70px;background:linear-gradient(180deg,rgba(184,115,51,0.2),rgba(184,115,51,0.06));border:1px solid rgba(184,115,51,0.25);}
+
+    /* RANK LIST */
+    .rank-card{
+      background:rgba(43,43,49,0.95);border:1px solid var(--border);border-radius:14px;
+      padding:14px 20px;display:flex;align-items:center;gap:14px;
+      animation:rankSlide 0.4s ease both;transition:transform .2s;
+    }
+    .rank-card:hover{transform:translateX(4px);}
+    .rank-card.rank-1{border-color:rgba(212,175,55,0.4);background:rgba(212,175,55,0.06);}
+    .rank-card.rank-2{border-color:rgba(184,188,194,0.3);}
+    .rank-card.rank-3{border-color:rgba(184,115,51,0.3);}
+    .rank-pos{width:36px;text-align:center;font-size:22px;flex-shrink:0;}
+    .rank-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-weight:900;font-size:16px;color:#fff;flex-shrink:0;}
+    .rank-info{flex:1;min-width:0;}
+    .rank-name{font-weight:800;font-size:14px;}
+    .rank-meta{font-size:11px;color:var(--text2);margin-top:3px;}
+    .rank-bar-wrap{flex:1;max-width:220px;height:6px;background:rgba(255,255,255,0.06);border-radius:99;overflow:hidden;}
+    .rank-bar{height:100%;border-radius:99;transition:width 1s ease;}
+    .rank-earn{text-align:right;flex-shrink:0;}
+    .rank-earn-val{font-size:16px;font-weight:900;}
+    .rank-earn-lbl{font-size:10px;color:var(--text2);margin-top:2px;}
+
+    /* TICKER */
+    .ticker{background:rgba(217,74,74,0.1);border-top:1px solid var(--border);padding:10px 0;overflow:hidden;position:fixed;bottom:0;left:0;right:0;}
+    .ticker-inner{display:flex;white-space:nowrap;gap:60px;animation:ticker 30s linear infinite;}
+    .ticker-item{font-size:12px;font-weight:700;color:var(--text2);}
+    .ticker-item span{color:var(--gold);}
+
+    /* STATS BAR */
+    .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+      border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px;}
+    .stat-box{background:var(--bg2);padding:14px 20px;text-align:center;}
+    .stat-val{font-size:20px;font-weight:900;}
+    .stat-lbl{font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:0.5px;}
+
+    .no-data{text-align:center;padding:60px 20px;color:var(--text2);font-size:15px;}
+    .refresh-badge{font-size:10px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:20px;}
+
+    @media(max-width:768px){
+      .header{padding:16px;}
+      .board{padding:16px;}
+      .podium{padding:16px 16px 0;gap:8px;}
+      .pod-base{width:90px;}
+      .rank-bar-wrap{display:none;}
+      .stats-bar{grid-template-columns:repeat(2,1fr);}
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-icon">🔧</div>
+    <div>
+      <div class="header-title">KG Car Services</div>
+      <div class="header-sub">Vulcanizing · Live Leaderboard</div>
+    </div>
+  </div>
+  <div class="header-time">
+    <div class="time-val" id="clock">--:--</div>
+    <div class="time-date" id="dateLbl"></div>
+    <div class="refresh-badge" style="margin-top:6px;">🔄 Auto-refresh every 60s</div>
+  </div>
+</div>
+
+<div class="period-tabs">
+  <button class="period-tab active" data-period="month" onclick="setPeriod('month',this)">This Month</button>
+  <button class="period-tab" data-period="today" onclick="setPeriod('today',this)">Today</button>
+  <button class="period-tab" data-period="week" onclick="setPeriod('week',this)">This Week</button>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat-box"><div class="stat-val" id="statJobs">—</div><div class="stat-lbl">Total Jobs</div></div>
+  <div class="stat-box"><div class="stat-val" id="statRevenue">—</div><div class="stat-lbl">Revenue</div></div>
+  <div class="stat-box"><div class="stat-val" id="statComm">—</div><div class="stat-lbl">Commission</div></div>
+  <div class="stat-box"><div class="stat-val" id="statEmps">—</div><div class="stat-lbl">Active Staff</div></div>
+</div>
+
+<div id="root">
+  <div class="no-data">Loading leaderboard…</div>
+</div>
+
+<div class="ticker"><div class="ticker-inner" id="ticker"><span class="ticker-item">🔧 KG Car Services — Vulcanizing</span></div></div>
+
+<script>
+const API_URL = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
+const APP_ID  = '6a1c42f697e43e4ff43a5097';
+const peso = n => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+
+let currentPeriod = 'month';
+let allJobs=[], allEmps=[];
+
+async function apiFetch(entity) {
+  const r = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID},
+    body:JSON.stringify({action:'list',entity})});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error);
+  return j.data||[];
+}
+
+function parseArr(v){
+  if(!v)return[];
+  const arr=Array.isArray(v)?v:[];
+  return arr.map(item=>{
+    if(typeof item==='string'){try{return JSON.parse(item);}catch{return null;}}
+    return item;
+  }).filter(Boolean);
+}
+
+function inPeriod(dateStr, period){
+  const d = new Date(dateStr);
+  const now = new Date();
+  if(period==='today'){
+    return d.toDateString()===now.toDateString();
+  } else if(period==='week'){
+    const startOfWeek=new Date(now);
+    startOfWeek.setDate(now.getDate()-now.getDay());
+    startOfWeek.setHours(0,0,0,0);
+    return d>=startOfWeek;
+  } else {
+    return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+  }
+}
+
+function setPeriod(p, btn){
+  currentPeriod=p;
+  document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function buildBoard(period){
+  const vlcEmps = allEmps.filter(e=>e.business_type==='vulcanizing'||(!e.business_type&&false));
+  const filteredJobs = allJobs.filter(j=>inPeriod(j.transaction_date||j.created_date, period));
+
+  // Build per-employee stats
+  const empMap={};
+  vlcEmps.forEach(e=>{empMap[e.id]={id:e.id,name:e.full_name,color:e.avatar_color||'#D94A4A',jobs:0,sales:0,comm:0};});
+
+  filteredJobs.forEach(j=>{
+    if(!empMap[j.employee_id])return;
+    empMap[j.employee_id].jobs++;
+    empMap[j.employee_id].sales+=(j.total_amount||0);
+    empMap[j.employee_id].comm+=(j.commission_amount||0);
+  });
+
+  return Object.values(empMap).filter(e=>e.jobs>0).sort((a,b)=>b.jobs-a.jobs||b.sales-a.sales);
+}
+
+function initials(name){return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+
+function render(){
+  const board = buildBoard(currentPeriod);
+  const filteredJobs = allJobs.filter(j=>inPeriod(j.transaction_date||j.created_date,currentPeriod));
+  const totalRev  = filteredJobs.reduce((s,j)=>s+(j.total_amount||0),0);
+  const totalComm = filteredJobs.reduce((s,j)=>s+(j.commission_amount||0),0);
+
+  // Stats bar
+  document.getElementById('statJobs').textContent    = filteredJobs.length;
+  document.getElementById('statRevenue').textContent = peso(totalRev);
+  document.getElementById('statComm').textContent    = peso(totalComm);
+  document.getElementById('statEmps').textContent    = board.length;
+
+  const root = document.getElementById('root');
+  if(board.length===0){ root.innerHTML='<div class="no-data">No vulcanizing jobs recorded for this period yet 🔧</div>'; updateTicker([]); return; }
+
+  const maxJobs = board[0].jobs||1;
+  const medals  = ['🥇','🥈','🥉'];
+  const podColors = ['var(--gold)','var(--silver)','var(--bronze)'];
+  const posClass  = ['rank-1','rank-2','rank-3'];
+
+  let html = '';
+
+  // PODIUM (top 3)
+  if(board.length>=2){
+    const podOrder = board.length>=3
+      ? [board[1], board[0], board[2]]
+      : board.length===2 ? [board[1], board[0]] : [board[0]];
+    const podClasses = board.length>=3
+      ? ['pod pod-2','pod pod-1','pod pod-3']
+      : board.length===2 ? ['pod pod-2','pod pod-1'] : ['pod pod-1'];
+
+    html += '<div class="podium">';
+    podOrder.forEach((e,i)=>{
+      const origIdx = board.indexOf(e);
+      const col = podColors[origIdx]||'var(--red)';
+      html+=`<div class="${podClasses[i]}">`;
+      if(origIdx===0) html+=`<div class="pod-crown">👑</div>`;
+      html+=`
+        <div class="pod-avatar" style="background:${e.color};border-color:${col};box-shadow:0 0 20px ${col}55;">
+          ${initials(e.name)}
+        </div>
+        <div class="pod-name">${e.name}</div>
+        <div class="pod-jobs">${e.jobs} job${e.jobs!==1?'s':''}</div>
+        <div class="pod-earn" style="color:${col}">${peso(e.comm)}</div>
+        <div class="pod-base">${origIdx+1}</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // LIST (all)
+  html += '<div class="board">';
+  if(board.length>3) html += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">All Rankings</div>';
+  board.forEach((e,i)=>{
+    const pct = Math.round((e.jobs/maxJobs)*100);
+    const barColor = i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--red)';
+    html+=`
+    <div class="rank-card ${posClass[i]||''}" style="animation-delay:${i*0.07}s">
+      <div class="rank-pos">${medals[i]||`#${i+1}`}</div>
+      <div class="rank-avatar" style="background:${e.color}">${initials(e.name)}</div>
+      <div class="rank-info">
+        <div class="rank-name">${e.name}</div>
+        <div class="rank-meta">${e.jobs} job${e.jobs!==1?'s':''} · ${peso(e.sales)} revenue</div>
+        <div class="rank-bar-wrap" style="margin-top:6px;">
+          <div class="rank-bar" style="width:${pct}%;background:${barColor};"></div>
+        </div>
+      </div>
+      <div class="rank-earn">
+        <div class="rank-earn-val" style="color:${barColor}">${peso(e.comm)}</div>
+        <div class="rank-earn-lbl">commission</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  root.innerHTML = html;
+  updateTicker(board);
+}
+
+function updateTicker(board){
+  const items = board.length>0
+    ? board.map((e,i)=>
+        `<span class="ticker-item">${['🥇','🥈','🥉'][i]||'🔧'} ${e.name} — <span>${e.jobs} job${e.jobs!==1?'s':''} · ${peso(e.comm)} comm</span></span>`
+      ).join('<span class="ticker-item" style="color:var(--border)">•</span>')
+    : `<span class="ticker-item">🔧 No vulcanizing data yet — start recording jobs!</span>`;
+  document.getElementById('ticker').innerHTML = items + items; // duplicate for seamless loop
+}
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('dateLbl').textContent = now.toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+
+async function loadData(){
+  try{
+    [allEmps, allJobs] = await Promise.all([apiFetch('Employee'), apiFetch('VulcanizingJob')]);
+    render();
+  }catch(e){
+    document.getElementById('root').innerHTML=`<div class="no-data">⚠️ Failed to load data: ${e.message}</div>`;
+  }
+}
+
+// Init
+updateClock();
+setInterval(updateClock,1000);
+loadData();
+setInterval(loadData,60000);
+</script>
+</body>
+</html>
