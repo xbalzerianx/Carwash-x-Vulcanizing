@@ -4,15 +4,19 @@
     "name": {
       "type": "string"
     },
+    "price": {
+      "type": "number",
+      "description": "Customer-facing price shown on dashboard"
+    },
     "default_cost": {
-      "type": "number"
+      "type": "number",
+      "description": "Auto-deducted material cost before commission"
     },
     "description": {
       "type": "string"
     },
     "is_active": {
-      "type": "boolean",
-      "default": true
+      "type": "boolean"
     }
   },
   "required": [],

@@ -1584,11 +1584,13 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
     if (!form.full_name.trim()) return showToast('Enter employee name','warning');
     setSaving(true);
     try {
+      // Strip base64 avatar_url — only store avatar_color to keep payload small & fast
+      const {avatar_url:_av, ...saveData} = form;
       if(editing) {
-        await api('update','Employee',{id:editing.id,data:form});
+        await api('update','Employee',{id:editing.id,data:saveData});
         logEvent({event_type:'employee_updated',title:`Employee updated — ${form.full_name}`,description:`Commission: ${form.commission_percentage}% | Status: ${form.is_active?'Active':'Inactive'}`,actor_name:form.full_name,entity_id:editing.id});
       } else {
-        const created = await api('create','Employee',{data:form});
+        const created = await api('create','Employee',{data:saveData});
         logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:created?.id||''});
       }
       await onRefresh(); setShowModal(false);
@@ -3018,28 +3020,36 @@ function VlcServices({ services, showToast, onRefresh }) {
 
 /* ── VlcProducts — manage the products list (PP1, Sealant, etc.) ── */
 function VlcProducts({ vlcProducts, showToast, onRefresh }) {
+  const emptyForm = {name:'',price:0,default_cost:0,description:'',is_active:true};
   const [showModal,setShowModal]=React.useState(false);
   const [editing,setEditing]=React.useState(null);
-  const [form,setForm]=React.useState({name:'',default_cost:0,description:'',is_active:true});
+  const [form,setForm]=React.useState(emptyForm);
   const [saving,setSaving]=React.useState(false);
   const [confirmDel,setConfirmDel]=React.useState(null);
 
-  const openAdd=()=>{setForm({name:'',default_cost:0,description:'',is_active:true});setEditing(null);setShowModal(true);};
-  const openEdit=p=>{setForm({name:p.name,default_cost:p.default_cost||0,description:p.description||'',is_active:p.is_active!==false});setEditing(p);setShowModal(true);};
+  const openAdd=()=>{setForm(emptyForm);setEditing(null);setShowModal(true);};
+  const openEdit=p=>{setForm({name:p.name,price:p.price||0,default_cost:p.default_cost||0,description:p.description||'',is_active:p.is_active!==false});setEditing(p);setShowModal(true);};
+
+  // Computed net = price - cost
+  const net = Math.max(0, parseFloat(form.price||0) - parseFloat(form.default_cost||0));
 
   const handleSave=async()=>{
     if(!form.name.trim()){showToast('Product name required','error');return;}
+    const price = parseFloat(form.price)||0;
+    const cost  = parseFloat(form.default_cost)||0;
+    if(cost > price) return showToast('Cost cannot exceed price','warning');
     setSaving(true);
     try{
+      const data={name:form.name.trim(),price,default_cost:cost,description:form.description,is_active:form.is_active};
       if(editing){
-        await api('update','VulcanizingProduct',{id:editing.id,data:{name:form.name.trim(),default_cost:parseFloat(form.default_cost)||0,description:form.description,is_active:form.is_active}});
+        await api('update','VulcanizingProduct',{id:editing.id,data});
         showToast('Product updated','success');
       } else {
-        await api('create','VulcanizingProduct',{data:{name:form.name.trim(),default_cost:parseFloat(form.default_cost)||0,description:form.description,is_active:form.is_active}});
+        await api('create','VulcanizingProduct',{data});
         showToast('Product added','success');
       }
       setShowModal(false); onRefresh();
-    } catch(e){showToast('Save failed','error');}
+    } catch(e){showToast('Save failed: '+e.message,'error');}
     finally{setSaving(false);}
   };
 
@@ -3053,6 +3063,9 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
   const active=vlcProducts.filter(p=>p.is_active!==false);
   const inactive=vlcProducts.filter(p=>p.is_active===false);
 
+  const inp={width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
+    padding:'9px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'};
+
   return (
     <div>
       <div className="flex-between mb-4">
@@ -3060,48 +3073,70 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
         <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Product</button>
       </div>
       <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 12px'}}>
-        💡 Product costs are deducted from the service charge <strong>before</strong> calculating commission. Example: ₱200 service − ₱30 PP1 = ₱170 net → commission on ₱170.
+        💡 <strong>Price</strong> = what the customer pays (shown on dashboard). <strong>Cost</strong> = material deducted. Commission is calculated on <strong>Price − Cost</strong>.
       </div>
       {[{label:'Active',list:active},{label:'Inactive',list:inactive}].map(({label,list})=>list.length>0&&(
         <div key={label}>
           <div style={{fontSize:11,fontWeight:800,color:'var(--text2)',textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>{label}</div>
-          {list.map(p=>(
+          {list.map(p=>{
+            const pNet=Math.max(0,(p.price||0)-(p.default_cost||0));
+            return (
             <div key={p.id} className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',marginBottom:8}}>
               <div style={{width:40,height:40,borderRadius:12,background:'rgba(212,175,55,0.15)',
                 display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>📦</div>
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
                 <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{p.description||'No description'}</div>
-              </div>
-              <div style={{textAlign:'right',flexShrink:0}}>
-                <div style={{fontWeight:800,color:'var(--gold)',fontSize:16}}>₱{p.default_cost||0}</div>
-                <div style={{fontSize:10,color:'var(--text2)'}}>default cost</div>
+                <div style={{display:'flex',gap:10,marginTop:4,flexWrap:'wrap'}}>
+                  <span style={{fontSize:11,background:'rgba(34,197,94,0.12)',color:'var(--success)',borderRadius:6,padding:'2px 7px'}}>Price ₱{p.price||0}</span>
+                  <span style={{fontSize:11,background:'rgba(217,74,74,0.12)',color:'var(--red)',borderRadius:6,padding:'2px 7px'}}>Cost ₱{p.default_cost||0}</span>
+                  <span style={{fontSize:11,background:'rgba(212,175,55,0.12)',color:'var(--gold)',borderRadius:6,padding:'2px 7px',fontWeight:700}}>Net ₱{pNet}</span>
+                </div>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:4,marginLeft:4}}>
                 <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(p)} style={{padding:'4px 10px',fontSize:11}}>Edit</button>
                 <button className="btn btn-sm" onClick={()=>setConfirmDel(p.id)} style={{padding:'4px 10px',fontSize:11,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',borderRadius:6}}>Del</button>
               </div>
             </div>
-          ))}
+          );})}
         </div>
       ))}
-      {vlcProducts.length===0&&<div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No products yet</div>}
+      {vlcProducts.length===0&&<div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No products yet — add your first one above</div>}
 
       {/* Add/Edit Modal */}
       {showModal&&(
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:380}}>
-            <div style={{fontSize:16,fontWeight:800,marginBottom:16}}>{editing?'Edit':'Add'} Product</div>
-            <input placeholder="Product name (e.g. PP1)" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-              style={{width:'100%',marginBottom:10,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-              <span style={{fontSize:13,color:'var(--text2)',flexShrink:0}}>Default cost ₱</span>
-              <input type="number" placeholder="0" value={form.default_cost} onChange={e=>setForm(f=>({...f,default_cost:e.target.value}))}
-                style={{flex:1,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',color:'var(--text)',fontSize:13}}/>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:400}}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:20}}>{editing?'✏️ Edit':'📦 Add'} Product</div>
+
+            <div className="form-group">
+              <label className="form-label">Product Name *</label>
+              <input style={inp} placeholder="e.g. PP1, Sealant, Valve Stem" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
             </div>
-            <input placeholder="Description (optional)" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}
-              style={{width:'100%',marginBottom:10,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
-            <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:16,cursor:'pointer'}}>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label" style={{color:'var(--success)'}}>Price (₱) — shown on dashboard</label>
+                <input type="number" min="0" style={inp} placeholder="150" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
+              </div>
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label" style={{color:'var(--red)'}}>Cost (₱) — auto-deducted</label>
+                <input type="number" min="0" style={inp} placeholder="20" value={form.default_cost} onChange={e=>setForm(f=>({...f,default_cost:e.target.value}))}/>
+              </div>
+            </div>
+
+            {/* Net preview */}
+            <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:12,color:'var(--text2)'}}>Commission calculated on:</span>
+              <span style={{fontSize:18,fontWeight:900,color:'var(--gold)'}}>₱{net.toLocaleString()} net</span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Description (optional)</label>
+              <input style={inp} placeholder="Short description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/>
+            </div>
+
+            <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:20,cursor:'pointer'}}>
               <input type="checkbox" checked={form.is_active} onChange={e=>setForm(f=>({...f,is_active:e.target.checked}))}/>
               Active
             </label>
