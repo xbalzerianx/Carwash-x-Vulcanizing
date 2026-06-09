@@ -23,6 +23,8 @@ Deno.serve(async (req) => {
       RewardCampaign:   base44.asServiceRole.entities.RewardCampaign,
       CommissionPayout: base44.asServiceRole.entities.CommissionPayout,
       ActivityLog:      base44.asServiceRole.entities.ActivityLog,
+      VulcanizingProduct: base44.asServiceRole.entities.VulcanizingProduct,
+      VulcanizingJob:     base44.asServiceRole.entities.VulcanizingJob,
     };
 
     if (!entity || !entityMap[entity]) {
