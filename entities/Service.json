@@ -23,7 +23,8 @@
         "carwash",
         "vulcanizing"
       ],
-      "default": "carwash"
+      "default": "carwash",
+      "description": "Which business unit this service belongs to"
     }
   },
   "required": [],
