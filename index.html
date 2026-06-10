@@ -2452,7 +2452,6 @@ function AdminApp({ logout }) {
     {id:'vlc-ranking',      icon:Ic.trophy,label:'Rankings',     section:'Analytics', externalUrl:'https://kgcarwash.vercel.app/vulcanizing-ranking.html'},
     {id:'vlc-reports',      icon:Ic.chart, label:'Reports',      section:'Analytics'},
     {id:'vlc-employees',    icon:Ic.users, label:'Employees',    section:'Admin'},
-    {id:'vlc-services',     icon:Ic.wrench,label:'Services',     section:'Admin'},
     {id:'vlc-products',     icon:'📦',     label:'Products',     section:'Admin'},
     {id:'vlc-rewards',      icon:Ic.gift,  label:'Rewards',      section:'Admin'},
   ];
@@ -2585,7 +2584,6 @@ function AdminApp({ logout }) {
           {page==='vlc-ranking'      && <ErrorBoundary><VlcRanking vlcJobs={vlcJobs} employees={employees}/></ErrorBoundary>}
           {page==='vlc-reports'      && <ErrorBoundary><VlcReports vlcJobs={vlcJobs} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
-          {page==='vlc-services'     && <ErrorBoundary><VlcServices services={services} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
@@ -2666,53 +2664,50 @@ function VlcDashboard({ vlcJobs, employees, setPage }) {
 /* ── RecordVlcJob ── */
 function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
   const vlcEmps = employees.filter(e=>e.is_active&&e.business_type==='vulcanizing');
-  const vlcSvcs = services.filter(s=>s.is_active&&s.business_type==='vulcanizing');
 
-  const emptyForm = { customer_name:'', vehicle_info:'', employee_id:'', services:[], products_used:[], notes:'' };
+  const emptyForm = { customer_name:'', vehicle_info:'', employee_id:'', products_used:[], notes:'' };
   const [form,setForm]=React.useState(emptyForm);
   const [saving,setSaving]=React.useState(false);
 
   const selEmp  = vlcEmps.find(e=>e.id===form.employee_id);
   const commRate= selEmp ? (selEmp.commission_percentage||40) : 40;
 
-  const toggleSvc = svc => {
-    setForm(f=>({...f,services:f.services.find(s=>s.id===svc.id)?f.services.filter(s=>s.id!==svc.id):[...f.services,svc]}));
-  };
+  // Each product contributes its price (customer charge) and cost (material deduction)
   const addProduct = prod => {
-    setForm(f=>({...f,products_used:[...f.products_used,{id:prod.id,name:prod.name,cost:prod.default_cost}]}));
+    setForm(f=>({...f,products_used:[...f.products_used,{id:prod.id,name:prod.name,price:prod.price||0,cost:prod.default_cost||0}]}));
   };
   const removeProduct = idx => setForm(f=>({...f,products_used:f.products_used.filter((_,i)=>i!==idx)}));
-  const updateProductCost = (idx,val) => setForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,cost:parseFloat(val)||0}:p)}));
+  const updateField = (idx,field,val) => setForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,[field]:parseFloat(val)||0}:p)}));
 
-  const totalAmount     = form.services.reduce((s,sv)=>s+(sv.price||0),0);
-  const totalProdCost   = form.products_used.reduce((s,p)=>s+(p.cost||0),0);
-  const netAmount       = Math.max(0, totalAmount - totalProdCost);
-  const commissionAmt   = Math.round(netAmount * commRate / 100);
+  const totalAmount   = form.products_used.reduce((s,p)=>s+(p.price||0),0);
+  const totalProdCost = form.products_used.reduce((s,p)=>s+(p.cost||0),0);
+  const netAmount     = Math.max(0, totalAmount - totalProdCost);
+  const commissionAmt = Math.round(netAmount * commRate / 100);
 
   const handleSave = async () => {
-    if (!form.employee_id)        { showToast('Select an employee','error'); return; }
-    if (form.services.length===0) { showToast('Select at least one service','error'); return; }
+    if (!form.employee_id)            { showToast('Select an employee','error'); return; }
+    if (form.products_used.length===0){ showToast('Add at least one product','error'); return; }
     setSaving(true);
     try {
       const rec = {
-        customer_name:    form.customer_name||'',
-        vehicle_info:     form.vehicle_info||'',
-        employee_id:      form.employee_id,
-        employee_name:    selEmp?.full_name||'',
-        services:         form.services.map(s=>JSON.stringify(s)),
-        products_used:    form.products_used.map(p=>JSON.stringify(p)),
+        customer_name:      form.customer_name||'',
+        vehicle_info:       form.vehicle_info||'',
+        employee_id:        form.employee_id,
+        employee_name:      selEmp?.full_name||'',
+        services:           [],
+        products_used:      form.products_used.map(p=>JSON.stringify(p)),
         total_product_cost: totalProdCost,
-        total_amount:     totalAmount,
-        net_amount:       netAmount,
-        amount_paid:      totalAmount,
-        commission_rate:  commRate,
-        commission_amount: commissionAmt,
-        transaction_date: new Date().toISOString(),
-        notes:            form.notes||'',
+        total_amount:       totalAmount,
+        net_amount:         netAmount,
+        amount_paid:        totalAmount,
+        commission_rate:    commRate,
+        commission_amount:  commissionAmt,
+        transaction_date:   new Date().toISOString(),
+        notes:              form.notes||'',
       };
       const res = await api('create','VulcanizingJob',{data:rec});
       await logEvent('vlc_job_created','Vulcanizing Job Recorded',
-        `${selEmp?.full_name||'—'} · ${form.services.map(s=>s.name).join(', ')} · ${peso(totalAmount)}`,
+        `${selEmp?.full_name||'—'} · ${form.products_used.map(p=>p.name).join(', ')} · ${peso(totalAmount)}`,
         selEmp?.full_name||'', res.id, totalAmount);
       onSave(res);
       setForm(emptyForm);
@@ -2720,6 +2715,8 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
     } catch(e) { showToast('Save failed: '+e.message,'error'); }
     finally { setSaving(false); }
   };
+
+  const activeProds = vlcProducts.filter(p=>p.is_active!==false);
 
   return (
     <div style={{maxWidth:560,margin:'0 auto'}}>
@@ -2743,56 +2740,54 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
         </div>
       </div>
 
-      {/* Services */}
+      {/* Products — tap to add, editable price & cost inline */}
       <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
-        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:10}}>SERVICES</div>
-        {vlcSvcs.length===0
-          ? <div style={{color:'var(--text2)',fontSize:13}}>No vulcanizing services yet — add them in Services section</div>
-          : <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-              {vlcSvcs.map(svc=>{
-                const sel=form.services.find(s=>s.id===svc.id);
-                return (
-                  <button key={svc.id} onClick={()=>toggleSvc(svc)}
-                    style={{padding:'8px 14px',borderRadius:20,border:'2px solid',fontSize:12,fontWeight:700,cursor:'pointer',transition:'all .15s',
-                      borderColor:sel?'var(--red)':'var(--border)',
-                      background:sel?'rgba(217,74,74,0.15)':'transparent',
-                      color:sel?'var(--red)':'var(--text)'}}>
-                    {svc.name} · {peso(svc.price||0)}
-                  </button>
-                );
-              })}
+        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:4}}>PRODUCTS / SERVICES</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:10}}>Tap to add · Price = customer charge · Cost = material deduction</div>
+        {/* Product picker */}
+        {activeProds.length===0
+          ? <div style={{color:'var(--text2)',fontSize:13,marginBottom:8}}>No products yet — add them in Products section</div>
+          : <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+              {activeProds.map(prod=>(
+                <button key={prod.id} onClick={()=>addProduct(prod)}
+                  style={{padding:'6px 12px',borderRadius:20,border:'1px solid var(--border)',fontSize:11,fontWeight:600,
+                    background:'rgba(255,255,255,0.04)',color:'var(--text)',cursor:'pointer',transition:'all .15s'}}
+                  onMouseOver={e=>e.currentTarget.style.borderColor='var(--red)'}
+                  onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                  + {prod.name} <span style={{color:'var(--success)'}}>₱{prod.price||0}</span>
+                </button>
+              ))}
             </div>}
-      </div>
 
-      {/* Products Used (optional) */}
-      <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
-        <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:4}}>PRODUCTS USED <span style={{fontWeight:400,color:'var(--text2)',fontSize:11}}>(optional — deducted before commission)</span></div>
-        {/* Add product buttons */}
-        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10,marginTop:8}}>
-          {vlcProducts.filter(p=>p.is_active).map(prod=>(
-            <button key={prod.id} onClick={()=>addProduct(prod)}
-              style={{padding:'5px 12px',borderRadius:20,border:'1px solid var(--border)',fontSize:11,fontWeight:600,
-                background:'rgba(255,255,255,0.04)',color:'var(--text)',cursor:'pointer'}}>
-              + {prod.name} (₱{prod.default_cost})
-            </button>
-          ))}
-        </div>
-        {/* Added products with editable cost */}
-        {form.products_used.map((p,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,background:'rgba(217,74,74,0.08)',
-            borderRadius:8,padding:'6px 10px'}}>
-            <span style={{flex:1,fontSize:12,fontWeight:700}}>{p.name}</span>
-            <span style={{fontSize:11,color:'var(--text2)'}}>₱</span>
-            <input type="number" value={p.cost} onChange={e=>updateProductCost(i,e.target.value)}
-              style={{width:64,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:6,padding:'3px 6px',
-                color:'var(--text)',fontSize:12,textAlign:'right'}}/>
-            <button onClick={()=>removeProduct(i)} style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:16,padding:'0 2px'}}>×</button>
+        {/* Added items */}
+        {form.products_used.length>0 && (
+          <div style={{borderTop:'1px solid var(--border)',paddingTop:10}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 72px 72px 24px',gap:6,marginBottom:6,padding:'0 4px'}}>
+              <span style={{fontSize:10,color:'var(--text2)',fontWeight:700}}>ITEM</span>
+              <span style={{fontSize:10,color:'var(--success)',fontWeight:700,textAlign:'center'}}>PRICE</span>
+              <span style={{fontSize:10,color:'var(--red)',fontWeight:700,textAlign:'center'}}>COST</span>
+              <span></span>
+            </div>
+            {form.products_used.map((p,i)=>(
+              <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 72px 72px 24px',gap:6,alignItems:'center',
+                marginBottom:6,background:'rgba(255,255,255,0.04)',borderRadius:8,padding:'7px 8px'}}>
+                <span style={{fontSize:12,fontWeight:700}}>{p.name}</span>
+                <input type="number" value={p.price} onChange={e=>updateField(i,'price',e.target.value)}
+                  style={{width:'100%',background:'var(--bg)',border:'1px solid rgba(34,197,94,0.4)',borderRadius:6,
+                    padding:'3px 6px',color:'var(--success)',fontSize:12,textAlign:'right',fontWeight:700}}/>
+                <input type="number" value={p.cost} onChange={e=>updateField(i,'cost',e.target.value)}
+                  style={{width:'100%',background:'var(--bg)',border:'1px solid rgba(217,74,74,0.4)',borderRadius:6,
+                    padding:'3px 6px',color:'var(--red)',fontSize:12,textAlign:'right',fontWeight:700}}/>
+                <button onClick={()=>removeProduct(i)}
+                  style={{background:'none',border:'none',color:'var(--text2)',cursor:'pointer',fontSize:16,padding:0,lineHeight:1}}>×</button>
+              </div>
+            ))}
           </div>
-        ))}
-        {form.products_used.length===0 && <div style={{fontSize:11,color:'var(--text2)'}}>No products added — commission calculated on full amount</div>}
+        )}
+        {form.products_used.length===0 && <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>No items added yet</div>}
       </div>
 
-      {/* Vehicle info & notes */}
+      {/* Details */}
       <div className="card" style={{marginBottom:12,padding:'14px 16px'}}>
         <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:10}}>DETAILS</div>
         <input placeholder="Vehicle info (e.g. Honda Civic - front left)" value={form.vehicle_info}
@@ -2809,18 +2804,18 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
             borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
       </div>
 
-      {/* Summary */}
-      {form.services.length>0&&(
-        <div className="card" style={{marginBottom:12,padding:'14px 16px',background:'rgba(217,74,74,0.06)',border:'1px solid rgba(217,74,74,0.2)'}}>
+      {/* Live Summary */}
+      {form.products_used.length>0&&(
+        <div className="card" style={{marginBottom:12,padding:'14px 16px',background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.2)'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
-              {l:'Service Total',   v:peso(totalAmount),    c:'var(--text)'},
-              {l:'Product Costs',   v:`- ${peso(totalProdCost)}`,c:'var(--red)'},
+              {l:'Total Charge',    v:peso(totalAmount),    c:'var(--text)'},
+              {l:'Material Cost',   v:`- ${peso(totalProdCost)}`, c:'var(--red)'},
               {l:'Net Amount',      v:peso(netAmount),       c:'var(--gold)'},
-              {l:`Commission (${commRate}%)`,v:peso(commissionAmt),c:'var(--success)'},
+              {l:`Commission (${commRate}%)`, v:peso(commissionAmt), c:'var(--success)'},
             ].map((x,i)=>(
               <div key={i} style={{textAlign:'center',padding:'8px 4px'}}>
-                <div style={{fontSize:16,fontWeight:900,color:x.c}}>{x.v}</div>
+                <div style={{fontSize:18,fontWeight:900,color:x.c}}>{x.v}</div>
                 <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
               </div>
             ))}
@@ -3013,10 +3008,7 @@ function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh }) {
   return <Employees employees={employees} carWashes={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={onRefresh} bizType="vulcanizing"/>;
 }
 
-/* ── VlcServices — reuses Services component filtered to vulcanizing ── */
-function VlcServices({ services, showToast, onRefresh }) {
-  return <Services services={services} showToast={showToast} onRefresh={onRefresh} bizFilter="vulcanizing"/>;
-}
+
 
 /* ── VlcProducts — manage the products list (PP1, Sealant, etc.) ── */
 function VlcProducts({ vlcProducts, showToast, onRefresh }) {
