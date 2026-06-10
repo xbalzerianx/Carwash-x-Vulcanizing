@@ -1264,11 +1264,17 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
 /* ═══════════════════════════════════════════
    TRANSACTIONS
 ═══════════════════════════════════════════ */
-function Transactions({ carWashes, employees, onDelete, showToast }) {
+function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, showToast }) {
   const [filter,  setFilter]  = useState('today');
   const [search,  setSearch]  = useState('');
   const [confirm, setConfirm] = useState(null);
+  const [editWash, setEditWash] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [saving,   setSaving]  = useState(false);
   const now=new Date(), todayStr=today();
+
+  const activeEmps = employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash'));
+  const activeSvcs = services.filter(s=>s.is_active&&(!s.business_type||s.business_type==='carwash'));
 
   const filtered = carWashes.filter(w => {
     const d=new Date(w.transaction_date||w.created_date), dStr=(w.transaction_date||w.created_date||'').substring(0,10);
@@ -1280,8 +1286,95 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
   const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
   const tComm=filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
 
-  const handleDelete=async id=>{
-    try { await api('delete','CarWash',{id}); onDelete(id); showToast('Deleted','success'); setConfirm(null); }
+  /* ── Edit helpers ── */
+  const openEdit = w => {
+    const emps = parseArr(w.employees);
+    const splits = parseArr(w.commission_splits);
+    // build selected employees list: [{id, name, rate, amount}]
+    let selEmps = [];
+    if (emps.length > 0) {
+      selEmps = emps.map(e => {
+        const sp = splits.find(s => s.employee_id===e.id||s.id===e.id);
+        const emp = employees.find(x=>x.id===(e.id||e));
+        return { id: e.id||e, name: e.name||e.full_name||emp?.full_name||'', rate: sp?.rate||emp?.commission_percentage||40, amount: sp?.amount||0 };
+      });
+    } else if (w.employee_id) {
+      selEmps = [{ id: w.employee_id, name: w.employee_name||'', rate: w.commission_rate||40, amount: w.commission_amount||0 }];
+    }
+    const selSvcs = parseArr(w.services).map(s=>({ id:s.id||s, name:s.name||s, price:s.price||0 }));
+    setEditForm({
+      plate_number:     w.plate_number||'',
+      customer_name:    w.customer_name||'',
+      notes:            w.notes||'',
+      selEmps,
+      selSvcs,
+    });
+    setEditWash(w);
+  };
+
+  const toggleEditEmp = emp => {
+    setEditForm(f => {
+      const exists = f.selEmps.find(e=>e.id===emp.id);
+      if (exists) return {...f, selEmps: f.selEmps.filter(e=>e.id!==emp.id)};
+      if (f.selEmps.length >= 3) { showToast('Max 3 employees','warning'); return f; }
+      return {...f, selEmps:[...f.selEmps,{id:emp.id,name:emp.full_name,rate:emp.commission_percentage||40,amount:0}]};
+    });
+  };
+  const toggleEditSvc = svc => {
+    setEditForm(f => {
+      const exists = f.selSvcs.find(s=>s.id===svc.id);
+      return {...f, selSvcs: exists ? f.selSvcs.filter(s=>s.id!==svc.id) : [...f.selSvcs, {id:svc.id,name:svc.name,price:svc.price||0}]};
+    });
+  };
+
+  const editTotal = editForm ? editForm.selSvcs.reduce((s,sv)=>s+(sv.price||0),0) : 0;
+  const editSplits = editForm ? editForm.selEmps.map(e => {
+    const rate = e.rate||40;
+    const amount = Math.round(editTotal * rate / 100 / (editForm.selEmps.length||1));
+    return { employee_id:e.id, name:e.name, rate, amount };
+  }) : [];
+  const editTotalComm = editSplits.reduce((s,sp)=>s+sp.amount,0);
+  const primaryEmp = editForm?.selEmps[0] || null;
+
+  const handleUpdate = async () => {
+    if (!editForm.selEmps.length) { showToast('Select at least one employee','error'); return; }
+    if (!editForm.selSvcs.length) { showToast('Select at least one service','error'); return; }
+    setSaving(true);
+    try {
+      const data = {
+        plate_number:     editForm.plate_number||'',
+        customer_name:    editForm.customer_name||'',
+        notes:            editForm.notes||'',
+        employee_id:      primaryEmp?.id||'',
+        employee_name:    primaryEmp?.name||'',
+        employees:        editForm.selEmps.map(e=>JSON.stringify({id:e.id,name:e.name})),
+        services:         editForm.selSvcs.map(s=>JSON.stringify(s)),
+        total_amount:     editTotal,
+        amount_paid:      editTotal,
+        commission_rate:  primaryEmp?.rate||40,
+        commission_amount: editTotalComm,
+        commission_splits: editSplits.map(s=>JSON.stringify(s)),
+      };
+      await api('update','CarWash',{id:editWash.id, data});
+      await logEvent({event_type:'wash_edited',title:'Transaction Edited',
+        description:`${editForm.selEmps.map(e=>e.name).join(' + ')} · ${editForm.selSvcs.map(s=>s.name).join(', ')} · ${peso(editTotal)}`,
+        actor_name:primaryEmp?.name||'', entity_id:editWash.id, amount:editTotal});
+      await onRefresh();
+      setEditWash(null); setEditForm(null);
+      showToast('Transaction updated!','success');
+    } catch(e){ showToast('Update failed: '+e.message,'error'); }
+    finally{ setSaving(false); }
+  };
+
+  const handleDelete = async id => {
+    try {
+      const w = carWashes.find(x=>x.id===id);
+      await api('delete','CarWash',{id});
+      await logEvent({event_type:'wash_deleted',title:'Transaction Deleted',
+        description:`${w?.employee_name||'—'} · ${peso(w?.total_amount||0)}`,
+        actor_name:w?.employee_name||'', entity_id:id, amount:w?.total_amount||0});
+      onDelete(id); showToast('Deleted','success'); setConfirm(null);
+    }
     catch(e){showToast('Error: '+e.message,'error');}
   };
 
@@ -1325,7 +1418,12 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
                         <td className='hide-xs' style={{color:'var(--text2)'}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
                         <td style={{fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</td>
                         <td className='hide-xs' style={{color:'var(--success)'}}>{peso(w.commission_amount)}</td>
-                        <td><button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button></td>
+                        <td>
+                          <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
+                            <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(w)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>
+                            <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })
@@ -1334,6 +1432,110 @@ function Transactions({ carWashes, employees, onDelete, showToast }) {
           </table>
         </div>
       </div>
+
+      {/* ── Edit Modal ── */}
+      {editWash&&editForm&&(
+        <div className="modal-overlay" onClick={()=>{setEditWash(null);setEditForm(null);}}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,padding:0,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}}>
+            <div style={{background:'var(--bg2)',padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+              <div style={{fontWeight:800,fontSize:15}}>🚗 Edit Transaction</div>
+              <button onClick={()=>{setEditWash(null);setEditForm(null);}} style={{background:'none',border:'none',color:'var(--text2)',fontSize:22,cursor:'pointer',lineHeight:1}}>×</button>
+            </div>
+            <div style={{padding:'16px 20px',overflowY:'auto',flex:1}}>
+
+              {/* Employees */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:8}}>EMPLOYEE(S) <span style={{fontWeight:400}}>(max 3)</span></div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {activeEmps.map(e=>{
+                    const sel=editForm.selEmps.find(x=>x.id===e.id);
+                    return(
+                      <button key={e.id} onClick={()=>toggleEditEmp(e)}
+                        style={{padding:'6px 12px',borderRadius:20,border:'2px solid',fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s',
+                          borderColor:sel?'var(--red)':'var(--border)',
+                          background:sel?'rgba(217,74,74,0.15)':'transparent',
+                          color:sel?'var(--red)':'var(--text)'}}>
+                        {e.full_name}{sel?` ✓`:''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Services */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:8}}>SERVICES</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {activeSvcs.map(svc=>{
+                    const sel=editForm.selSvcs.find(s=>s.id===svc.id);
+                    return(
+                      <button key={svc.id} onClick={()=>toggleEditSvc(svc)}
+                        style={{padding:'6px 12px',borderRadius:20,border:'2px solid',fontSize:11,fontWeight:600,cursor:'pointer',transition:'all .15s',
+                          borderColor:sel?'var(--red)':'var(--border)',
+                          background:sel?'rgba(217,74,74,0.15)':'transparent',
+                          color:sel?'var(--red)':'var(--text)'}}>
+                        {svc.name} · {peso(svc.price||0)}{sel?' ✓':''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Details */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:8}}>DETAILS</div>
+                <input placeholder="Plate number" value={editForm.plate_number}
+                  onChange={e=>setEditForm(f=>({...f,plate_number:e.target.value}))}
+                  style={{width:'100%',marginBottom:8,background:'var(--bg)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+                <input placeholder="Customer name (optional)" value={editForm.customer_name}
+                  onChange={e=>setEditForm(f=>({...f,customer_name:e.target.value}))}
+                  style={{width:'100%',marginBottom:8,background:'var(--bg)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+                <input placeholder="Notes (optional)" value={editForm.notes}
+                  onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))}
+                  style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+              </div>
+
+              {/* Live Summary */}
+              {editForm.selSvcs.length>0&&editForm.selEmps.length>0&&(
+                <div style={{background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:'12px 16px',marginBottom:6}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom: editSplits.length>1?8:0}}>
+                    {[
+                      {l:'Total Amount', v:peso(editTotal),     c:'var(--text)'},
+                      {l:'Total Commission', v:peso(editTotalComm), c:'var(--success)'},
+                    ].map((x,i)=>(
+                      <div key={i} style={{textAlign:'center',padding:'6px 4px'}}>
+                        <div style={{fontSize:16,fontWeight:900,color:x.c}}>{x.v}</div>
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {editSplits.length>1&&(
+                    <div style={{borderTop:'1px solid var(--border)',paddingTop:8,marginTop:4}}>
+                      {editSplits.map((sp,i)=>(
+                        <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:3}}>
+                          <span style={{color:'var(--text2)'}}>{sp.name}</span>
+                          <span style={{color:'var(--success)',fontWeight:700}}>{peso(sp.amount)} ({sp.rate}%)</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{padding:'12px 20px',borderTop:'1px solid var(--border)',display:'flex',gap:10,background:'var(--bg2)',flexShrink:0}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>{setEditWash(null);setEditForm(null);}}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleUpdate} disabled={saving}>
+                {saving?'Saving…':'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirm ── */}
       {confirm && (
         <div className="modal-overlay" onClick={()=>setConfirm(null)}>
           <div className="modal" style={{maxWidth:320}} onClick={e=>e.stopPropagation()}>
@@ -2250,6 +2452,8 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
     vlc_job_created:      { label:'Vlc Job',     color:'#60A5FA',       bg:'rgba(96,165,250,.12)' },
     vlc_job_updated:      { label:'Vlc Edit',    color:'#60A5FA',       bg:'rgba(96,165,250,.08)' },
     vlc_job_deleted:      { label:'Vlc Delete',  color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
+    wash_edited:          { label:'Wash Edit',   color:'#F59E0B',       bg:'rgba(245,158,11,.1)' },
+    wash_deleted:         { label:'Wash Delete', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
     employee_deleted:     { label:'Emp Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
     service_deleted:      { label:'Svc Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
   };
@@ -2575,7 +2779,7 @@ function AdminApp({ logout }) {
           {/* ── CAR WASH pages ── */}
           {page==='dashboard'        && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
           {page==='record'           && <ErrorBoundary><RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
-          {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} showToast={showToast}/></ErrorBoundary>}
+          {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} services={services} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
           {page==='ranking'          && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
           {page==='reports'          && <ErrorBoundary><Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
           {page==='employees'        && <ErrorBoundary><Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
