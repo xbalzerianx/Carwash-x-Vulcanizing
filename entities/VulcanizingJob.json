@@ -14,13 +14,16 @@
       "type": "string"
     },
     "employees": {
-      "type": "string"
+      "type": "array",
+      "description": "All employees on this job"
     },
     "services": {
-      "type": "string"
+      "type": "array",
+      "description": "Services performed"
     },
     "products_used": {
-      "type": "string"
+      "type": "array",
+      "description": "Products used with price/cost per item"
     },
     "total_product_cost": {
       "type": "number",
@@ -47,7 +50,8 @@
       "default": 0
     },
     "commission_splits": {
-      "type": "string"
+      "type": "array",
+      "description": "Per-employee commission breakdown"
     },
     "transaction_date": {
       "type": "string"

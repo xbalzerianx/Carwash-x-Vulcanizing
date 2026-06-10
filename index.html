@@ -2850,13 +2850,13 @@ function VlcDashboard({ vlcJobs, employees, setPage }) {
         ? <div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No jobs yet — <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={()=>setPage('vlc-record')}>Record First Job</button></div>
         : recent.map((j,i)=>{
           const d=new Date(j.transaction_date||j.created_date);
-          const svcs=parseArr(j.services).map(s=>s.name||s).join(', ')||'—';
+          const items=parseArr(j.products_used).map(p=>p.name||p).join(', ')||'—';
           return (
             <div key={j.id} className="card" style={{display:'flex',alignItems:'center',gap:14,padding:'12px 16px',marginBottom:8}}>
               <div style={{width:40,height:40,borderRadius:12,background:'rgba(217,74,74,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>🔧</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13}}>{j.vehicle_info||j.customer_name||'Job #'+(i+1)}</div>
-                <div style={{fontSize:11,color:'var(--text2)',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{svcs}</div>
+                <div style={{fontSize:11,color:'var(--text2)',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{items}</div>
                 <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}</div>
               </div>
               <div style={{textAlign:'right',flexShrink:0}}>
@@ -2903,8 +2903,10 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
         vehicle_info:       form.vehicle_info||'',
         employee_id:        form.employee_id,
         employee_name:      selEmp?.full_name||'',
+        employees:          [JSON.stringify({id:form.employee_id,name:selEmp?.full_name||''})],
         services:           [],
         products_used:      form.products_used.map(p=>JSON.stringify(p)),
+        commission_splits:  [JSON.stringify({employee_id:form.employee_id,name:selEmp?.full_name||'',rate:commRate,amount:commissionAmt})],
         total_product_cost: totalProdCost,
         total_amount:       totalAmount,
         net_amount:         netAmount,
@@ -3092,7 +3094,10 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
         vehicle_info:       editForm.vehicle_info||'',
         employee_id:        editForm.employee_id,
         employee_name:      editEmp?.full_name||'',
+        employees:          [JSON.stringify({id:editForm.employee_id,name:editEmp?.full_name||''})],
+        services:           [],
         products_used:      editForm.products_used.map(p=>JSON.stringify(p)),
+        commission_splits:  [JSON.stringify({employee_id:editForm.employee_id,name:editEmp?.full_name||'',rate:editRate,amount:editComm})],
         total_product_cost: editCost,
         total_amount:       editTotal,
         net_amount:         editNet,
