@@ -656,7 +656,7 @@ function Ranking({ carWashes, employees, campaign={} }) {
   /* Build leaderboard — 1 car per wash, credit all employees in team */
   const buildBoard = () => {
     const map = {};
-    employees.filter(e=>e.is_active).forEach(e => {
+    employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash')).forEach(e => {
       map[e.id] = { id:e.id, name:e.full_name, emp:e, cars:0, sales:0, commission:0 };
     });
     filterWashes().forEach(w => {
@@ -1026,8 +1026,8 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
   const [showOK,       setShowOK]       = useState(false);
   const [lastSaved,    setLastSaved]    = useState(null);
 
-  const activeSvcs = services.filter(s=>s.is_active);
-  const activeEmps = employees.filter(e=>e.is_active);
+  const activeSvcs = services.filter(s=>s.is_active&&(!s.business_type||s.business_type==='carwash'));
+  const activeEmps = employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash'));
   const total = selectedSvcs.reduce((s,v)=>s+(v.price||0),0);
 
   // Split commission evenly across all selected employees
