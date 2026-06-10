@@ -2808,64 +2808,137 @@ function AdminApp({ logout }) {
    ═══════════════════════════════════════════════════════════ */
 
 /* ── VlcDashboard ── */
-function VlcDashboard({ vlcJobs, employees, setPage }) {
+function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
   const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
   const todayStr = new Date().toISOString().slice(0,10);
   const now = new Date();
-  const todayJobs   = vlcJobs.filter(j=>(j.transaction_date||j.created_date||'').slice(0,10)===todayStr);
-  const monthJobs   = vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-  const todayRev    = todayJobs.reduce((s,j)=>s+(j.total_amount||0),0);
-  const monthRev    = monthJobs.reduce((s,j)=>s+(j.total_amount||0),0);
-  const todayComm   = todayJobs.reduce((s,j)=>s+(j.commission_amount||0),0);
-  const monthComm   = monthJobs.reduce((s,j)=>s+(j.commission_amount||0),0);
+  const [filter, setFilter] = React.useState('today');
 
-  const stats=[
-    {label:'Jobs Today',    value:todayJobs.length,   color:'var(--red)',    icon:'🔧'},
-    {label:'Revenue Today', value:peso(todayRev),      color:'var(--gold)',   icon:'💰'},
-    {label:'Jobs This Month',value:monthJobs.length,  color:'var(--success)',icon:'📊'},
-    {label:'Month Revenue', value:peso(monthRev),      color:'var(--silver)', icon:'📈'},
-    {label:'Today Comm.',   value:peso(todayComm),     color:'var(--gold)',   icon:'👷'},
-    {label:'Month Comm.',   value:peso(monthComm),     color:'var(--silver)', icon:'🏆'},
-  ];
+  const getFiltered = () => {
+    if (filter==='today')  return vlcJobs.filter(j=>(j.transaction_date||j.created_date||'').slice(0,10)===todayStr);
+    if (filter==='week')   return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=new Date(now-7*86400000));
+    if (filter==='month')  return vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+    return vlcJobs;
+  };
+  const filtered = getFiltered();
 
-  const recent = [...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).slice(0,5);
+  const totalRev  = filtered.reduce((s,j)=>s+(j.total_amount||0),0);
+  const totalComm = filtered.reduce((s,j)=>s+(j.commission_amount||0),0);
+  const totalCost = filtered.reduce((s,j)=>s+(j.total_product_cost||0),0);
+  const totalNet  = filtered.reduce((s,j)=>s+(j.net_amount||0),0);
+
+  // Per-employee leaderboard for filtered period
+  const empMap = {};
+  filtered.forEach(j=>{
+    const id = j.employee_id;
+    if (!id) return;
+    if (!empMap[id]) empMap[id]={id,name:j.employee_name||'—',jobs:0,sales:0,comm:0};
+    empMap[id].jobs++;
+    empMap[id].sales+=(j.total_amount||0);
+    empMap[id].comm+=(j.commission_amount||0);
+  });
+  const ranking = Object.values(empMap).sort((a,b)=>b.jobs-a.jobs||b.sales-a.sales);
+  const topEmp  = ranking[0]||null;
+
+  const recent  = [...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).slice(0,5);
+  const timeNow = now.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const posColors=['var(--gold)','var(--silver)','var(--bronze)'];
+  const posLabels=['1ST','2ND','3RD'];
+
+  const filterLabel = {today:'Today',week:'This Week',month:'This Month',all:'All Time'}[filter];
 
   return (
     <div>
-      <div className="flex-between mb-4">
-        <div className="section-title" style={{marginBottom:0}}>🔧 Vulcanizing Dashboard</div>
-        <button className="btn btn-primary btn-sm" onClick={()=>setPage('vlc-record')}>+ Record Job</button>
+      {/* Hero */}
+      <div className="hero-header">
+        <div style={{position:'relative',zIndex:1}}>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>{timeNow}</div>
+          <div style={{fontSize:26,fontWeight:900,marginBottom:4}}>KG Car Services 🔧</div>
+          <div style={{fontSize:13,color:'var(--text2)'}}>Vulcanizing business overview.</div>
+        </div>
       </div>
-      <div className="grid-3" style={{marginBottom:20}}>
-        {stats.map((s,i)=>(
-          <div key={i} className="card" style={{textAlign:'center',padding:'18px 12px'}}>
-            <div style={{fontSize:24,marginBottom:6}}>{s.icon}</div>
-            <div style={{fontSize:20,fontWeight:900,color:s.color}}>{s.value}</div>
-            <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{s.label}</div>
+
+      {/* Period filter */}
+      <div className="tabs" style={{marginBottom:16}}>
+        {[{k:'today',l:'Today'},{k:'week',l:'Week'},{k:'month',l:'Month'},{k:'all',l:'All'}].map(t=>(
+          <div key={t.k} className={`tab ${filter===t.k?'active':''}`} onClick={()=>setFilter(t.k)}>{t.l}</div>
+        ))}
+      </div>
+
+      {/* Stats */}
+      <div className="stats-grid" style={{marginBottom:16}}>
+        {[
+          {label:'Jobs',         value:filtered.length,   sub:`${filterLabel}`,              cls:'stat-red',    color:'var(--red)'},
+          {label:'Revenue',      value:peso(totalRev),    sub:`Net ${peso(totalNet)}`,        cls:'stat-green',  color:'var(--success)'},
+          {label:'Commission',   value:peso(totalComm),   sub:`Costs ${peso(totalCost)}`,     cls:'stat-yellow', color:'var(--gold)'},
+          {label:'Top Performer',value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.jobs} jobs · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray', color:'var(--silver)'},
+        ].map((s,i)=>(
+          <div key={i} className={`stat-card ${s.cls}`}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value" style={{color:s.color}}>{s.value}</div>
+            <div className="stat-sub">{s.sub}</div>
           </div>
         ))}
       </div>
-      <div className="section-title">Recent Jobs</div>
-      {recent.length===0
-        ? <div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No jobs yet — <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={()=>setPage('vlc-record')}>Record First Job</button></div>
-        : recent.map((j,i)=>{
-          const d=new Date(j.transaction_date||j.created_date);
-          const items=parseArr(j.products_used).map(p=>p.name||p).join(', ')||'—';
-          return (
-            <div key={j.id} className="card" style={{display:'flex',alignItems:'center',gap:14,padding:'12px 16px',marginBottom:8}}>
-              <div style={{width:40,height:40,borderRadius:12,background:'rgba(217,74,74,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>🔧</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:13}}>{j.vehicle_info||j.customer_name||'Job #'+(i+1)}</div>
-                <div style={{fontSize:11,color:'var(--text2)',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{items}</div>
-                <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}</div>
-              </div>
-              <div style={{textAlign:'right',flexShrink:0}}>
-                <div style={{fontWeight:800,color:'var(--gold)',fontSize:14}}>{peso(j.total_amount||0)}</div>
-                <div style={{fontSize:10,color:'var(--success)',marginTop:2}}>{j.employee_name||'—'}</div>
-              </div>
-            </div>
-          );
-        })}
+
+      <div className="grid-2">
+        {/* Leaderboard */}
+        <div className="card">
+          <div className="section-title">{filterLabel} — Top Workers</div>
+          {ranking.length===0
+            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No jobs in this period</div>
+            : ranking.slice(0,3).map((r,i)=>{
+                const emp=vlcEmps.find(e=>e.id===r.id);
+                return (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                    <div style={{fontSize:11,fontWeight:800,color:posColors[i]||'var(--text2)',minWidth:28,textAlign:'center'}}>{posLabels[i]||`#${i+1}`}</div>
+                    <div style={{width:36,height:36,borderRadius:50,background:emp?.avatar_color||'var(--red)',
+                      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,color:'#fff',flexShrink:0}}>
+                      {r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:700}}>{r.name}</div>
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{peso(r.sales)} · {peso(r.comm)} comm</div>
+                    </div>
+                    <div style={{fontSize:18,fontWeight:900,color:posColors[i]||'var(--text2)'}}>{r.jobs}</div>
+                    <div style={{fontSize:10,color:'var(--text2)'}}>jobs</div>
+                  </div>
+                );
+              })}
+          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('vlc-ranking')}>Full Leaderboard ↗</button>
+        </div>
+
+        {/* Recent jobs */}
+        <div className="card">
+          <div className="section-title">Recent Jobs</div>
+          {recent.length===0
+            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No jobs yet.</div>
+            : recent.map((j,i)=>{
+                const items=parseArr(j.products_used).map(p=>p.name||p).join(', ')||'—';
+                return (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
+                    <div style={{width:32,height:32,borderRadius:8,background:'rgba(217,74,74,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🔧</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:600}}>{j.vehicle_info||j.customer_name||'Job'}</div>
+                      <div style={{fontSize:11,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{items}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}>{peso(j.total_amount||0)}</div>
+                      <div style={{fontSize:10,color:'var(--text2)'}}>{j.employee_name||'—'}</div>
+                    </div>
+                  </div>
+                );
+              })}
+          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('vlc-transactions')}>View All</button>
+        </div>
+      </div>
+
+      {/* Quick action */}
+      <div style={{marginTop:16,textAlign:'center'}}>
+        <button className="btn btn-primary" style={{padding:'14px 40px',fontSize:15,fontWeight:800}} onClick={()=>setPage('vlc-record')}>
+          🔧 Record New Job
+        </button>
+      </div>
     </div>
   );
 }
@@ -3345,55 +3418,169 @@ function VlcRanking({ vlcJobs, employees }) {
 
 /* ── VlcReports ── */
 function VlcReports({ vlcJobs, employees, payouts, showToast }) {
-  const now=new Date();
-  const vlcEmps=employees.filter(e=>e.business_type==='vulcanizing');
-  const monthJobs=vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const now = new Date();
+  const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
+  const [period, setPeriod]       = React.useState('month');
+  const [customFrom, setCustomFrom] = React.useState('');
+  const [customTo,   setCustomTo]   = React.useState('');
 
-  const empStats=vlcEmps.map(e=>{
-    const jobs=monthJobs.filter(j=>j.employee_id===e.id);
-    const paid=(payouts||[]).filter(p=>p.employee_id===e.id&&p.business_type==='vulcanizing').reduce((s,p)=>s+(p.amount||0),0);
-    const earned=jobs.reduce((s,j)=>s+(j.commission_amount||0),0);
-    return {...e,jobs:jobs.length,earned,paid,balance:earned-paid};
-  });
+  const getFiltered = () => {
+    const t = now.toISOString().slice(0,10);
+    if (period==='today')  return vlcJobs.filter(j=>(j.transaction_date||j.created_date||'').slice(0,10)===t);
+    if (period==='7days')  return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=new Date(now-7*86400000));
+    if (period==='month')  return vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+    if (period==='custom'&&customFrom&&customTo) {
+      const from=new Date(customFrom+'T00:00:00'), to=new Date(customTo+'T23:59:59');
+      return vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d>=from&&d<=to;});
+    }
+    return vlcJobs;
+  };
+
+  const filtered   = getFiltered();
+  const tRevenue   = filtered.reduce((s,j)=>s+(j.total_amount||0),0);
+  const tCost      = filtered.reduce((s,j)=>s+(j.total_product_cost||0),0);
+  const tNet       = filtered.reduce((s,j)=>s+(j.net_amount||0),0);
+  const tComm      = filtered.reduce((s,j)=>s+(j.commission_amount||0),0);
+
+  // Per-employee breakdown
+  const empStats = vlcEmps.map(e=>{
+    const jobs = filtered.filter(j=>j.employee_id===e.id);
+    const earned = jobs.reduce((s,j)=>s+(j.commission_amount||0),0);
+    const paid   = (payouts||[]).filter(p=>p.employee_id===e.id).reduce((s,p)=>s+(p.amount||0),0);
+    return {...e, jobs:jobs.length, revenue:jobs.reduce((s,j)=>s+(j.total_amount||0),0), earned, paid, balance:earned-paid};
+  }).filter(e=>e.jobs>0).sort((a,b)=>b.jobs-a.jobs);
+
+  // Product popularity
+  const prodMap = {};
+  filtered.forEach(j=>parseArr(j.products_used).forEach(p=>{
+    const key = p.name||p.id||'?';
+    if (!prodMap[key]) prodMap[key]={name:key,count:0,revenue:0,cost:0};
+    prodMap[key].count++;
+    prodMap[key].revenue+=(p.price||0);
+    prodMap[key].cost+=(p.cost||0);
+  }));
+  const prodRows = Object.values(prodMap).sort((a,b)=>b.count-a.count);
+
+  const exportCSV = () => {
+    const rows = [
+      ['Date','Employee','Vehicle','Customer','Products','Total','Product Cost','Net','Commission','Notes'],
+      ...filtered.map(j=>[
+        (j.transaction_date||j.created_date||'').slice(0,10),
+        j.employee_name||'',
+        j.vehicle_info||'',
+        j.customer_name||'',
+        parseArr(j.products_used).map(p=>p.name).join('; '),
+        j.total_amount||0,
+        j.total_product_cost||0,
+        j.net_amount||0,
+        j.commission_amount||0,
+        j.notes||''
+      ])
+    ];
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+    a.download=`vlc-report-${now.toISOString().slice(0,10)}.csv`;
+    a.click();
+    showToast('CSV exported!','success');
+  };
+
+  const periodLabel={today:'Today','7days':'Last 7 Days',month:'This Month',custom:'Custom Range'}[period];
 
   return (
     <div>
-      <div className="section-title" style={{marginBottom:16}}>📊 Vulcanizing Reports — {now.toLocaleString('en-PH',{month:'long',year:'numeric'})}</div>
-      <div className="grid-3" style={{marginBottom:20}}>
+      {/* Header */}
+      <div className="flex-between mb-4" style={{flexWrap:'wrap',gap:10}}>
+        <div className="section-title" style={{marginBottom:0}}>📊 Vulcanizing Reports</div>
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV}>Export CSV</button>
+      </div>
+
+      {/* Period tabs */}
+      <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+        {[{key:'today',label:'Day'},{key:'7days',label:'7 Days'},{key:'month',label:'Month'},{key:'custom',label:'Custom'}].map(t=>(
+          <button key={t.key}
+            className={`btn ${period===t.key?'btn-primary':'btn-ghost'} btn-sm`}
+            onClick={()=>setPeriod(t.key)}>{t.label}
+          </button>
+        ))}
+      </div>
+      {period==='custom'&&(
+        <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+          <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+            style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 10px',color:'var(--text)',fontSize:12}}/>
+          <span style={{color:'var(--text2)',alignSelf:'center'}}>to</span>
+          <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+            style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 10px',color:'var(--text)',fontSize:12}}/>
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="stats-grid" style={{marginBottom:20}}>
         {[
-          {l:'Total Jobs',   v:monthJobs.length,                                            c:'var(--red)'},
-          {l:'Total Revenue',v:peso(monthJobs.reduce((s,j)=>s+(j.total_amount||0),0)),      c:'var(--gold)'},
-          {l:'Total Comm.',  v:peso(monthJobs.reduce((s,j)=>s+(j.commission_amount||0),0)), c:'var(--success)'},
-        ].map((x,i)=>(
-          <div key={i} className="card" style={{textAlign:'center',padding:'18px 12px'}}>
-            <div style={{fontSize:20,fontWeight:900,color:x.c}}>{x.v}</div>
-            <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{x.l}</div>
+          {label:'Jobs',          value:filtered.length,  sub:periodLabel,          cls:'stat-red',    color:'var(--red)'},
+          {label:'Total Revenue', value:peso(tRevenue),   sub:`Cost: -${peso(tCost)}`,cls:'stat-green', color:'var(--success)'},
+          {label:'Net Amount',    value:peso(tNet),       sub:'After product costs', cls:'stat-yellow', color:'var(--gold)'},
+          {label:'Commission',    value:peso(tComm),      sub:'All employees',       cls:'stat-gray',   color:'var(--silver)'},
+        ].map((s,i)=>(
+          <div key={i} className={`stat-card ${s.cls}`}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value" style={{color:s.color}}>{s.value}</div>
+            <div className="stat-sub">{s.sub}</div>
           </div>
         ))}
       </div>
-      {empStats.filter(e=>e.jobs>0).map(e=>(
-        <div key={e.id} className="card" style={{marginBottom:10,padding:'14px 16px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
-            <div style={{width:36,height:36,borderRadius:50,background:e.avatar_color||'var(--red)',
-              display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,color:'#fff',flexShrink:0}}>
-              {e.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+
+      {/* Employee breakdown */}
+      <div className="section-title" style={{marginBottom:10}}>Employee Breakdown</div>
+      {empStats.length===0
+        ? <div className="card" style={{textAlign:'center',padding:28,color:'var(--text2)',marginBottom:16}}>No data for this period</div>
+        : empStats.map(e=>(
+          <div key={e.id} className="card" style={{marginBottom:10,padding:'14px 16px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+              <div style={{width:38,height:38,borderRadius:50,background:e.avatar_color||'var(--red)',
+                display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,color:'#fff',flexShrink:0}}>
+                {e.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:14}}>{e.full_name}</div>
+                <div style={{fontSize:11,color:'var(--text2)'}}>{e.jobs} job{e.jobs!==1?'s':''} · {peso(e.revenue)} revenue</div>
+              </div>
             </div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:14}}>{e.full_name}</div>
-              <div style={{fontSize:11,color:'var(--text2)'}}>{e.jobs} job{e.jobs!==1?'s':''} this month</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,textAlign:'center'}}>
+              {[
+                {l:'Earned',  v:peso(e.earned),  c:'var(--gold)'},
+                {l:'Paid Out',v:peso(e.paid),     c:'var(--success)'},
+                {l:'Balance', v:peso(e.balance),  c:e.balance>0?'var(--red)':'var(--text2)'},
+              ].map((x,i)=>(
+                <div key={i} style={{background:'var(--glass,rgba(255,255,255,0.04))',borderRadius:8,padding:'8px 4px'}}>
+                  <div style={{fontWeight:800,color:x.c,fontSize:14}}>{x.v}</div>
+                  <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,textAlign:'center'}}>
-            {[{l:'Earned',v:peso(e.earned),c:'var(--gold)'},{l:'Paid Out',v:peso(e.paid),c:'var(--success)'},{l:'Balance',v:peso(e.balance),c:e.balance>0?'var(--red)':'var(--text2)'}].map((x,i)=>(
-              <div key={i} style={{background:'var(--glass)',borderRadius:8,padding:'8px 4px'}}>
-                <div style={{fontWeight:800,color:x.c,fontSize:14}}>{x.v}</div>
-                <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
+        ))}
+
+      {/* Product popularity */}
+      {prodRows.length>0&&(
+        <>
+          <div className="section-title" style={{marginBottom:10,marginTop:4}}>Product Usage</div>
+          <div className="card" style={{padding:'4px 0'}}>
+            {prodRows.map((p,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:i<prodRows.length-1?'1px solid var(--border)':'none'}}>
+                <div style={{width:28,height:28,borderRadius:8,background:'rgba(217,74,74,0.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}}>🔩</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
+                  <div style={{fontSize:11,color:'var(--text2)'}}>{p.count} use{p.count!==1?'s':''}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontWeight:700,color:'var(--gold)',fontSize:13}}>{peso(p.revenue)}</div>
+                  <div style={{fontSize:10,color:'var(--red)'}}>cost: {peso(p.cost)}</div>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      ))}
-      {empStats.filter(e=>e.jobs>0).length===0&&<div className="card" style={{textAlign:'center',padding:32,color:'var(--text2)'}}>No vulcanizing data this month</div>}
+        </>
+      )}
     </div>
   );
 }
