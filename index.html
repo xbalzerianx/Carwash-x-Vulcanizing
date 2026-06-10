@@ -14,6 +14,10 @@
       --red: #D94A4A;
       --red-hover: #C63E3E;
       --red-dark: #B83030;
+      --blue: #2563EB;
+      --blue-hover: #1D4ED8;
+      --blue-light: rgba(37,99,235,0.15);
+      --blue-glow: rgba(37,99,235,0.35);
       --gold: #D4AF37;
       --silver: #B8BCC2;
       --bronze: #B87333;
@@ -270,6 +274,12 @@
       width:180px; height:180px;
       background:radial-gradient(circle,rgba(217,74,74,.12),transparent); border-radius:50%;
     }
+    .hero-header.blue { border-color:rgba(37,99,235,0.25); background:linear-gradient(135deg,rgba(37,99,235,0.08) 0%,var(--card) 60%); }
+    .hero-header.blue::before { background:radial-gradient(circle,rgba(37,99,235,.18),transparent); }
+    .stat-blue { border-top:3px solid var(--blue) !important; }
+    .stat-blue .stat-value { color:var(--blue) !important; }
+    .btn-blue { background:var(--blue); color:#fff; border:none; }
+    .btn-blue:hover { background:var(--blue-hover); }
 
     /* ── GAMIFIED RANKING ── */
     .rank-tabs { display:flex; gap:3px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:14px; padding:5px; margin-bottom:24px; }
@@ -900,19 +910,19 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
 
   return (
     <div>
-      <div className="hero-header">
+      <div className="hero-header blue">
         <div style={{position:'relative',zIndex:1}}>
           <div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>{timeNow}</div>
-          <div style={{fontSize:26,fontWeight:900,marginBottom:4}}>Welcome back!</div>
+          <div style={{fontSize:26,fontWeight:900,marginBottom:4,color:'var(--blue)'}}>🚗 KGCAR Carwash</div>
           <div style={{fontSize:13,color:'var(--text2)'}}>Here's your car wash business overview.</div>
         </div>
       </div>
 
       <div className="stats-grid">
         {[
-          {label:'Cars Today',   value:todayW.length,    sub:`${monthW.length} this month`,   cls:'stat-red',   color:'var(--red)'},
+          {label:'Cars Today',   value:todayW.length,    sub:`${monthW.length} this month`,   cls:'stat-blue',  color:'var(--blue)'},
           {label:'Sales Today',  value:peso(todaySales), sub:`${peso(monthSales)} this month`, cls:'stat-green', color:'var(--success)'},
-          {label:'Commission',   value:peso(todayComm),  sub:`avg ${peso(todayW.length>0?todayComm/todayW.length:0)} / car`,     cls:'stat-yellow',color:'var(--gold)'},
+          {label:'Commission',   value:peso(todayComm),  sub:`avg ${peso(todayW.length>0?todayComm/todayW.length:0)} / car`, cls:'stat-yellow',color:'var(--gold)'},
           {label:'Top Today',    value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray',color:'var(--silver)'},
         ].map((s,i)=>(
           <div key={i} className={`stat-card ${s.cls}`}>
@@ -944,7 +954,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                 );
               })
           }
-          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('ranking')}>Full Leaderboard</button>
+          <button className="btn btn-blue btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('ranking')}>Full Leaderboard ↗</button>
         </div>
 
         <div className="card">
@@ -965,7 +975,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                 );
               })
           }
-          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('transactions')}>View All</button>
+          <button className="btn btn-blue btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('transactions')}>View All →</button>
         </div>
       </div>
 
@@ -2663,6 +2673,7 @@ function AdminApp({ logout }) {
     {id:'vlc-employees',    icon:Ic.users, label:'Employees',    section:'Admin'},
     {id:'vlc-products',     icon:'📦',     label:'Products',     section:'Admin'},
     {id:'vlc-rewards',      icon:Ic.gift,  label:'Rewards',      section:'Admin'},
+    {id:'vlc-logs',         icon:Ic.log,   label:'Activity Log', section:'Admin'},
   ];
   const sections=[...new Set(navItems.map(n=>n.section))];
   const activeCampaign=campaigns.find(c=>c.is_active);
@@ -2795,6 +2806,7 @@ function AdminApp({ logout }) {
           {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='vlc-logs'          && <ErrorBoundary><VlcActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
       </div>
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
@@ -3584,6 +3596,142 @@ function VlcReports({ vlcJobs, employees, payouts, showToast }) {
     </div>
   );
 }
+
+/* ── VlcActivityLogs ── */
+function VlcActivityLogs({ logs=[], employees=[], onRefresh }) {
+  const [filter, setFilter] = React.useState('all');
+  const [search, setSearch] = React.useState('');
+
+  const vlcTypes = ['vlc_job_created','vlc_job_updated','vlc_job_deleted'];
+
+  // Only show vlc-related logs
+  const vlcLogs = logs.filter(l=>
+    vlcTypes.includes(l.event_type) ||
+    (l.event_type||'').startsWith('vlc_')
+  );
+
+  const typeConfig = {
+    vlc_job_created: { label:'New Job',    color:'#60A5FA', bg:'rgba(96,165,250,.12)', icon:'🔧' },
+    vlc_job_updated: { label:'Job Edited', color:'#F59E0B', bg:'rgba(245,158,11,.1)',  icon:'✏️' },
+    vlc_job_deleted: { label:'Job Deleted',color:'var(--red)', bg:'rgba(217,74,74,.08)', icon:'🗑️' },
+  };
+
+  const sorted = [...vlcLogs].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
+
+  const filtered = sorted.filter(l=>{
+    if (filter!=='all' && l.event_type!==filter) return false;
+    if (search) {
+      const q=search.toLowerCase();
+      return (l.title||'').toLowerCase().includes(q)||(l.description||'').toLowerCase().includes(q)||(l.actor_name||'').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const fmtAgo = d => {
+    if (!d) return '';
+    const diff=Date.now()-new Date(d).getTime();
+    const mins=Math.floor(diff/60000), hours=Math.floor(diff/3600000), days=Math.floor(diff/86400000);
+    if (mins<1) return 'just now';
+    if (mins<60) return `${mins}m ago`;
+    if (hours<24) return `${hours}h ago`;
+    return new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  };
+
+  const todayCount  = sorted.filter(l=>(l.created_date||'').startsWith(new Date().toISOString().split('T')[0])).length;
+  const createdCount= sorted.filter(l=>l.event_type==='vlc_job_created').length;
+  const editCount   = sorted.filter(l=>l.event_type==='vlc_job_updated').length;
+  const totalRev    = sorted.filter(l=>l.event_type==='vlc_job_created').reduce((s,l)=>s+(l.amount||0),0);
+
+  const categories = [
+    {key:'all',             label:'All'},
+    {key:'vlc_job_created', label:'New Jobs'},
+    {key:'vlc_job_updated', label:'Edits'},
+    {key:'vlc_job_deleted', label:'Deleted'},
+  ];
+
+  return (
+    <div>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>🔧 Activity Log — Vulcanizing</div>
+        <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} of {vlcLogs.length} events</div>
+      </div>
+
+      {/* Stats strip */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
+        {[
+          {l:'Today',    v:todayCount,        c:'#60A5FA'},
+          {l:'Jobs Rec.',v:createdCount,      c:'var(--success)'},
+          {l:'Edits',    v:editCount,         c:'#F59E0B'},
+          {l:'Revenue',  v:peso(totalRev),    c:'var(--gold)'},
+        ].map((s,i)=>(
+          <div key={i} className="card" style={{textAlign:'center',padding:'12px 8px'}}>
+            <div style={{fontSize:18,fontWeight:900,color:s.c}}>{s.v}</div>
+            <div style={{fontSize:10,color:'var(--text2)',marginTop:3}}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter chips */}
+      <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
+        {categories.map(c=>(
+          <button key={c.key} className={`btn btn-sm ${filter===c.key?'btn-primary':'btn-ghost'}`}
+            onClick={()=>setFilter(c.key)}>{c.label}</button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="form-group mb-4" style={{position:'relative'}}>
+        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>{Ic.search}</div>
+        <input className="form-input" placeholder="Search logs..." value={search}
+          onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}}/>
+      </div>
+
+      {/* Log feed */}
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        {filtered.length===0 ? (
+          <div style={{textAlign:'center',padding:'40px 24px',color:'var(--text2)'}}>
+            <div style={{fontSize:40,marginBottom:10,opacity:.3}}>🔧</div>
+            <div style={{fontWeight:700}}>No vulcanizing activity yet</div>
+            <div style={{fontSize:13,marginTop:4}}>Events are logged as jobs are recorded, edited, or deleted</div>
+          </div>
+        ) : filtered.map((log,i)=>{
+          const cfg = typeConfig[log.event_type] || {label:log.event_type,color:'var(--text2)',bg:'rgba(255,255,255,.04)',icon:'📋'};
+          return (
+            <div key={log.id||i} style={{
+              display:'flex',alignItems:'flex-start',gap:12,padding:'14px 16px',
+              borderBottom:i<filtered.length-1?'1px solid var(--border)':'none',
+              background:'transparent',transition:'background .15s',
+            }}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            >
+              {/* Icon badge */}
+              <div style={{width:36,height:36,borderRadius:10,background:cfg.bg,flexShrink:0,
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>
+                {cfg.icon}
+              </div>
+              {/* Content */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <span style={{fontWeight:700,fontSize:13}}>{log.title||log.event_type}</span>
+                  <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,
+                    background:cfg.bg,color:cfg.color}}>{cfg.label}</span>
+                </div>
+                {log.description&&<div style={{fontSize:12,color:'var(--text2)',marginTop:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.description}</div>}
+                <div style={{display:'flex',gap:12,marginTop:4,flexWrap:'wrap'}}>
+                  {log.actor_name&&<span style={{fontSize:11,color:'var(--text2)'}}>👷 {log.actor_name}</span>}
+                  {log.amount>0&&<span style={{fontSize:11,color:'var(--gold)',fontWeight:700}}>{peso(log.amount)}</span>}
+                  <span style={{fontSize:11,color:'var(--text2)'}}>{fmtAgo(log.created_date)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 
 /* ── VlcEmployees — reuses Employees component filtered to vulcanizing ── */
 function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh }) {
