@@ -14,10 +14,10 @@
       --red: #D94A4A;
       --red-hover: #C63E3E;
       --red-dark: #B83030;
-      --blue: #2563EB;
-      --blue-hover: #1D4ED8;
-      --blue-light: rgba(37,99,235,0.15);
-      --blue-glow: rgba(37,99,235,0.35);
+      --blue: #4DA6FF;
+      --blue-hover: #2E8FEF;
+      --blue-light: rgba(77,166,255,0.15);
+      --blue-glow: rgba(77,166,255,0.35);
       --gold: #D4AF37;
       --silver: #B8BCC2;
       --bronze: #B87333;
@@ -80,6 +80,7 @@
     }
     .nav-item:hover { background:var(--glass); color:var(--text); }
     .nav-item.active { background:rgba(217,74,74,0.18); color:var(--red); border:1px solid rgba(217,74,74,0.3); }
+    body.biz-carwash .nav-item.active { background:rgba(77,166,255,0.12); color:var(--blue); border-color:rgba(77,166,255,0.25); }
     .nav-icon { width:18px; height:18px; flex-shrink:0; }
     .nav-icon svg { width:18px; height:18px; }
     .sidebar-footer { padding:14px; border-top:1px solid var(--border); }
@@ -274,12 +275,22 @@
       width:180px; height:180px;
       background:radial-gradient(circle,rgba(217,74,74,.12),transparent); border-radius:50%;
     }
-    .hero-header.blue { border-color:rgba(37,99,235,0.25); background:linear-gradient(135deg,rgba(37,99,235,0.08) 0%,var(--card) 60%); }
-    .hero-header.blue::before { background:radial-gradient(circle,rgba(37,99,235,.18),transparent); }
+    .hero-header.blue { border-color:rgba(77,166,255,0.25); background:linear-gradient(135deg,rgba(77,166,255,0.07) 0%,var(--card) 60%); }
+    .hero-header.blue::before { background:radial-gradient(circle,rgba(77,166,255,.2),transparent); }
     .stat-blue { border-top:3px solid var(--blue) !important; }
     .stat-blue .stat-value { color:var(--blue) !important; }
-    .btn-blue { background:var(--blue); color:#fff; border:none; }
-    .btn-blue:hover { background:var(--blue-hover); }
+    .btn-blue { background:var(--blue); color:#111; border:none; font-weight:700; }
+    .btn-blue:hover { background:var(--blue-hover); color:#fff; }
+    /* Carwash-mode overrides — applied on body.biz-carwash */
+    body.biz-carwash .btn-primary { background:var(--blue); color:#111; }
+    body.biz-carwash .btn-primary:hover { background:var(--blue-hover); color:#fff; }
+    body.biz-carwash .tab.active { background:var(--blue); box-shadow:0 4px 16px var(--blue-glow); }
+    body.biz-carwash .rank-tab.active { background:var(--blue); box-shadow:0 4px 16px var(--blue-glow); }
+    body.biz-carwash .service-item.selected { border-color:var(--blue); }
+    body.biz-carwash .service-item.selected .svc-check { background:var(--blue); border-color:var(--blue); }
+    body.biz-carwash .stat-red { border-top-color:var(--blue) !important; }
+    body.biz-carwash .stat-red .stat-value { color:var(--blue) !important; }
+    body.biz-carwash .live-dot { background:var(--blue); box-shadow:0 0 6px var(--blue); }
 
     /* ── GAMIFIED RANKING ── */
     .rank-tabs { display:flex; gap:3px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:14px; padding:5px; margin-bottom:24px; }
@@ -913,7 +924,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
       <div className="hero-header blue">
         <div style={{position:'relative',zIndex:1}}>
           <div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>{timeNow}</div>
-          <div style={{fontSize:26,fontWeight:900,marginBottom:4,color:'var(--blue)'}}>🚗 KGCAR Carwash</div>
+          <div style={{fontSize:26,fontWeight:900,marginBottom:4,color:'var(--blue)',textShadow:'0 0 20px rgba(77,166,255,0.4)'}}>🚗 KGCAR Carwash</div>
           <div style={{fontSize:13,color:'var(--text2)'}}>Here's your car wash business overview.</div>
         </div>
       </div>
@@ -970,7 +981,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                       <div style={{fontSize:12,fontWeight:600}}>{w.employee_name}</div>
                       <div style={{fontSize:11,color:'var(--text2)'}}>{fmtTime(w.created_date)} · {parseArr(w.services).length||0} svc</div>
                     </div>
-                    <div style={{fontSize:13,fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</div>
                   </div>
                 );
               })
@@ -1110,7 +1121,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         <div style={{background:'var(--glass)',borderRadius:12,padding:14,border:'1px solid var(--border)',marginBottom:10}}>
           <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
             <span style={{color:'var(--text2)',fontSize:12}}>Total</span>
-            <span style={{fontWeight:800,fontSize:17,color:'var(--red)'}}>{peso(lastSaved.total)}</span>
+            <span style={{fontWeight:800,fontSize:17,color:'var(--blue)'}}>{peso(lastSaved.total)}</span>
           </div>
           {lastSaved.splits.map(({emp,share},i)=>(
             <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
@@ -1236,7 +1247,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
           <hr className="divider" />
           <div className="summary-row">
             <span className="lbl">Total</span>
-            <span className="val" style={{fontSize:18,color:'var(--red)'}}>{peso(total)}</span>
+            <span className="val" style={{fontSize:18,color:'var(--blue)'}}>{peso(total)}</span>
           </div>
           {commSplits.map(({emp,rate,share},i)=>(
             <div key={i} className="summary-row">
@@ -1404,7 +1415,7 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
         <input className="form-input" placeholder="Search employee, customer, plate..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}} />
       </div>
       <div className="stats-grid" style={{gridTemplateColumns:'1fr 1fr 1fr',marginBottom:16}}>
-        {[{l:'Cars',v:filtered.length,c:'var(--red)',cls:'stat-red'},{l:'Revenue',v:peso(tSales),c:'var(--success)',cls:'stat-green'},{l:'Commission',v:peso(tComm),c:'var(--gold)',cls:'stat-yellow'}].map((s,i)=>(
+        {[{l:'Cars',v:filtered.length,c:'var(--blue)',cls:'stat-blue'},{l:'Revenue',v:peso(tSales),c:'var(--success)',cls:'stat-green'},{l:'Commission',v:peso(tComm),c:'var(--gold)',cls:'stat-yellow'}].map((s,i)=>(
           <div key={i} className={`stat-card ${s.cls}`} style={{padding:14}}>
             <div className="stat-label">{s.l}</div>
             <div className="stat-value" style={{fontSize:20,color:s.c}}>{s.v}</div>
@@ -1426,7 +1437,7 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
                         <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:w.employee_name}} size={26} fs={10} /><span style={{fontWeight:600}}>{w.employee_name}</span></div></td>
                         <td style={{fontWeight:600}}>{w.plate_number||'—'}</td>
                         <td className='hide-xs' style={{color:'var(--text2)'}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
-                        <td style={{fontWeight:700,color:'var(--red)'}}>{peso(w.total_amount)}</td>
+                        <td style={{fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</td>
                         <td className='hide-xs' style={{color:'var(--success)'}}>{peso(w.commission_amount)}</td>
                         <td>
                           <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
@@ -1462,9 +1473,9 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
                     return(
                       <button key={e.id} onClick={()=>toggleEditEmp(e)}
                         style={{padding:'6px 12px',borderRadius:20,border:'2px solid',fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s',
-                          borderColor:sel?'var(--red)':'var(--border)',
-                          background:sel?'rgba(217,74,74,0.15)':'transparent',
-                          color:sel?'var(--red)':'var(--text)'}}>
+                          borderColor:sel?'var(--blue)':'var(--border)',
+                          background:sel?'rgba(77,166,255,0.12)':'transparent',
+                          color:sel?'var(--blue)':'var(--text)'}}>
                         {e.full_name}{sel?` ✓`:''}
                       </button>
                     );
@@ -1481,9 +1492,9 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
                     return(
                       <button key={svc.id} onClick={()=>toggleEditSvc(svc)}
                         style={{padding:'6px 12px',borderRadius:20,border:'2px solid',fontSize:11,fontWeight:600,cursor:'pointer',transition:'all .15s',
-                          borderColor:sel?'var(--red)':'var(--border)',
-                          background:sel?'rgba(217,74,74,0.15)':'transparent',
-                          color:sel?'var(--red)':'var(--text)'}}>
+                          borderColor:sel?'var(--blue)':'var(--border)',
+                          background:sel?'rgba(77,166,255,0.12)':'transparent',
+                          color:sel?'var(--blue)':'var(--text)'}}>
                         {svc.name} · {peso(svc.price||0)}{sel?' ✓':''}
                       </button>
                     );
@@ -1616,7 +1627,7 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
         {/* Stats row */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderBottom:'1px solid var(--border)'}}>
           {[
-            {l:'Total Cars', v:total,            c:'var(--red)'},
+            {l:'Total Cars', v:total,            c:'var(--blue)'},
             {l:'This Month', v:thisMonth,         c:'var(--success)'},
             {l:'Revenue',    v:peso(totalSales),  c:'var(--gold)'},
             {l:'Commission', v:peso(totalComm),   c:'var(--silver)'}
@@ -1636,8 +1647,8 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
           ].map(t=>(
             <button key={t.k} onClick={()=>setEmpTab(t.k)}
               style={{flex:1,padding:'12px 8px',fontSize:12,fontWeight:700,background:'none',border:'none',
-                borderBottom:empTab===t.k?'2px solid var(--red)':'2px solid transparent',
-                color:empTab===t.k?'var(--red)':'var(--text2)',cursor:'pointer',transition:'all .2s'}}>
+                borderBottom:empTab===t.k?'2px solid var(--blue)':'2px solid transparent',
+                color:empTab===t.k?'var(--blue)':'var(--text2)',cursor:'pointer',transition:'all .2s'}}>
               {t.label}
             </button>
           ))}
@@ -1855,7 +1866,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
                 <span className={`badge ${emp.is_active?'badge-green':'badge-red'}`}>{emp.is_active?'Active':'Inactive'}</span>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
-                {[{l:'Today',v:s.today,c:'var(--red)'},{l:'Month',v:s.month,c:'var(--success)'},{l:'Comm%',v:emp.commission_percentage+'%',c:'var(--gold)'}].map((x,i)=>(
+                {[{l:'Today',v:s.today,c:'var(--blue)'},{l:'Month',v:s.month,c:'var(--success)'},{l:'Comm%',v:emp.commission_percentage+'%',c:'var(--gold)'}].map((x,i)=>(
                   <div key={i} style={{textAlign:'center',background:'var(--glass)',borderRadius:8,padding:8}}>
                     <div style={{fontSize:15,fontWeight:800,color:x.c}}>{x.v}</div>
                     <div style={{fontSize:10,color:'var(--text2)'}}>{x.l}</div>
@@ -2371,7 +2382,7 @@ function Reports({ carWashes, employees, payouts=[], showToast }) {
       {/* Stats */}
       <div className="stats-grid mb-4">
         {[
-          {l:'Cars',       v:filtered.length,  c:'var(--red)',    cls:'stat-red'},
+          {l:'Cars',       v:filtered.length,  c:'var(--blue)',   cls:'stat-blue'},
           {l:'Revenue',    v:peso(tSales),      c:'var(--success)',cls:'stat-green'},
           {l:'Commission', v:peso(tComm),       c:'var(--gold)',   cls:'stat-yellow'},
           {l:'Collected',  v:peso(tPaid),       c:'var(--silver)', cls:'stat-gray'},
@@ -2405,7 +2416,7 @@ function Reports({ carWashes, employees, payouts=[], showToast }) {
                     return (
                       <tr key={i}>
                         <td><div style={{display:'flex',alignItems:'center',gap:8}}><Av emp={emp||{full_name:r.name}} size={26} fs={10}/><span style={{fontWeight:600}}>{r.name}</span></div></td>
-                        <td style={{fontWeight:700,color:'var(--red)'}}>{r.cars}</td>
+                        <td style={{fontWeight:700,color:'var(--blue)'}}>{r.cars}</td>
                         <td>{peso(r.sales)}</td>
                         <td style={{color:'var(--success)'}}>{peso(r.comm)}</td>
                       </tr>
@@ -2425,7 +2436,7 @@ function Reports({ carWashes, employees, payouts=[], showToast }) {
                   {svcRows.map((s,i)=>(
                     <tr key={i}>
                       <td style={{fontWeight:600}}>{s.name}</td>
-                      <td style={{color:'var(--red)',fontWeight:700}}>{s.count}</td>
+                      <td style={{color:'var(--blue)',fontWeight:700}}>{s.count}</td>
                       <td style={{color:'var(--gold)'}}>{peso(s.revenue)}</td>
                     </tr>
                   ))}
@@ -2513,7 +2524,7 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
       {/* Stats strip */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
         {[
-          {l:'Today',    v:todayCount,        c:'var(--red)'},
+          {l:'Today',    v:todayCount,        c:'var(--blue)'},
           {l:'Washes',   v:washCount,         c:'var(--success)'},
           {l:'Paid Out', v:peso(payoutTotal), c:'var(--gold)'},
         ].map((s,i)=>(
@@ -2722,12 +2733,18 @@ function AdminApp({ logout }) {
     </div>
   );
 
+  // Inject body class for CSS-level theming
+  React.useEffect(()=>{
+    document.body.classList.toggle('biz-carwash', biz==='carwash');
+    document.body.classList.toggle('biz-vlc', biz!=='carwash');
+  },[biz]);
+
   return (
     <div className="app">
       {isMobile&&sidebarOpen&&<div className="sidebar-overlay show" onClick={()=>setSidebarOpen(false)}></div>}
       <div className={`sidebar ${sidebarOpen?'open':'closed'}`}>
         <div className="sidebar-logo">
-          <div className="logo-icon">{biz==='carwash'?Ic.drop:'🔧'}</div>
+          <div className="logo-icon" style={{background:biz==='carwash'?'var(--blue)':'',boxShadow:biz==='carwash'?'0 4px 16px rgba(77,166,255,0.35)':'',color:biz==='carwash'?'#111':''}}>{biz==='carwash'?Ic.drop:'🔧'}</div>
           <div>
             <div className="logo-text">KG Car Services</div>
             <div className="logo-sub">{biz==='carwash'?'Car Wash':'Vulcanizing'}</div>
@@ -2740,9 +2757,9 @@ function AdminApp({ logout }) {
               <button key={b.k} onClick={()=>{setBizPersist(b.k);setPage(b.k==='carwash'?'dashboard':'vlc-dashboard');}}
                 style={{flex:1,padding:'7px 4px',fontSize:11,fontWeight:700,borderRadius:8,border:'none',cursor:'pointer',
                   transition:'all .2s',
-                  background:biz===b.k?'var(--red)':'transparent',
-                  color:biz===b.k?'#fff':'var(--text2)',
-                  boxShadow:biz===b.k?'0 2px 8px rgba(217,74,74,0.4)':'none'}}>
+                  background:biz===b.k?(b.k==='carwash'?'var(--blue)':'var(--red)'):'transparent',
+                  color:biz===b.k?(b.k==='carwash'?'#111':'#fff'):'var(--text2)',
+                  boxShadow:biz===b.k?(b.k==='carwash'?'0 2px 8px rgba(77,166,255,0.4)':'0 2px 8px rgba(217,74,74,0.4)'):'none'}}>
                 {b.label}
               </button>
             ))}
@@ -2778,9 +2795,14 @@ function AdminApp({ logout }) {
           </div>
           <div className="topbar-right" style={{display:'flex',alignItems:'center',gap:6}}>
             <div className="live-badge"><div className="live-dot"></div><span className="hide-xs">Live</span></div>
-            <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')} style={{display:'flex',alignItems:'center',gap:4}}>
-              {Ic.plus}<span className="hide-xs"> New Wash</span>
-            </button>
+            {biz==='carwash'
+              ? <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')} style={{display:'flex',alignItems:'center',gap:4}}>
+                  {Ic.plus}<span className="hide-xs"> New Wash</span>
+                </button>
+              : <button className="btn btn-primary btn-sm" onClick={()=>setPage('vlc-record')} style={{display:'flex',alignItems:'center',gap:4,background:'var(--red)',color:'#fff'}}>
+                  🔧<span className="hide-xs"> Record Job</span>
+                </button>
+            }
             <button onClick={logout} title="Logout" style={{background:'none',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'var(--text2)',padding:'7px 10px',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:4}}>
               🔓<span className="hide-xs"> Logout</span>
             </button>
@@ -3048,7 +3070,7 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
                 <button key={prod.id} onClick={()=>addProduct(prod)}
                   style={{padding:'6px 12px',borderRadius:20,border:'1px solid var(--border)',fontSize:11,fontWeight:600,
                     background:'rgba(255,255,255,0.04)',color:'var(--text)',cursor:'pointer',transition:'all .15s'}}
-                  onMouseOver={e=>e.currentTarget.style.borderColor='var(--red)'}
+                  onMouseOver={e=>e.currentTarget.style.borderColor='var(--blue)'}
                   onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
                   + {prod.name} <span style={{color:'var(--success)'}}>₱{prod.price||0}</span>
                 </button>
