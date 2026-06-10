@@ -2628,6 +2628,11 @@ class ErrorBoundary extends React.Component {
 
 function AdminApp({ logout }) {
   const [biz,setBiz]=useState(()=>localStorage.getItem('kgBiz')||'carwash');
+  // Sync body class for CSS-level blue/red theming
+  React.useEffect(()=>{
+    document.body.classList.toggle('biz-carwash', biz==='carwash');
+    document.body.classList.toggle('biz-vlc', biz!=='carwash');
+  },[biz]);
   const setBizPersist=v=>{setBiz(v);localStorage.setItem('kgBiz',v);};
   const [page,setPage]=useState(()=>{
     const saved=localStorage.getItem('kgBiz')||'carwash';
@@ -2732,12 +2737,6 @@ function AdminApp({ logout }) {
       `}</style>
     </div>
   );
-
-  // Inject body class for CSS-level theming
-  React.useEffect(()=>{
-    document.body.classList.toggle('biz-carwash', biz==='carwash');
-    document.body.classList.toggle('biz-vlc', biz!=='carwash');
-  },[biz]);
 
   return (
     <div className="app">
