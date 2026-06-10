@@ -2247,6 +2247,11 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
     commission_paid:      { label:'Payout',      color:'#22C55E',       bg:'rgba(34,197,94,.12)' },
     campaign_created:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.1)' },
     campaign_updated:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.08)' },
+    vlc_job_created:      { label:'Vlc Job',     color:'#60A5FA',       bg:'rgba(96,165,250,.12)' },
+    vlc_job_updated:      { label:'Vlc Edit',    color:'#60A5FA',       bg:'rgba(96,165,250,.08)' },
+    vlc_job_deleted:      { label:'Vlc Delete',  color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
+    employee_deleted:     { label:'Emp Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
+    service_deleted:      { label:'Svc Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
   };
 
   const sorted = [...logs].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
@@ -2580,7 +2585,7 @@ function AdminApp({ logout }) {
           {/* ── VULCANIZING pages ── */}
           {page==='vlc-dashboard'    && <ErrorBoundary><VlcDashboard vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} setPage={setPage}/></ErrorBoundary>}
           {page==='vlc-record'       && <ErrorBoundary><RecordVlcJob employees={employees} services={services} vlcProducts={vlcProducts} onSave={j=>{setVlcJobs(p=>[j,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
-          {page==='vlc-transactions' && <ErrorBoundary><VlcTransactions vlcJobs={vlcJobs} employees={employees} onDelete={id=>setVlcJobs(p=>p.filter(j=>j.id!==id))} showToast={showToast}/></ErrorBoundary>}
+          {page==='vlc-transactions' && <ErrorBoundary><VlcTransactions vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} onDelete={id=>setVlcJobs(p=>p.filter(j=>j.id!==id))} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-ranking'      && <ErrorBoundary><VlcRanking vlcJobs={vlcJobs} employees={employees}/></ErrorBoundary>}
           {page==='vlc-reports'      && <ErrorBoundary><VlcReports vlcJobs={vlcJobs} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
@@ -2706,9 +2711,9 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
         notes:              form.notes||'',
       };
       const res = await api('create','VulcanizingJob',{data:rec});
-      await logEvent('vlc_job_created','Vulcanizing Job Recorded',
-        `${selEmp?.full_name||'—'} · ${form.products_used.map(p=>p.name).join(', ')} · ${peso(totalAmount)}`,
-        selEmp?.full_name||'', res.id, totalAmount);
+      await logEvent({event_type:'vlc_job_created',title:'Vulcanizing Job Recorded',
+        description:`${selEmp?.full_name||'—'} · ${form.products_used.map(p=>p.name).join(', ')} · ${peso(totalAmount)}`,
+        actor_name:selEmp?.full_name||'',entity_id:res?.id||'',amount:totalAmount});
       onSave(res);
       setForm(emptyForm);
       showToast('Job recorded!','success');
@@ -2832,9 +2837,15 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
 }
 
 /* ── VlcTransactions ── */
-function VlcTransactions({ vlcJobs, employees, onDelete, showToast }) {
+function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefresh, showToast }) {
   const [search,setSearch]=React.useState('');
   const [confirmDel,setConfirmDel]=React.useState(null);
+  const [editJob,setEditJob]=React.useState(null);   // job being edited
+  const [editForm,setEditForm]=React.useState(null);
+  const [saving,setSaving]=React.useState(false);
+
+  const vlcEmps=employees.filter(e=>e.business_type==='vulcanizing');
+  const activeProds=vlcProducts.filter(p=>p.is_active!==false);
 
   const sorted=[...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
   const filtered=sorted.filter(j=>{
@@ -2842,9 +2853,71 @@ function VlcTransactions({ vlcJobs, employees, onDelete, showToast }) {
     return !q||(j.vehicle_info||'').toLowerCase().includes(q)||(j.employee_name||'').toLowerCase().includes(q)||(j.customer_name||'').toLowerCase().includes(q);
   });
 
+  const openEdit=j=>{
+    const prods=parseArr(j.products_used).map(p=>({id:p.id||'',name:p.name||'',price:p.price||0,cost:p.cost||0}));
+    setEditForm({
+      customer_name:j.customer_name||'',
+      vehicle_info:j.vehicle_info||'',
+      employee_id:j.employee_id||'',
+      products_used:prods,
+      notes:j.notes||'',
+    });
+    setEditJob(j);
+  };
+
+  const addProdToEdit=prod=>{
+    setEditForm(f=>({...f,products_used:[...f.products_used,{id:prod.id,name:prod.name,price:prod.price||0,cost:prod.default_cost||0}]}));
+  };
+  const removeProdFromEdit=idx=>setEditForm(f=>({...f,products_used:f.products_used.filter((_,i)=>i!==idx)}));
+  const updateEditField=(idx,field,val)=>setEditForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,[field]:parseFloat(val)||0}:p)}));
+
+  const editTotal   = editForm ? editForm.products_used.reduce((s,p)=>s+(p.price||0),0) : 0;
+  const editCost    = editForm ? editForm.products_used.reduce((s,p)=>s+(p.cost||0),0)  : 0;
+  const editNet     = Math.max(0, editTotal - editCost);
+  const editEmp     = editForm ? vlcEmps.find(e=>e.id===editForm.employee_id) : null;
+  const editRate    = editEmp ? (editEmp.commission_percentage||40) : 40;
+  const editComm    = Math.round(editNet * editRate / 100);
+
+  const handleUpdate=async()=>{
+    if(!editForm.employee_id){ showToast('Select an employee','error'); return; }
+    if(editForm.products_used.length===0){ showToast('Add at least one product','error'); return; }
+    setSaving(true);
+    try{
+      const data={
+        customer_name:      editForm.customer_name||'',
+        vehicle_info:       editForm.vehicle_info||'',
+        employee_id:        editForm.employee_id,
+        employee_name:      editEmp?.full_name||'',
+        products_used:      editForm.products_used.map(p=>JSON.stringify(p)),
+        total_product_cost: editCost,
+        total_amount:       editTotal,
+        net_amount:         editNet,
+        amount_paid:        editTotal,
+        commission_rate:    editRate,
+        commission_amount:  editComm,
+        notes:              editForm.notes||'',
+      };
+      await api('update','VulcanizingJob',{id:editJob.id,data});
+      await logEvent({event_type:'vlc_job_updated',title:'Vulcanizing Job Edited',
+        description:`${editEmp?.full_name||'—'} · ${editForm.products_used.map(p=>p.name).join(', ')} · ${peso(editTotal)}`,
+        actor_name:editEmp?.full_name||'',entity_id:editJob.id,amount:editTotal});
+      await onRefresh();
+      setEditJob(null); setEditForm(null);
+      showToast('Job updated!','success');
+    }catch(e){showToast('Update failed: '+e.message,'error');}
+    finally{setSaving(false);}
+  };
+
   const doDelete=async()=>{
     if(!confirmDel)return;
-    try{ await api('delete','VulcanizingJob',{id:confirmDel}); onDelete(confirmDel); showToast('Deleted','success'); }
+    try{
+      const j=vlcJobs.find(x=>x.id===confirmDel);
+      await api('delete','VulcanizingJob',{id:confirmDel});
+      await logEvent({event_type:'vlc_job_deleted',title:'Vulcanizing Job Deleted',
+        description:`${j?.vehicle_info||j?.customer_name||'Job'} · ${peso(j?.total_amount||0)}`,
+        actor_name:j?.employee_name||'',entity_id:confirmDel,amount:j?.total_amount||0});
+      onDelete(confirmDel); showToast('Deleted','success');
+    }
     catch(e){ showToast('Delete failed','error'); }
     finally{ setConfirmDel(null); }
   };
@@ -2858,9 +2931,8 @@ function VlcTransactions({ vlcJobs, employees, onDelete, showToast }) {
       </div>
       {filtered.length===0
         ? <div className="card" style={{textAlign:'center',padding:40,color:'var(--text2)'}}>No jobs found</div>
-        : filtered.map((j,i)=>{
+        : filtered.map((j)=>{
           const d=new Date(j.transaction_date||j.created_date);
-          const svcs=parseArr(j.services).map(s=>s.name||s).join(', ')||'—';
           const prods=parseArr(j.products_used);
           return(
             <div key={j.id} className="card" style={{marginBottom:8,padding:'12px 16px'}}>
@@ -2872,19 +2944,133 @@ function VlcTransactions({ vlcJobs, employees, onDelete, showToast }) {
                     {j.vehicle_info||j.customer_name||'Job'}
                     <span style={{fontSize:10,color:'var(--text2)',fontWeight:400}}>· {j.employee_name||'—'}</span>
                   </div>
-                  <div style={{fontSize:11,color:'var(--text2)',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcs}</div>
-                  {prods.length>0&&<div style={{fontSize:10,color:'var(--red)',marginTop:1}}>Products: {prods.map(p=>p.name).join(', ')} · -{peso(j.total_product_cost||0)}</div>}
+                  {prods.length>0&&<div style={{fontSize:11,color:'var(--text2)',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{prods.map(p=>p.name).join(', ')}</div>}
+                  {j.total_product_cost>0&&<div style={{fontSize:10,color:'var(--red)',marginTop:1}}>Cost: -{peso(j.total_product_cost||0)} · Net: {peso(j.net_amount||0)}</div>}
                   <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
                 </div>
                 <div style={{textAlign:'right',flexShrink:0}}>
                   <div style={{fontWeight:800,color:'var(--gold)',fontSize:14}}>{peso(j.total_amount||0)}</div>
                   <div style={{fontSize:10,color:'var(--success)',marginTop:1}}>+{peso(j.commission_amount||0)} comm</div>
-                  <button onClick={()=>setConfirmDel(j.id)} style={{background:'none',border:'none',color:'var(--red)',fontSize:11,cursor:'pointer',marginTop:4,padding:0}}>Delete</button>
+                  <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:6}}>
+                    <button onClick={()=>openEdit(j)} style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,cursor:'pointer',padding:0,textDecoration:'underline'}}>Edit</button>
+                    <button onClick={()=>setConfirmDel(j.id)} style={{background:'none',border:'none',color:'var(--red)',fontSize:11,cursor:'pointer',padding:0,textDecoration:'underline'}}>Delete</button>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
+
+      {/* ── Edit Modal ── */}
+      {editJob&&editForm&&(
+        <div className="modal-overlay" onClick={()=>{setEditJob(null);setEditForm(null);}}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,padding:0,overflow:'hidden',maxHeight:'90vh',display:'flex',flexDirection:'column'}}>
+            <div style={{background:'var(--bg2)',padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontWeight:800,fontSize:15}}>🔧 Edit Vulcanizing Job</div>
+              <button onClick={()=>{setEditJob(null);setEditForm(null);}} style={{background:'none',border:'none',color:'var(--text2)',fontSize:20,cursor:'pointer',lineHeight:1}}>×</button>
+            </div>
+            <div style={{padding:'16px 20px',overflowY:'auto',flex:1}}>
+              {/* Employee */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:8}}>EMPLOYEE</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {vlcEmps.map(e=>(
+                    <button key={e.id} onClick={()=>setEditForm(f=>({...f,employee_id:e.id}))}
+                      style={{padding:'6px 12px',borderRadius:20,border:'2px solid',fontSize:11,fontWeight:700,cursor:'pointer',
+                        borderColor:editForm.employee_id===e.id?'var(--red)':'var(--border)',
+                        background:editForm.employee_id===e.id?'rgba(217,74,74,0.15)':'transparent',
+                        color:editForm.employee_id===e.id?'var(--red)':'var(--text)'}}>
+                      {e.full_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Products */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:6}}>PRODUCTS / SERVICES</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+                  {activeProds.map(prod=>(
+                    <button key={prod.id} onClick={()=>addProdToEdit(prod)}
+                      style={{padding:'5px 10px',borderRadius:20,border:'1px solid var(--border)',fontSize:10,fontWeight:600,
+                        background:'rgba(255,255,255,0.04)',color:'var(--text)',cursor:'pointer'}}>
+                      + {prod.name} <span style={{color:'var(--success)'}}>₱{prod.price||0}</span>
+                    </button>
+                  ))}
+                </div>
+                {editForm.products_used.length>0&&(
+                  <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 68px 68px 20px',gap:4,marginBottom:4,padding:'0 2px'}}>
+                      <span style={{fontSize:10,color:'var(--text2)',fontWeight:700}}>ITEM</span>
+                      <span style={{fontSize:10,color:'var(--success)',fontWeight:700,textAlign:'center'}}>PRICE</span>
+                      <span style={{fontSize:10,color:'var(--red)',fontWeight:700,textAlign:'center'}}>COST</span>
+                      <span></span>
+                    </div>
+                    {editForm.products_used.map((p,i)=>(
+                      <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 68px 68px 20px',gap:4,alignItems:'center',
+                        marginBottom:6,background:'rgba(255,255,255,0.04)',borderRadius:8,padding:'6px 8px'}}>
+                        <span style={{fontSize:12,fontWeight:700}}>{p.name}</span>
+                        <input type="number" value={p.price} onChange={e=>updateEditField(i,'price',e.target.value)}
+                          style={{width:'100%',background:'var(--bg)',border:'1px solid rgba(34,197,94,0.4)',borderRadius:6,
+                            padding:'3px 5px',color:'var(--success)',fontSize:12,textAlign:'right',fontWeight:700}}/>
+                        <input type="number" value={p.cost} onChange={e=>updateEditField(i,'cost',e.target.value)}
+                          style={{width:'100%',background:'var(--bg)',border:'1px solid rgba(217,74,74,0.4)',borderRadius:6,
+                            padding:'3px 5px',color:'var(--red)',fontSize:12,textAlign:'right',fontWeight:700}}/>
+                        <button onClick={()=>removeProdFromEdit(i)}
+                          style={{background:'none',border:'none',color:'var(--text2)',cursor:'pointer',fontSize:15,padding:0}}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Details */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:8}}>DETAILS</div>
+                <input placeholder="Vehicle info" value={editForm.vehicle_info}
+                  onChange={e=>setEditForm(f=>({...f,vehicle_info:e.target.value}))}
+                  style={{width:'100%',marginBottom:8,background:'var(--bg)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+                <input placeholder="Customer name (optional)" value={editForm.customer_name}
+                  onChange={e=>setEditForm(f=>({...f,customer_name:e.target.value}))}
+                  style={{width:'100%',marginBottom:8,background:'var(--bg)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+                <input placeholder="Notes (optional)" value={editForm.notes}
+                  onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))}
+                  style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}/>
+              </div>
+
+              {/* Live summary */}
+              {editForm.products_used.length>0&&(
+                <div style={{background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:'12px 16px',marginBottom:14}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    {[
+                      {l:'Total Charge',   v:peso(editTotal),  c:'var(--text)'},
+                      {l:'Material Cost',  v:`- ${peso(editCost)}`, c:'var(--red)'},
+                      {l:'Net Amount',     v:peso(editNet),    c:'var(--gold)'},
+                      {l:`Commission (${editRate}%)`,v:peso(editComm),c:'var(--success)'},
+                    ].map((x,i)=>(
+                      <div key={i} style={{textAlign:'center',padding:'6px 4px'}}>
+                        <div style={{fontSize:15,fontWeight:900,color:x.c}}>{x.v}</div>
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{padding:'12px 20px',borderTop:'1px solid var(--border)',display:'flex',gap:10,background:'var(--bg2)'}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>{setEditJob(null);setEditForm(null);}}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleUpdate} disabled={saving}>
+                {saving?'Saving…':'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirm ── */}
       {confirmDel&&(
         <div className="modal-overlay" onClick={()=>setConfirmDel(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:340,textAlign:'center'}}>
