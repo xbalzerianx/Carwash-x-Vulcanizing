@@ -1669,30 +1669,46 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                 </div>
               : empWashes.map((w,i) => {
                   const comm = getEmpComm(w);
-                  const svcs = parseArr(w.services);
-                  const svcNames = svcs.map(s=>s.name||s).join(', ') || 'N/A';
-                  const txDate = new Date(w.transaction_date||w.created_date);
                   const splits = parseArr(w.commission_splits);
                   const isTeam = splits.length > 1;
+                  const mySplit = splits.find(s=>s.employee_id===viewEmp.id||s.id===viewEmp.id);
+                  const commRate = mySplit?.rate || w.commission_rate || viewEmp.commission_percentage || 0;
+                  // Parse services — handle array of objects, array of strings, or JSON strings
+                  const svcs = parseArr(w.services);
+                  const svcNames = svcs.length>0
+                    ? svcs.map(s=>{
+                        if(typeof s==='string'){try{const p=JSON.parse(s);return p.name||p.service_name||s;}catch{return s;}}
+                        return s.name||s.service_name||'';
+                      }).filter(Boolean).join(' · ')
+                    : null;
+                  const txDate = new Date(w.transaction_date||w.created_date);
                   return (
-                    <div key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 20px',
+                    <div key={w.id} style={{display:'flex',alignItems:'flex-start',gap:12,padding:'13px 20px',
                       borderBottom:'1px solid var(--border)',background:i%2===0?'var(--bg)':'var(--bg2)'}}>
-                      <div style={{width:36,height:36,borderRadius:10,background:'rgba(217,74,74,0.12)',
-                        display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🚗</div>
+                      <div style={{width:38,height:38,borderRadius:10,background:'rgba(77,166,255,0.1)',
+                        display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,marginTop:1}}>🚗</div>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}>
+                        <div style={{fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                           {w.plate_number||'No Plate'}
                           {isTeam && <span style={{fontSize:9,background:'rgba(212,175,55,0.2)',color:'var(--gold)',
                             padding:'2px 6px',borderRadius:20,fontWeight:800}}>TEAM</span>}
                         </div>
-                        <div style={{fontSize:11,color:'var(--text2)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcNames}</div>
-                        <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>
+                        {/* Services used */}
+                        {svcNames
+                          ? <div style={{fontSize:11,color:'var(--blue)',marginTop:3,lineHeight:1.5,fontWeight:600}}>
+                              {svcNames}
+                            </div>
+                          : <div style={{fontSize:11,color:'var(--text2)',marginTop:3,fontStyle:'italic'}}>No services recorded</div>
+                        }
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:3}}>
                           {txDate.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {txDate.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
+                          {isTeam && <span style={{marginLeft:6,color:'var(--gold)'}}>· split {splits.length} ways</span>}
                         </div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
-                        <div style={{fontSize:13,fontWeight:800,color:'var(--gold)'}}>{peso(w.total_amount||0)}</div>
-                        <div style={{fontSize:10,color:'var(--success)',marginTop:2}}>+{peso(comm)} comm</div>
+                        <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>{peso(w.total_amount||0)}</div>
+                        <div style={{fontSize:11,color:'var(--success)',marginTop:2,fontWeight:700}}>+{peso(comm)} comm</div>
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{commRate}% rate</div>
                       </div>
                     </div>
                   );
