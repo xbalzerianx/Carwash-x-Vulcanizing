@@ -2134,7 +2134,23 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
   const handleImg=e=>{
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=ev=>{setPreview(ev.target.result);setForm(x=>({...x,avatar_url:ev.target.result}));};
+    r.onload=ev=>{
+      // Compress to 80x80 jpeg to keep payload small
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        canvas.width=80; canvas.height=80;
+        const ctx=canvas.getContext('2d');
+        // crop to square
+        const sz=Math.min(img.width,img.height);
+        const ox=(img.width-sz)/2, oy=(img.height-sz)/2;
+        ctx.drawImage(img,ox,oy,sz,sz,0,0,80,80);
+        const compressed=canvas.toDataURL('image/jpeg',0.75);
+        setPreview(compressed);
+        setForm(x=>({...x,avatar_url:compressed}));
+      };
+      img.src=ev.target.result;
+    };
     r.readAsDataURL(f);
   };
 
@@ -3353,6 +3369,10 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
   const [isPaid,setIsPaid]=React.useState(true);
   const [showOK,setShowOK]=React.useState(false);
   const [lastJob,setLastJob]=React.useState(null);
+  const [customName,setCustomName]=React.useState('');
+  const [customPrice,setCustomPrice]=React.useState('');
+  const [customCost,setCustomCost]=React.useState('');
+  const [showCustom,setShowCustom]=React.useState(false);
 
   const selEmp  = vlcEmps.find(e=>e.id===form.employee_id);
   const commRate= selEmp ? (selEmp.commission_percentage||40) : 40;
@@ -3363,6 +3383,15 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
   };
   const removeProduct = idx => setForm(f=>({...f,products_used:f.products_used.filter((_,i)=>i!==idx)}));
   const updateField = (idx,field,val) => setForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,[field]:parseFloat(val)||0}:p)}));
+
+  const addCustomItem = () => {
+    const name = customName.trim();
+    if (!name) return;
+    const price = parseFloat(customPrice)||0;
+    const cost  = parseFloat(customCost)||0;
+    setForm(f=>({...f,products_used:[...f.products_used,{id:'custom_'+Date.now(),name,price,cost}]}));
+    setCustomName(''); setCustomPrice(''); setCustomCost(''); setShowCustom(false);
+  };
 
   const totalAmount   = form.products_used.reduce((s,p)=>s+(p.price||0),0);
   const totalProdCost = form.products_used.reduce((s,p)=>s+(p.cost||0),0);
@@ -3484,9 +3513,53 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
               ))}
             </div>}
 
+        {/* Custom service add button + inline form */}
+        <div style={{marginTop:10}}>
+          {!showCustom
+            ? <button onClick={()=>setShowCustom(true)}
+                style={{padding:'8px 16px',borderRadius:20,border:'1px dashed rgba(255,255,255,0.25)',fontSize:12,fontWeight:700,
+                  background:'rgba(255,255,255,0.04)',color:'var(--text2)',cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:15}}>✏️</span> Add Custom Service
+              </button>
+            : <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:12,padding:'12px 14px'}}>
+                <div style={{fontSize:11,fontWeight:800,color:'var(--text2)',marginBottom:8,letterSpacing:.5}}>CUSTOM SERVICE</div>
+                <input placeholder="Service name (e.g. Flat Tire Repair)" value={customName} onChange={e=>setCustomName(e.target.value)}
+                  style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 10px',
+                    color:'var(--text)',fontSize:13,boxSizing:'border-box',marginBottom:8}}/>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:'var(--success)',fontWeight:700,marginBottom:4}}>PRICE (charge) ₱</div>
+                    <input type="number" placeholder="0" value={customPrice} onChange={e=>setCustomPrice(e.target.value)}
+                      style={{width:'100%',background:'var(--bg)',border:'2px solid rgba(34,197,94,0.4)',borderRadius:8,padding:'8px 10px',
+                        color:'var(--success)',fontSize:14,fontWeight:800,textAlign:'center',boxSizing:'border-box'}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:'var(--red)',fontWeight:700,marginBottom:4}}>COST (material) ₱</div>
+                    <input type="number" placeholder="0" value={customCost} onChange={e=>setCustomCost(e.target.value)}
+                      style={{width:'100%',background:'var(--bg)',border:'2px solid rgba(217,74,74,0.4)',borderRadius:8,padding:'8px 10px',
+                        color:'var(--red)',fontSize:14,fontWeight:800,textAlign:'center',boxSizing:'border-box'}}/>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>{setShowCustom(false);setCustomName('');setCustomPrice('');setCustomCost('');}}
+                    style={{flex:1,padding:'9px 0',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                    Cancel
+                  </button>
+                  <button onClick={addCustomItem} disabled={!customName.trim()}
+                    style={{flex:2,padding:'9px 0',borderRadius:8,border:'none',
+                      background: customName.trim() ? 'var(--red)' : 'rgba(255,255,255,0.08)',
+                      color: customName.trim() ? '#fff' : 'var(--text2)',
+                      fontSize:13,fontWeight:800,cursor: customName.trim() ? 'pointer' : 'default'}}>
+                    ✚ Add to Job
+                  </button>
+                </div>
+              </div>
+          }
+        </div>
+
         {/* Added items list */}
         {form.products_used.length>0 && (
-          <div style={{marginTop:4}}>
+          <div style={{marginTop:12}}>
             {/* Column headers */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 90px 90px 36px',gap:8,marginBottom:6,padding:'0 6px'}}>
               <span style={{fontSize:10,color:'var(--text2)',fontWeight:800,letterSpacing:.5}}>ITEM</span>
@@ -3598,6 +3671,10 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
   const [editJob,setEditJob]=React.useState(null);
   const [editForm,setEditForm]=React.useState(null);
   const [saving,setSaving]=React.useState(false);
+  const [editCustomName,setEditCustomName]=React.useState('');
+  const [editCustomPrice,setEditCustomPrice]=React.useState('');
+  const [editCustomCost,setEditCustomCost]=React.useState('');
+  const [showEditCustom,setShowEditCustom]=React.useState(false);
 
   const now=new Date();
   const manilaDate=dt=>new Date(dt).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
@@ -3652,6 +3729,13 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
 
   const addProdToEdit=prod=>{
     setEditForm(f=>({...f,products_used:[...f.products_used,{id:prod.id,name:prod.name,price:prod.price||0,cost:prod.default_cost||0}]}));
+
+  const addEditCustomItem=()=>{
+    const name=editCustomName.trim(); if(!name) return;
+    const price=parseFloat(editCustomPrice)||0; const cost=parseFloat(editCustomCost)||0;
+    setEditForm(f=>({...f,products_used:[...f.products_used,{id:'custom_'+Date.now(),name,price,cost}]}));
+    setEditCustomName(''); setEditCustomPrice(''); setEditCustomCost(''); setShowEditCustom(false);
+  };
   };
   const removeProdFromEdit=idx=>setEditForm(f=>({...f,products_used:f.products_used.filter((_,i)=>i!==idx)}));
   const updateEditField=(idx,field,val)=>setEditForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,[field]:parseFloat(val)||0}:p)}));
@@ -3826,7 +3910,7 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
               {/* Products */}
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--text2)',marginBottom:6}}>PRODUCTS / SERVICES</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
                   {activeProds.map(prod=>(
                     <button key={prod.id} onClick={()=>addProdToEdit(prod)}
                       style={{padding:'5px 10px',borderRadius:20,border:'1px solid var(--border)',fontSize:10,fontWeight:600,
@@ -3835,6 +3919,41 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
                     </button>
                   ))}
                 </div>
+                {/* Custom service */}
+                {!showEditCustom
+                  ? <button onClick={()=>setShowEditCustom(true)}
+                      style={{padding:'5px 12px',borderRadius:20,border:'1px dashed rgba(255,255,255,0.2)',fontSize:10,fontWeight:700,
+                        background:'rgba(255,255,255,0.03)',color:'var(--text2)',cursor:'pointer',marginBottom:8}}>
+                      ✏️ Custom Service
+                    </button>
+                  : <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'10px 12px',marginBottom:8}}>
+                      <div style={{fontSize:10,fontWeight:800,color:'var(--text2)',marginBottom:6}}>CUSTOM SERVICE</div>
+                      <input placeholder="Service name" value={editCustomName} onChange={e=>setEditCustomName(e.target.value)}
+                        style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 10px',
+                          color:'var(--text)',fontSize:12,boxSizing:'border-box',marginBottom:6}}/>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+                        <input type="number" placeholder="Price ₱" value={editCustomPrice} onChange={e=>setEditCustomPrice(e.target.value)}
+                          style={{background:'var(--bg)',border:'1px solid rgba(34,197,94,0.4)',borderRadius:8,padding:'6px 8px',
+                            color:'var(--success)',fontSize:12,fontWeight:800,textAlign:'center',boxSizing:'border-box',width:'100%'}}/>
+                        <input type="number" placeholder="Cost ₱" value={editCustomCost} onChange={e=>setEditCustomCost(e.target.value)}
+                          style={{background:'var(--bg)',border:'1px solid rgba(217,74,74,0.4)',borderRadius:8,padding:'6px 8px',
+                            color:'var(--red)',fontSize:12,fontWeight:800,textAlign:'center',boxSizing:'border-box',width:'100%'}}/>
+                      </div>
+                      <div style={{display:'flex',gap:6}}>
+                        <button onClick={()=>{setShowEditCustom(false);setEditCustomName('');setEditCustomPrice('');setEditCustomCost('');}}
+                          style={{flex:1,padding:'7px 0',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                          Cancel
+                        </button>
+                        <button onClick={addEditCustomItem} disabled={!editCustomName.trim()}
+                          style={{flex:2,padding:'7px 0',borderRadius:8,border:'none',
+                            background: editCustomName.trim()?'var(--red)':'rgba(255,255,255,0.08)',
+                            color: editCustomName.trim()?'#fff':'var(--text2)',fontSize:12,fontWeight:800,
+                            cursor: editCustomName.trim()?'pointer':'default'}}>
+                          ✚ Add
+                        </button>
+                      </div>
+                    </div>
+                }
                 {editForm.products_used.length>0&&(
                   <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 68px 68px 20px',gap:4,marginBottom:4,padding:'0 2px'}}>
