@@ -16,6 +16,9 @@
     "services": {
       "type": "array"
     },
+    "products_used": {
+      "type": "array"
+    },
     "total_amount": {
       "type": "number"
     },
@@ -35,12 +38,10 @@
       "type": "string"
     },
     "employees": {
-      "type": "array",
-      "description": "All employees who worked on this car"
+      "type": "array"
     },
     "commission_splits": {
-      "type": "array",
-      "description": "Per-employee commission breakdown"
+      "type": "array"
     }
   },
   "required": [],

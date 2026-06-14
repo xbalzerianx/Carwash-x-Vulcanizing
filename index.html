@@ -1019,9 +1019,10 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
 /* ═══════════════════════════════════════════
    RECORD CAR WASH
 ═══════════════════════════════════════════ */
-function RecordCarWash({ employees, services, onSave, showToast }) {
+function RecordCarWash({ employees, services, vlcProducts=[], onSave, showToast }) {
   const [selectedSvcs, setSelectedSvcs] = useState([]);
   const [selectedEmps, setSelectedEmps] = useState([]); // array of emp objects, max 3
+  const [productsUsed, setProductsUsed] = useState([]); // [{id,name,price,cost}]
   const [custName,     setCustName]     = useState('');
   const [plate,        setPlate]        = useState('');
   const [amtPaid,      setAmtPaid]      = useState('');
@@ -1029,16 +1030,27 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
   const [showOK,       setShowOK]       = useState(false);
   const [lastSaved,    setLastSaved]    = useState(null);
 
-  const activeSvcs = services.filter(s=>s.is_active&&(!s.business_type||s.business_type==='carwash'));
-  const activeEmps = employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash'));
-  const total = selectedSvcs.reduce((s,v)=>s+(v.price||0),0);
+  const activeSvcs  = services.filter(s=>s.is_active&&(!s.business_type||s.business_type==='carwash'));
+  const activeEmps  = employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash'));
+  // Carwash can also use vulcanizing products (consumables like wax, soap, etc.)
+  const activeProds = (vlcProducts||[]).filter(p=>p.is_active);
 
-  // Split commission evenly across all selected employees
+  const total        = selectedSvcs.reduce((s,v)=>s+(v.price||0),0);
+  const totalProdCost = productsUsed.reduce((s,p)=>s+(parseFloat(p.cost)||0),0);
+  const netForComm   = Math.max(0, total - totalProdCost); // commission base = total - product costs
+
+  const addProduct = prod => {
+    setProductsUsed(p=>[...p,{id:prod.id,name:prod.name,price:parseFloat(prod.price)||0,cost:parseFloat(prod.default_cost||prod.cost)||0}]);
+  };
+  const removeProduct = i => setProductsUsed(p=>p.filter((_,idx)=>idx!==i));
+  const updateProd = (i,field,val) => setProductsUsed(p=>p.map((item,idx)=>idx===i?{...item,[field]:parseFloat(val)||0}:item));
+
+  // Split commission evenly across all selected employees — based on NET amount
   const splitCommission = () => {
     if (!selectedEmps.length) return [];
     return selectedEmps.map(emp => {
       const rate = emp.commission_percentage || 0;
-      const share = (total * rate / 100) / selectedEmps.length;
+      const share = (netForComm * rate / 100) / selectedEmps.length;
       return { emp, rate, share };
     });
   };
@@ -1055,7 +1067,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
   };
 
   const toggleSvc = svc => setSelectedSvcs(p => p.find(s=>s.id===svc.id) ? p.filter(s=>s.id!==svc.id) : [...p,svc]);
-  const reset = () => { setSelectedSvcs([]); setSelectedEmps([]); setCustName(''); setPlate(''); setAmtPaid(''); setLastSaved(null); };
+  const reset = () => { setSelectedSvcs([]); setSelectedEmps([]); setProductsUsed([]); setCustName(''); setPlate(''); setAmtPaid(''); setLastSaved(null); };
 
   const handleSave = async () => {
     if (!selectedEmps.length)   return showToast('Select at least one employee','warning');
@@ -1084,6 +1096,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         employee_id:        splits[0].emp.id,
         employee_name:      empNames,
         services:           selectedSvcs.map(s=>JSON.stringify(s)),
+        products_used:      productsUsed.map(p=>JSON.stringify(p)),
         total_amount:       total,
         amount_paid:        paid,
         commission_rate:    splits[0].rate,
@@ -1103,7 +1116,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         amount:      total,
       });
 
-      setLastSaved({ total, splits, svcs: selectedSvcs, paid });
+      setLastSaved({ total, splits, svcs: selectedSvcs, paid, netForComm, totalProdCost, prods: productsUsed });
       onSave(saved);  // single record
       setShowOK(true);
       setTimeout(()=>{setShowOK(false);reset();},3200);
@@ -1184,6 +1197,55 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
         </div>
       </div>
 
+      {/* Products Used (optional) */}
+      {activeProds.length>0 && (
+        <div className="card mb-4" style={{border:'1px solid rgba(34,197,94,0.18)',background:'rgba(34,197,94,0.02)'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+            <div style={{fontWeight:700,fontSize:11,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'1px'}}>
+              🧴 Products Used <span style={{fontWeight:400,textTransform:'none',color:'var(--text2)',fontSize:10}}>(deducted from commission)</span>
+            </div>
+            {productsUsed.length>0&&<div style={{fontSize:11,fontWeight:700,color:'var(--red)',background:'rgba(217,74,74,0.1)',padding:'2px 8px',borderRadius:20,border:'1px solid rgba(217,74,74,0.2)'}}>-{peso(totalProdCost)} cost</div>}
+          </div>
+          {/* Product chips */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:productsUsed.length>0?10:0}}>
+            {activeProds.map(prod=>(
+              <button key={prod.id} onClick={()=>addProduct(prod)}
+                style={{padding:'8px 12px',borderRadius:20,border:'1px solid var(--border)',fontSize:12,fontWeight:600,
+                  background:'rgba(255,255,255,0.04)',color:'var(--text)',cursor:'pointer',transition:'all .2s',
+                  minHeight:38,display:'flex',alignItems:'center',gap:5}}
+                onMouseOver={e=>{e.currentTarget.style.borderColor='var(--success)';e.currentTarget.style.background='rgba(34,197,94,0.08)';}}
+                onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.background='rgba(255,255,255,0.04)';}}>
+                <span style={{color:'var(--success)',fontWeight:900}}>+</span> {prod.name}
+                <span style={{color:'var(--red)',fontSize:11}}>₱{prod.default_cost||prod.cost||0}</span>
+              </button>
+            ))}
+          </div>
+          {/* Added products */}
+          {productsUsed.length>0 && (
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+              {productsUsed.map((p,i)=>(
+                <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:6,alignItems:'center',
+                  marginBottom:6,background:'rgba(255,255,255,0.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(255,255,255,0.06)'}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700}}>{p.name}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:10,color:'var(--text2)'}}>Cost ₱</span>
+                    <input type="number" value={p.cost} onChange={e=>updateProd(i,'cost',e.target.value)}
+                      style={{width:'100%',background:'var(--bg)',border:'2px solid rgba(217,74,74,0.5)',borderRadius:6,
+                        padding:'5px 6px',color:'var(--red)',fontSize:13,textAlign:'center',fontWeight:800,boxSizing:'border-box'}}/>
+                  </div>
+                  <button onClick={()=>removeProduct(i)}
+                    style={{width:30,height:30,background:'rgba(217,74,74,0.1)',border:'1px solid rgba(217,74,74,0.25)',
+                      borderRadius:7,color:'var(--red)',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',
+                      justifyContent:'center',padding:0}}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Multi-employee selector */}
       <div className="card mb-4">
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
@@ -1204,7 +1266,7 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
             {selectedEmps.map((emp,i)=>(
               <span key={emp.id} style={{fontSize:11,color:'var(--text)',background:'rgba(255,255,255,.07)',borderRadius:6,padding:'2px 8px'}}>
                 {emp.full_name.split(' ')[0]}
-                {selectedEmps.length > 0 && <span style={{color:'var(--success)',marginLeft:4}}>({peso((total*(emp.commission_percentage||0)/100)/selectedEmps.length)})</span>}
+                {selectedEmps.length > 0 && <span style={{color:'var(--success)',marginLeft:4}}>({peso((netForComm*(emp.commission_percentage||0)/100)/selectedEmps.length)})</span>}
               </span>
             ))}
           </div>
@@ -1229,7 +1291,9 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
                 <div className="emp-name">{emp.full_name.split(' ')[0]}</div>
                 <div className="emp-comm" style={{color:isSelected?'var(--gold)':'var(--text2)'}}>
                   {isSelected && selectedEmps.length > 1
-                    ? `${peso((total*(emp.commission_percentage||0)/100)/selectedEmps.length)}`
+                    ? `${peso((netForComm*(emp.commission_percentage||0)/100)/selectedEmps.length)}`
+                    : isSelected
+                    ? `${peso(netForComm*(emp.commission_percentage||0)/100)}`
                     : `${emp.commission_percentage}%`}
                 </div>
               </div>
@@ -1252,11 +1316,23 @@ function RecordCarWash({ employees, services, onSave, showToast }) {
             <span className="lbl">Total</span>
             <span className="val" style={{fontSize:18,color:'var(--blue)'}}>{peso(total)}</span>
           </div>
+          {totalProdCost>0&&(
+            <div className="summary-row">
+              <span className="lbl" style={{color:'var(--red)'}}>Product Cost</span>
+              <span className="val" style={{color:'var(--red)'}}>- {peso(totalProdCost)}</span>
+            </div>
+          )}
+          {totalProdCost>0&&(
+            <div className="summary-row" style={{paddingBottom:8,borderBottom:'1px solid var(--border)',marginBottom:4}}>
+              <span className="lbl" style={{fontWeight:700}}>Commission Base</span>
+              <span className="val" style={{color:'var(--text)',fontWeight:800}}>{peso(netForComm)}</span>
+            </div>
+          )}
           {commSplits.map(({emp,rate,share},i)=>(
             <div key={i} className="summary-row">
               <span className="lbl">
-                {emp.full_name.split(' ')[0]} comm.
-                {commSplits.length>1 && <span style={{color:'var(--text2)',fontSize:10}}> (split {commSplits.length})</span>}
+                {emp.full_name.split(' ')[0]} {rate}% comm.
+                {commSplits.length>1 && <span style={{color:'var(--text2)',fontSize:10}}> (÷{commSplits.length})</span>}
               </span>
               <span className="val" style={{color:'var(--success)'}}>{peso(share)}</span>
             </div>
@@ -2829,7 +2905,7 @@ function AdminApp({ logout }) {
         <div className="page-content">
           {/* ── CAR WASH pages ── */}
           {page==='dashboard'        && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
-          {page==='record'           && <ErrorBoundary><RecordCarWash employees={employees} services={services} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
+          {page==='record'           && <ErrorBoundary><RecordCarWash employees={employees} services={services} vlcProducts={vlcProducts} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
           {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} services={services} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
           {page==='ranking'          && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
           {page==='reports'          && <ErrorBoundary><Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
