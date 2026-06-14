@@ -244,7 +244,17 @@
     .modal-title { font-size:17px; font-weight:800; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
 
     /* ── SUCCESS OVERLAY ── */
-    .success-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    @keyframes popIn {
+    0%   { transform: scale(0.7); opacity: 0; }
+    70%  { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes popOut {
+    0%   { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.8); opacity: 0; }
+  }
+
+  .success-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:1000; }
     .success-card {
       background:var(--bg2); border:1px solid var(--border); border-radius:24px;
       padding:38px 32px; text-align:center; max-width:310px; width:90%;
@@ -1182,37 +1192,30 @@ function RecordCarWash({ employees, services, vlcProducts=[], onSave, showToast 
       setLastSaved({ total, splits, svcs: selectedSvcs, paid, netForComm, totalProdCost, prods: productsUsed });
       onSave(saved);  // single record
       setShowOK(true);
-      setTimeout(()=>{setShowOK(false);reset();},3200);
+      setTimeout(()=>{setShowOK(false);reset();},900);
     } catch(e) { showToast('Error: '+e.message,'error'); }
     finally { setSaving(false); }
   };
 
   if (showOK && lastSaved) return (
-    <div className="success-overlay">
-      <div className="success-card">
-        <div style={{width:64,height:64,background:'rgba(34,197,94,.15)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="34" height="34"><polyline points="20 6 9 17 4 12"/></svg>
+    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,pointerEvents:'none'}}>
+      <div style={{
+        background:'var(--bg2)',
+        border:'2px solid var(--success)',
+        borderRadius:20,
+        padding:'24px 36px',
+        textAlign:'center',
+        boxShadow:'0 8px 40px rgba(34,197,94,0.25)',
+        animation:'popIn .15s ease-out',
+        pointerEvents:'auto',
+        minWidth:220,
+      }}>
+        <div style={{fontSize:40,marginBottom:6}}>✅</div>
+        <div style={{fontSize:18,fontWeight:900,color:'var(--success)',marginBottom:4}}>Job Order Created!</div>
+        <div style={{fontSize:13,fontWeight:700,color:'var(--text)',marginBottom:2}}>
+          {lastSaved.svcs.map(s=>s.name).join(' · ')||'Car Wash'}
         </div>
-        <div style={{fontSize:20,fontWeight:900,marginBottom:4}}>Wash Recorded!</div>
-        <div style={{color:'var(--text2)',fontSize:12,marginBottom:16}}>
-          {lastSaved.splits.length > 1 ? `Team of ${lastSaved.splits.length}` : 'Solo wash'} · {lastSaved.svcs.map(s=>s.name).join(', ')}
-        </div>
-        <div style={{background:'var(--glass)',borderRadius:12,padding:14,border:'1px solid var(--border)',marginBottom:10}}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-            <span style={{color:'var(--text2)',fontSize:12}}>Total</span>
-            <span style={{fontWeight:800,fontSize:17,color:'var(--blue)'}}>{peso(lastSaved.total)}</span>
-          </div>
-          {lastSaved.splits.map(({emp,share},i)=>(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <Av emp={emp} size={22} fs={9}/>
-                <span style={{fontSize:12}}>{emp.full_name.split(' ')[0]}</span>
-              </div>
-              <span style={{fontWeight:700,color:'var(--success)',fontSize:13}}>{peso(share)}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{color:'var(--text2)',fontSize:11}}>Ready for next customer...</div>
+        <div style={{fontSize:14,fontWeight:800,color:'var(--blue)',marginTop:4}}>{peso(lastSaved.total)}</div>
       </div>
     </div>
   );
@@ -3298,6 +3301,8 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
   const [form,setForm]=React.useState(emptyForm);
   const [saving,setSaving]=React.useState(false);
   const [isPaid,setIsPaid]=React.useState(true);
+  const [showOK,setShowOK]=React.useState(false);
+  const [lastJob,setLastJob]=React.useState(null);
 
   const selEmp  = vlcEmps.find(e=>e.id===form.employee_id);
   const commRate= selEmp ? (selEmp.commission_percentage||40) : 40;
@@ -3342,15 +3347,37 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
       await logEvent({event_type:'vlc_job_created',title:'Vulcanizing Job Recorded',
         description:`${selEmp?.full_name||'—'} · ${form.products_used.map(p=>p.name).join(', ')} · ${peso(totalAmount)}`,
         actor_name:selEmp?.full_name||'',entity_id:res?.id||'',amount:totalAmount});
-      onSave(res);
-      setForm(emptyForm);
-      setIsPaid(true);
-      showToast('Job recorded!','success');
+      setLastJob({ products: form.products_used, total: totalAmount, emp: selEmp?.full_name||'—' });
+      setShowOK(true);
+      setTimeout(()=>{ setShowOK(false); setLastJob(null); onSave(res); setForm(emptyForm); setIsPaid(true); }, 900);
     } catch(e) { showToast('Save failed: '+e.message,'error'); }
     finally { setSaving(false); }
   };
 
   const activeProds = vlcProducts.filter(p=>p.is_active!==false);
+
+  if (showOK && lastJob) return (
+    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,pointerEvents:'none'}}>
+      <div style={{
+        background:'var(--bg2)',
+        border:'2px solid var(--red)',
+        borderRadius:20,
+        padding:'24px 36px',
+        textAlign:'center',
+        boxShadow:'0 8px 40px rgba(217,74,74,0.25)',
+        animation:'popIn .15s ease-out',
+        pointerEvents:'auto',
+        minWidth:220,
+      }}>
+        <div style={{fontSize:40,marginBottom:6}}>✅</div>
+        <div style={{fontSize:18,fontWeight:900,color:'var(--red)',marginBottom:4}}>Job Order Created!</div>
+        <div style={{fontSize:13,fontWeight:700,color:'var(--text)',marginBottom:2}}>
+          {lastJob.products.map(p=>p.name).join(' · ')||'Vulcanizing Job'}
+        </div>
+        <div style={{fontSize:14,fontWeight:800,color:'var(--gold)',marginTop:4}}>{peso(lastJob.total)}</div>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{maxWidth:560,margin:'0 auto'}}>
