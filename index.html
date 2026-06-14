@@ -1718,14 +1718,54 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
 ═══════════════════════════════════════════ */
 /* ── Employee Profile Modal (separate component to satisfy hooks rules) ── */
 function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onClose, onEdit }) {
-  const [empTab, setEmpTab] = React.useState('washes');
+  const [empTab,     setEmpTab]     = React.useState('washes');
+  const [filter,     setFilter]     = React.useState('all');
+  const [customFrom, setCustomFrom] = React.useState('');
+  const [customTo,   setCustomTo]   = React.useState('');
+
+  const now = new Date();
+
+  /* --- Manila date helpers --- */
+  const manilaDate  = dt => new Date(dt).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+  const manilaToday = ()  => new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 
   /* --- all car washes for this employee (incl. multi-split) --- */
-  const empWashes = carWashes.filter(w => {
+  const allEmpWashes = carWashes.filter(w => {
     if (w.employee_id === viewEmp.id) return true;
     const splits = parseArr(w.commission_splits);
     return splits.some(sp => sp.employee_id === viewEmp.id || sp.id === viewEmp.id);
   }).sort((a,b) => new Date(b.transaction_date||b.created_date) - new Date(a.transaction_date||a.created_date));
+
+  /* --- filter washes by period --- */
+  const applyFilter = list => {
+    const todayStr = manilaToday();
+    if (filter==='today') return list.filter(w => manilaDate(w.transaction_date||w.created_date)===todayStr);
+    if (filter==='yesterday') {
+      const yest = new Date(); yest.setDate(yest.getDate()-1);
+      const yestStr = yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return list.filter(w => manilaDate(w.transaction_date||w.created_date)===yestStr);
+    }
+    if (filter==='7days') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6); cutoff.setHours(0,0,0,0);
+      return list.filter(w => new Date(w.transaction_date||w.created_date)>=cutoff);
+    }
+    if (filter==='14days') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-13); cutoff.setHours(0,0,0,0);
+      return list.filter(w => new Date(w.transaction_date||w.created_date)>=cutoff);
+    }
+    if (filter==='month') {
+      return list.filter(w => {
+        const d = new Date(w.transaction_date||w.created_date);
+        return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+      });
+    }
+    if (filter==='custom' && customFrom && customTo) {
+      return list.filter(w => { const s=manilaDate(w.transaction_date||w.created_date); return s>=customFrom&&s<=customTo; });
+    }
+    return list; // 'all'
+  };
+
+  const empWashes  = applyFilter(allEmpWashes);
 
   /* --- payouts for this employee --- */
   const empPayouts = (payouts||[]).filter(p => p.employee_id === viewEmp.id)
@@ -1740,22 +1780,20 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
     return 0;
   };
 
-  /* --- stats --- */
-  const now = new Date();
-  const total = empWashes.length;
-  const thisMonth = empWashes.filter(w => {
-    const d = new Date(w.transaction_date||w.created_date);
-    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-  }).length;
+  /* --- stats (based on filtered list) --- */
+  const totalCars  = empWashes.length;
   const totalSales = empWashes.reduce((s,w) => s+(w.total_amount||0), 0);
   const totalComm  = empWashes.reduce((s,w) => s+getEmpComm(w), 0);
+
+  const filterLabels = {today:'Today',yesterday:'Yesterday','7days':'7 Days','14days':'14 Days',month:'Month',all:'All Time',custom:'Custom'};
+  const periodLabel  = filterLabels[filter]||'';
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:520,padding:0,overflow:'hidden'}}>
 
         {/* Header */}
-        <div style={{background:'var(--bg2)',padding:'28px 24px 20px',textAlign:'center',borderBottom:'1px solid var(--border)'}}>
+        <div style={{background:'var(--bg2)',padding:'24px 24px 16px',textAlign:'center',borderBottom:'1px solid var(--border)'}}>
           <Av emp={viewEmp} size={72} fs={26} />
           <div style={{fontSize:18,fontWeight:900,marginTop:10}}>{viewEmp.full_name}</div>
           <div style={{color:'var(--text2)',fontSize:12,marginTop:2}}>{viewEmp.contact_number||'No contact'}</div>
@@ -1764,16 +1802,40 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
           </span>
         </div>
 
+        {/* Period filter pills */}
+        <div style={{padding:'10px 16px 0',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}}>
+          <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
+            {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'all',l:'All'},{k:'custom',l:'Custom'}].map(t=>(
+              <button key={t.k} onClick={()=>setFilter(t.k)}
+                style={{padding:'5px 11px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',border:'none',
+                  background: filter===t.k ? 'var(--blue)' : 'rgba(255,255,255,0.06)',
+                  color:       filter===t.k ? '#fff'        : 'var(--text2)',
+                  transition:'all .15s'}}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+          {filter==='custom'&&(
+            <div style={{display:'flex',gap:6,marginBottom:8,alignItems:'center'}}>
+              <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+                style={{flex:1,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',color:'var(--text)',fontSize:12}}/>
+              <span style={{color:'var(--text2)',fontSize:11}}>–</span>
+              <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+                style={{flex:1,background:'var(--bg)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',color:'var(--text)',fontSize:12}}/>
+            </div>
+          )}
+        </div>
+
         {/* Stats row */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderBottom:'1px solid var(--border)'}}>
           {[
-            {l:'Total Cars', v:total,            c:'var(--blue)'},
-            {l:'This Month', v:thisMonth,         c:'var(--success)'},
-            {l:'Revenue',    v:peso(totalSales),  c:'var(--gold)'},
-            {l:'Commission', v:peso(totalComm),   c:'var(--silver)'}
+            {l:'Cars',       v:totalCars,          c:'var(--blue)'},
+            {l:periodLabel,  v:empWashes.length,   c:'var(--success)'},
+            {l:'Revenue',    v:peso(totalSales),   c:'var(--gold)'},
+            {l:'Commission', v:peso(totalComm),    c:'var(--silver)'}
           ].map((x,i)=>(
-            <div key={i} style={{padding:'14px 8px',textAlign:'center',borderRight:i<3?'1px solid var(--border)':'none'}}>
-              <div style={{fontSize:15,fontWeight:800,color:x.c}}>{x.v}</div>
+            <div key={i} style={{padding:'12px 6px',textAlign:'center',borderRight:i<3?'1px solid var(--border)':'none'}}>
+              <div style={{fontSize:14,fontWeight:800,color:x.c}}>{x.v}</div>
               <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{x.l}</div>
             </div>
           ))}
