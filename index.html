@@ -1448,23 +1448,51 @@ function RecordCarWash({ employees, services, vlcProducts=[], onSave, showToast 
    TRANSACTIONS
 ═══════════════════════════════════════════ */
 function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, showToast }) {
-  const [filter,  setFilter]  = useState('today');
+  const [filter,     setFilter]     = useState('today');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo,   setCustomTo]   = useState('');
   const [search,  setSearch]  = useState('');
   const [confirm, setConfirm] = useState(null);
   const [editWash, setEditWash] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [saving,   setSaving]  = useState(false);
-  const now=new Date(), todayStr=today();
+  const now=new Date();
+  const manilaDate = dt => new Date(dt).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+  const todayStr   = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 
   const activeEmps = employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash'));
   const activeSvcs = services.filter(s=>s.is_active&&(!s.business_type||s.business_type==='carwash'));
 
-  const filtered = carWashes.filter(w => {
-    const d=new Date(w.transaction_date||w.created_date), dStr=(w.transaction_date||w.created_date||'').substring(0,10);
-    let pass = filter==='today'?dStr===todayStr:filter==='week'?d>=new Date(now-7*86400000):filter==='month'?(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()):true;
-    if (search) { const q=search.toLowerCase(); pass=pass&&(w.employee_name?.toLowerCase().includes(q)||w.customer_name?.toLowerCase().includes(q)||w.plate_number?.toLowerCase().includes(q)); }
-    return pass;
-  }).sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
+  const applyPeriod = list => {
+    if (filter==='today') return list.filter(w => manilaDate(w.transaction_date||w.created_date)===todayStr);
+    if (filter==='yesterday') {
+      const y=new Date(); y.setDate(y.getDate()-1);
+      const yStr=y.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return list.filter(w => manilaDate(w.transaction_date||w.created_date)===yStr);
+    }
+    if (filter==='7days') {
+      const cut=new Date(); cut.setDate(cut.getDate()-6); cut.setHours(0,0,0,0);
+      return list.filter(w => new Date(w.transaction_date||w.created_date)>=cut);
+    }
+    if (filter==='14days') {
+      const cut=new Date(); cut.setDate(cut.getDate()-13); cut.setHours(0,0,0,0);
+      return list.filter(w => new Date(w.transaction_date||w.created_date)>=cut);
+    }
+    if (filter==='month') return list.filter(w => {
+      const d=new Date(w.transaction_date||w.created_date);
+      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    });
+    if (filter==='custom'&&customFrom&&customTo) return list.filter(w => {
+      const s=manilaDate(w.transaction_date||w.created_date); return s>=customFrom&&s<=customTo;
+    });
+    return list;
+  };
+
+  const filtered = applyPeriod(carWashes.filter(w => {
+    if (!search) return true;
+    const q=search.toLowerCase();
+    return w.employee_name?.toLowerCase().includes(q)||w.customer_name?.toLowerCase().includes(q)||w.plate_number?.toLowerCase().includes(q);
+  })).sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
 
   const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
   const tComm=filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
@@ -1569,11 +1597,25 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
         <div className="section-title" style={{marginBottom:0}}>Transactions</div>
         <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} records · {peso(tSales)}</div>
       </div>
-      <div className="tabs">
-        {['today','week','month','all'].map(t=>(
-          <div key={t} className={`tab ${filter===t?'active':''}`} onClick={()=>setFilter(t)}>{t.charAt(0).toUpperCase()+t.slice(1)}</div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+        {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'all',l:'All'},{k:'custom',l:'Custom'}].map(t=>(
+          <button key={t.k} onClick={()=>setFilter(t.k)}
+            style={{padding:'6px 14px',borderRadius:20,fontSize:12,fontWeight:700,cursor:'pointer',border:'none',transition:'all .15s',
+              background: filter===t.k ? 'var(--blue)' : 'rgba(255,255,255,0.06)',
+              color:       filter===t.k ? '#fff'        : 'var(--text2)'}}>
+            {t.l}
+          </button>
         ))}
       </div>
+      {filter==='custom'&&(
+        <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center'}}>
+          <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+            style={{flex:1,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:12}}/>
+          <span style={{color:'var(--text2)',fontSize:12,fontWeight:700}}>–</span>
+          <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+            style={{flex:1,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:12}}/>
+        </div>
+      )}
       <div className="form-group mb-4" style={{position:'relative'}}>
         <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>{Ic.search}</div>
         <input className="form-input" placeholder="Search employee, customer, plate..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}} />
@@ -3541,19 +3583,51 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
 /* ── VlcTransactions ── */
 function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefresh, showToast }) {
   const [search,setSearch]=React.useState('');
+  const [filter,setFilter]=React.useState('today');
+  const [customFrom,setCustomFrom]=React.useState('');
+  const [customTo,setCustomTo]=React.useState('');
   const [confirmDel,setConfirmDel]=React.useState(null);
-  const [editJob,setEditJob]=React.useState(null);   // job being edited
+  const [editJob,setEditJob]=React.useState(null);
   const [editForm,setEditForm]=React.useState(null);
   const [saving,setSaving]=React.useState(false);
+
+  const now=new Date();
+  const manilaDate=dt=>new Date(dt).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+  const todayStr=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 
   const vlcEmps=employees.filter(e=>e.business_type==='vulcanizing');
   const activeProds=vlcProducts.filter(p=>p.is_active!==false);
 
+  const applyPeriod=list=>{
+    if(filter==='today') return list.filter(j=>manilaDate(j.transaction_date||j.created_date)===todayStr);
+    if(filter==='yesterday'){
+      const y=new Date(); y.setDate(y.getDate()-1);
+      const yStr=y.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return list.filter(j=>manilaDate(j.transaction_date||j.created_date)===yStr);
+    }
+    if(filter==='7days'){
+      const cut=new Date(); cut.setDate(cut.getDate()-6); cut.setHours(0,0,0,0);
+      return list.filter(j=>new Date(j.transaction_date||j.created_date)>=cut);
+    }
+    if(filter==='14days'){
+      const cut=new Date(); cut.setDate(cut.getDate()-13); cut.setHours(0,0,0,0);
+      return list.filter(j=>new Date(j.transaction_date||j.created_date)>=cut);
+    }
+    if(filter==='month') return list.filter(j=>{
+      const d=new Date(j.transaction_date||j.created_date);
+      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    });
+    if(filter==='custom'&&customFrom&&customTo) return list.filter(j=>{
+      const s=manilaDate(j.transaction_date||j.created_date); return s>=customFrom&&s<=customTo;
+    });
+    return list;
+  };
+
   const sorted=[...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
-  const filtered=sorted.filter(j=>{
+  const filtered=applyPeriod(sorted.filter(j=>{
     const q=search.toLowerCase();
     return !q||(j.vehicle_info||'').toLowerCase().includes(q)||(j.employee_name||'').toLowerCase().includes(q)||(j.customer_name||'').toLowerCase().includes(q);
-  });
+  }));
 
   const openEdit=j=>{
     const prods=parseArr(j.products_used).map(p=>({id:p.id||'',name:p.name||'',price:p.price||0,cost:p.cost||0}));
@@ -3631,10 +3705,49 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
 
   return (
     <div>
-      <div className="flex-between mb-4">
+      <div className="flex-between mb-3">
         <div className="section-title" style={{marginBottom:0}}>🔧 Vulcanizing Jobs ({filtered.length})</div>
-        <input placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)}
-          style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',color:'var(--text)',fontSize:12,width:160}}/>
+        <div style={{fontSize:12,color:'var(--text2)'}}>{peso(filtered.reduce((s,j)=>s+(j.total_amount||0),0))}</div>
+      </div>
+      {/* Period filter pills */}
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+        {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'all',l:'All'},{k:'custom',l:'Custom'}].map(t=>(
+          <button key={t.k} onClick={()=>setFilter(t.k)}
+            style={{padding:'6px 14px',borderRadius:20,fontSize:12,fontWeight:700,cursor:'pointer',border:'none',transition:'all .15s',
+              background: filter===t.k ? 'var(--red)' : 'rgba(255,255,255,0.06)',
+              color:       filter===t.k ? '#fff'       : 'var(--text2)'}}>
+            {t.l}
+          </button>
+        ))}
+      </div>
+      {filter==='custom'&&(
+        <div style={{display:'flex',gap:8,marginBottom:10,alignItems:'center'}}>
+          <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+            style={{flex:1,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:12}}/>
+          <span style={{color:'var(--text2)',fontSize:12,fontWeight:700}}>–</span>
+          <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+            style={{flex:1,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:12}}/>
+        </div>
+      )}
+      {/* Search bar */}
+      <div style={{position:'relative',marginBottom:12}}>
+        <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',fontSize:13}}>🔍</span>
+        <input placeholder="Search vehicle, employee, customer…" value={search} onChange={e=>setSearch(e.target.value)}
+          style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px 8px 32px',
+            color:'var(--text)',fontSize:12,boxSizing:'border-box'}}/>
+      </div>
+      {/* Summary stats */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
+        {[
+          {l:'Jobs',    v:filtered.length,                                                  c:'var(--red)'},
+          {l:'Revenue', v:peso(filtered.reduce((s,j)=>s+(j.total_amount||0),0)),            c:'var(--gold)'},
+          {l:'Comm.',   v:peso(filtered.reduce((s,j)=>s+(j.commission_amount||0),0)),       c:'var(--success)'},
+        ].map((s,i)=>(
+          <div key={i} style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 12px',textAlign:'center'}}>
+            <div style={{fontSize:16,fontWeight:900,color:s.c}}>{s.v}</div>
+            <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{s.l}</div>
+          </div>
+        ))}
       </div>
       {filtered.length===0
         ? <div className="card" style={{textAlign:'center',padding:40,color:'var(--text2)'}}>No jobs found</div>
