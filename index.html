@@ -1874,7 +1874,8 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
 
   /* --- stats (based on filtered list) --- */
   const totalCars  = empWashes.length;
-  const totalSales = empWashes.reduce((s,w) => s+(w.total_amount||0), 0);
+  const getNetAmt  = w => { const c=parseArr(w.products_used).reduce((s,p)=>s+(typeof p==='object'?p.cost||0:0),0); const n=Math.max(0,(w.total_amount||0)-c); return n>0?n:w.total_amount||0; };
+  const totalSales = empWashes.reduce((s,w) => s+getNetAmt(w), 0);
   const totalComm  = empWashes.reduce((s,w) => s+getEmpComm(w), 0);
 
   const filterLabels = {today:'Today',yesterday:'Yesterday','7days':'7 Days','14days':'14 Days',month:'Month',all:'All Time',custom:'Custom'};
@@ -2013,11 +2014,18 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                           {isTeam && <span style={{marginLeft:6,color:'var(--gold)'}}>· split {splits.length} ways</span>}
                         </div>
                       </div>
-                      <div style={{textAlign:'right',flexShrink:0}}>
-                        <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>{peso(w.total_amount||0)}</div>
-                        <div style={{fontSize:11,color:'var(--success)',marginTop:2,fontWeight:700}}>+{peso(comm)} comm</div>
-                        <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{commRate}% rate</div>
-                      </div>
+                      {(()=>{
+                        const prodCost = parseArr(w.products_used).reduce((s,p)=>s+(typeof p==='object'?p.cost||0:0),0);
+                        const netAmt   = Math.max(0,(w.total_amount||0)-prodCost);
+                        return (
+                          <div style={{textAlign:'right',flexShrink:0}}>
+                            <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>{peso(netAmt>0?netAmt:w.total_amount||0)}</div>
+                            {prodCost>0&&<div style={{fontSize:10,color:'var(--red)',marginTop:1,fontWeight:700}}>-{peso(prodCost)} cost</div>}
+                            <div style={{fontSize:11,color:'var(--success)',marginTop:2,fontWeight:700}}>+{peso(comm)} comm</div>
+                            <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{commRate}% rate</div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })
@@ -2134,8 +2142,8 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
     if (!form.full_name.trim()) return showToast('Enter employee name','warning');
     setSaving(true);
     try {
-      // Strip base64 avatar_url — only store avatar_color to keep payload small & fast
-      const {avatar_url:_av, ...saveData} = form;
+      // Save avatar_url (base64) — included so photo renders in Av component
+      const saveData = {...form};
       if(editing) {
         await api('update','Employee',{id:editing.id,data:saveData});
         logEvent({event_type:'employee_updated',title:`Employee updated — ${form.full_name}`,description:`Commission: ${form.commission_percentage}% | Status: ${form.is_active?'Active':'Inactive'}`,actor_name:form.full_name,entity_id:editing.id});
