@@ -14,44 +14,41 @@
       "type": "string"
     },
     "employees": {
-      "type": "array",
-      "description": "All employees on this job"
+      "type": "array"
     },
     "services": {
-      "type": "array",
-      "description": "Services performed"
+      "type": "array"
     },
     "products_used": {
-      "type": "array",
-      "description": "Products used with price/cost per item"
+      "type": "array"
     },
     "total_product_cost": {
-      "type": "number",
-      "default": 0
+      "type": "number"
     },
     "total_amount": {
-      "type": "number",
-      "default": 0
+      "type": "number"
     },
     "net_amount": {
-      "type": "number",
-      "default": 0
+      "type": "number"
     },
     "amount_paid": {
-      "type": "number",
-      "default": 0
+      "type": "number"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "paid",
+        "unpaid"
+      ]
     },
     "commission_rate": {
-      "type": "number",
-      "default": 0
+      "type": "number"
     },
     "commission_amount": {
-      "type": "number",
-      "default": 0
+      "type": "number"
     },
     "commission_splits": {
-      "type": "array",
-      "description": "Per-employee commission breakdown"
+      "type": "array"
     },
     "transaction_date": {
       "type": "string"

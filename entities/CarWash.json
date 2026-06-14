@@ -25,6 +25,13 @@
     "amount_paid": {
       "type": "number"
     },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "paid",
+        "unpaid"
+      ]
+    },
     "commission_rate": {
       "type": "number"
     },
