@@ -623,11 +623,13 @@ const Ic = {
 };
 
 /* Avatar component */
-function Av({ emp, size=40, fs=15 }) {
+function Av({ emp, size=40, fs=15, center=false }) {
   const [err,setErr] = useState(false);
+  // Re-check err if avatar_url changes (new photo uploaded)
+  React.useEffect(()=>{ setErr(false); },[emp?.avatar_url]);
   const hasImg = emp?.avatar_url && !err;
   return (
-    <div style={{width:size,height:size,borderRadius:'50%',background:hasImg?'transparent':(emp?.avatar_color||'#D94A4A'),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:fs,overflow:'hidden',flexShrink:0}}>
+    <div style={{width:size,height:size,borderRadius:'50%',background:hasImg?'transparent':(emp?.avatar_color||'#D94A4A'),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:fs,overflow:'hidden',flexShrink:0,margin:center?'0 auto':undefined}}>
       {hasImg ? <img src={emp.avatar_url} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(emp?.full_name)}
     </div>
   );
@@ -1887,7 +1889,7 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
 
         {/* Header */}
         <div style={{background:'var(--bg2)',padding:'24px 24px 16px',textAlign:'center',borderBottom:'1px solid var(--border)'}}>
-          <Av emp={viewEmp} size={72} fs={26} />
+          <Av emp={viewEmp} size={72} fs={26} center={true} />
           <div style={{fontSize:18,fontWeight:900,marginTop:10}}>{viewEmp.full_name}</div>
           <div style={{color:'var(--text2)',fontSize:12,marginTop:2}}>{viewEmp.contact_number||'No contact'}</div>
           <span className={`badge ${viewEmp.is_active?'badge-green':'badge-red'}`} style={{marginTop:6,display:'inline-block'}}>
@@ -2340,14 +2342,14 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
 
       {viewEmp && (
         <EmpProfileModal
-          viewEmp={viewEmp}
+          viewEmp={employees.find(e=>e.id===viewEmp.id)||viewEmp}
           carWashes={carWashes}
           payouts={payouts}
           parseArr={parseArr}
           peso={peso}
           Av={Av}
           onClose={()=>setViewEmp(null)}
-          onEdit={()=>{setViewEmp(null);openEdit(viewEmp);}}
+          onEdit={()=>{setViewEmp(null);openEdit(employees.find(e=>e.id===viewEmp.id)||viewEmp);}}
         />
       )}
       {confirmDeleteEmp && (
