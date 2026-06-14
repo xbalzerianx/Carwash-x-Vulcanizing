@@ -1749,33 +1749,58 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                   const isTeam = splits.length > 1;
                   const mySplit = splits.find(s=>s.employee_id===viewEmp.id||s.id===viewEmp.id);
                   const commRate = mySplit?.rate || w.commission_rate || viewEmp.commission_percentage || 0;
-                  // Parse services — handle array of objects, array of strings, or JSON strings
+
+                  // Helper: parse name from a raw/stringified item
+                  const parseName = s => {
+                    if (!s) return null;
+                    if (typeof s === 'string') {
+                      try { const p = JSON.parse(s); return p.name || p.service_name || null; } catch { return s.trim() || null; }
+                    }
+                    return s.name || s.service_name || null;
+                  };
+
+                  // Services (what was done)
                   const svcs = parseArr(w.services);
-                  const svcNames = svcs.length>0
-                    ? svcs.map(s=>{
-                        if(typeof s==='string'){try{const p=JSON.parse(s);return p.name||p.service_name||s;}catch{return s;}}
-                        return s.name||s.service_name||'';
-                      }).filter(Boolean).join(' · ')
-                    : null;
+                  const svcList = svcs.map(parseName).filter(Boolean);
+
+                  // Products used (materials deducted from commission)
+                  const prods = parseArr(w.products_used);
+                  const prodList = prods.map(p => {
+                    const name = parseName(p);
+                    const cost = (typeof p === 'object' && p !== null) ? (p.cost||0) : 0;
+                    return name ? (cost>0 ? `${name} (-₱${cost})` : name) : null;
+                  }).filter(Boolean);
+
                   const txDate = new Date(w.transaction_date||w.created_date);
                   return (
                     <div key={w.id} style={{display:'flex',alignItems:'flex-start',gap:12,padding:'13px 20px',
                       borderBottom:'1px solid var(--border)',background:i%2===0?'var(--bg)':'var(--bg2)'}}>
                       <div style={{width:38,height:38,borderRadius:10,background:'rgba(77,166,255,0.1)',
-                        display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,marginTop:1}}>🚗</div>
+                        display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,marginTop:2}}>🚗</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                           {w.plate_number||'No Plate'}
                           {isTeam && <span style={{fontSize:9,background:'rgba(212,175,55,0.2)',color:'var(--gold)',
                             padding:'2px 6px',borderRadius:20,fontWeight:800}}>TEAM</span>}
                         </div>
-                        {/* Services used */}
-                        {svcNames
-                          ? <div style={{fontSize:11,color:'var(--blue)',marginTop:3,lineHeight:1.5,fontWeight:600}}>
-                              {svcNames}
+
+                        {/* Services */}
+                        {svcList.length>0
+                          ? <div style={{fontSize:11,color:'var(--blue)',marginTop:3,fontWeight:600,lineHeight:1.5,
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>
+                              🚿 {svcList.join(' · ')}
                             </div>
                           : <div style={{fontSize:11,color:'var(--text2)',marginTop:3,fontStyle:'italic'}}>No services recorded</div>
                         }
+
+                        {/* Products used */}
+                        {prodList.length>0 && (
+                          <div style={{fontSize:11,color:'var(--red)',marginTop:2,fontWeight:600,lineHeight:1.5,
+                            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>
+                            🧴 {prodList.join(' · ')}
+                          </div>
+                        )}
+
                         <div style={{fontSize:10,color:'var(--text2)',marginTop:3}}>
                           {txDate.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {txDate.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
                           {isTeam && <span style={{marginLeft:6,color:'var(--gold)'}}>· split {splits.length} ways</span>}
