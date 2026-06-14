@@ -900,25 +900,70 @@ function Ranking({ carWashes, employees, campaign={} }) {
    DASHBOARD
 ═══════════════════════════════════════════ */
 function Dashboard({ carWashes, employees, services, campaign, setPage }) {
-  const todayStr   = today();
-  const now        = new Date();
-  const todayW     = carWashes.filter(w => (w.transaction_date||w.created_date||'').startsWith(todayStr));
-  const monthW     = carWashes.filter(w => { const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
-  const todaySales = todayW.reduce((s,w)=>s+(w.total_amount||0),0);
-  const todayComm  = todayW.reduce((s,w)=>s+(w.commission_amount||0),0);
-  const monthSales = monthW.reduce((s,w)=>s+(w.total_amount||0),0);
-  const avgSale    = todayW.length>0 ? todaySales/todayW.length : 0;
+  const now = new Date();
+  const [filter, setFilter] = React.useState('today');
+  const [customFrom, setCustomFrom] = React.useState('');
+  const [customTo,   setCustomTo]   = React.useState('');
+
+  // ── date helpers (Manila-aware) ──
+  const manilaToday = () => {
+    return new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Manila'}); // YYYY-MM-DD
+  };
+  const manilaDate = dt => {
+    const d = new Date(dt);
+    return d.toLocaleDateString('en-CA', {timeZone:'Asia/Manila'});
+  };
+
+  const getFiltered = () => {
+    const todayStr = manilaToday();
+    if (filter==='today') return carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===todayStr);
+    if (filter==='yesterday') {
+      const yest = new Date(); yest.setDate(yest.getDate()-1);
+      const yestStr = yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===yestStr);
+    }
+    if (filter==='7days') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6); cutoff.setHours(0,0,0,0);
+      return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=cutoff);
+    }
+    if (filter==='14days') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-13); cutoff.setHours(0,0,0,0);
+      return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=cutoff);
+    }
+    if (filter==='month') {
+      return carWashes.filter(w=>{ const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+    }
+    if (filter==='custom' && customFrom && customTo) {
+      return carWashes.filter(w=>{ const s=manilaDate(w.transaction_date||w.created_date); return s>=customFrom&&s<=customTo; });
+    }
+    return carWashes;
+  };
+
+  const filtered   = getFiltered();
+  const totalSales = filtered.reduce((s,w)=>s+(w.total_amount||0),0);
+  const totalComm  = filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
+  const avgSale    = filtered.length>0 ? totalSales/filtered.length : 0;
+
+  // Today always for "top today" stat
+  const todayStr = manilaToday();
+  const todayW   = carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===todayStr);
 
   const empMap = {};
-  todayW.forEach(w => {
-    if (!empMap[w.employee_id]) empMap[w.employee_id]={name:w.employee_name,id:w.employee_id,cars:0,sales:0};
-    empMap[w.employee_id].cars++;
-    empMap[w.employee_id].sales+=(w.total_amount||0);
+  filtered.forEach(w => {
+    const splits = (()=>{ try{ const a=Array.isArray(w.commission_splits)?w.commission_splits:[]; return a.map(s=>typeof s==='string'?JSON.parse(s):s); }catch{return[];} })();
+    if(splits.length>0){
+      splits.forEach(sp=>{ const id=sp.employee_id||sp.id; if(!id)return; if(!empMap[id])empMap[id]={name:sp.employee_name||sp.name||'',id,cars:0,sales:0}; empMap[id].cars++; empMap[id].sales+=(w.total_amount||0); });
+    } else {
+      if(!w.employee_id)return; if(!empMap[w.employee_id])empMap[w.employee_id]={name:w.employee_name||'',id:w.employee_id,cars:0,sales:0}; empMap[w.employee_id].cars++; empMap[w.employee_id].sales+=(w.total_amount||0);
+    }
   });
   const topEmp  = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales)[0];
   const ranking = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales).slice(0,3);
-  const recent  = [...carWashes].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date)).slice(0,5);
-  const timeNow = now.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const recent  = [...carWashes].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).slice(0,5);
+
+  const filterLabels = {today:'Today',yesterday:'Yesterday','7days':'Last 7 Days','14days':'Last 14 Days',month:'This Month',custom:'Custom'};
+  const periodLabel  = filterLabels[filter]||'';
+  const timeNow = now.toLocaleString('en-PH',{timeZone:'Asia/Manila',weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const posColors=['var(--gold)','var(--silver)','var(--bronze)'];
   const posLabels=['1ST','2ND','3RD'];
 
@@ -932,12 +977,33 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
         </div>
       </div>
 
+      {/* Period filter */}
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:14,padding:'0 2px'}}>
+        {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'custom',l:'Custom'}].map(t=>(
+          <button key={t.k}
+            className={`btn btn-sm ${filter===t.k?'btn-blue':'btn-ghost'}`}
+            onClick={()=>setFilter(t.k)}
+            style={{borderRadius:20,fontSize:12,fontWeight:700,padding:'6px 14px'}}>
+            {t.l}
+          </button>
+        ))}
+      </div>
+      {filter==='custom'&&(
+        <div style={{display:'flex',gap:8,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
+          <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+            style={{flex:1,minWidth:130,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13}}/>
+          <span style={{color:'var(--text2)',fontSize:12}}>to</span>
+          <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+            style={{flex:1,minWidth:130,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13}}/>
+        </div>
+      )}
+
       <div className="stats-grid">
         {[
-          {label:'Cars Today',   value:todayW.length,    sub:`${monthW.length} this month`,   cls:'stat-blue',  color:'var(--blue)'},
-          {label:'Sales Today',  value:peso(todaySales), sub:`${peso(monthSales)} this month`, cls:'stat-green', color:'var(--success)'},
-          {label:'Commission',   value:peso(todayComm),  sub:`avg ${peso(todayW.length>0?todayComm/todayW.length:0)} / car`, cls:'stat-yellow',color:'var(--gold)'},
-          {label:'Top Today',    value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray',color:'var(--silver)'},
+          {label:`Cars (${periodLabel})`,   value:filtered.length,    sub:`${todayW.length} today`,           cls:'stat-blue',   color:'var(--blue)'},
+          {label:`Sales (${periodLabel})`,  value:peso(totalSales),   sub:`avg ${peso(avgSale)} / car`,       cls:'stat-green',  color:'var(--success)'},
+          {label:'Commission',              value:peso(totalComm),    sub:`${periodLabel}`,                   cls:'stat-yellow', color:'var(--gold)'},
+          {label:'Top Performer',           value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray', color:'var(--silver)'},
         ].map((s,i)=>(
           <div key={i} className={`stat-card ${s.cls}`}>
             <div className="stat-label">{s.label}</div>
@@ -949,9 +1015,9 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
 
       <div className="grid-2">
         <div className="card">
-          <div className="section-title">Today's Top Washers</div>
+          <div className="section-title">{periodLabel} — Top Washers</div>
           {ranking.length===0
-            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions today yet</div>
+            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions for this period</div>
             : ranking.map((r,i) => {
                 const emp = employees.find(e=>e.id===r.id);
                 return (
@@ -960,35 +1026,31 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                     <Av emp={emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={36} fs={13} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:13,fontWeight:700}}>{r.name}</div>
-                      <div style={{fontSize:11,color:'var(--text2)'}}>{peso(r.sales)}</div>
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{r.cars} cars · {peso(r.sales)}</div>
                     </div>
                     <div style={{fontSize:18,fontWeight:900,color:posColors[i]}}>{r.cars}</div>
-                    <div style={{fontSize:10,color:'var(--text2)'}}>cars</div>
                   </div>
                 );
-              })
-          }
-          <button className="btn btn-blue btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('ranking')}>Full Leaderboard ↗</button>
+              })}
         </div>
 
         <div className="card">
           <div className="section-title">Recent Transactions</div>
           {recent.length===0
-            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions yet.</div>
-            : recent.map((w,i)=>{
-                const emp=employees.find(e=>e.id===w.employee_id);
+            ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions yet</div>
+            : recent.map((w,i) => {
+                const emp = employees.find(e=>e.id===w.employee_id);
                 return (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
                     <Av emp={emp||{full_name:w.employee_name}} size={32} fs={12} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:600}}>{w.employee_name}</div>
-                      <div style={{fontSize:11,color:'var(--text2)'}}>{fmtTime(w.created_date)} · {parseArr(w.services).length||0} svc</div>
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{manilaDate(w.transaction_date||w.created_date)} · {parseArr(w.services).length||0} svc</div>
                     </div>
                     <div style={{fontSize:13,fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</div>
                   </div>
                 );
-              })
-          }
+              })}
           <button className="btn btn-blue btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('transactions')}>View All →</button>
         </div>
       </div>
@@ -1015,7 +1077,6 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
     </div>
   );
 }
-
 /* ═══════════════════════════════════════════
    RECORD CAR WASH
 ═══════════════════════════════════════════ */
@@ -1784,22 +1845,14 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                             padding:'2px 6px',borderRadius:20,fontWeight:800}}>TEAM</span>}
                         </div>
 
-                        {/* Services */}
-                        {svcList.length>0
-                          ? <div style={{fontSize:11,color:'var(--blue)',marginTop:3,fontWeight:600,lineHeight:1.5,
+                        {/* Services + Products combined */}
+                        {(svcList.length>0||prodList.length>0)
+                          ? <div style={{fontSize:11,color:'var(--blue)',marginTop:3,fontWeight:600,lineHeight:1.6,
                               overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>
-                              🚿 {svcList.join(' · ')}
+                              {[...svcList, ...prodList].join(' · ')}
                             </div>
-                          : <div style={{fontSize:11,color:'var(--text2)',marginTop:3,fontStyle:'italic'}}>No services recorded</div>
+                          : null
                         }
-
-                        {/* Products used */}
-                        {prodList.length>0 && (
-                          <div style={{fontSize:11,color:'var(--red)',marginTop:2,fontWeight:600,lineHeight:1.5,
-                            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>
-                            🧴 {prodList.join(' · ')}
-                          </div>
-                        )}
 
                         <div style={{fontSize:10,color:'var(--text2)',marginTop:3}}>
                           {txDate.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {txDate.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
@@ -2963,14 +3016,32 @@ function AdminApp({ logout }) {
 /* ── VlcDashboard ── */
 function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
   const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
-  const todayStr = new Date().toISOString().slice(0,10);
   const now = new Date();
   const [filter, setFilter] = React.useState('today');
+  const [customFrom, setCustomFrom] = React.useState('');
+  const [customTo,   setCustomTo]   = React.useState('');
+
+  const manilaDate = dt => new Date(dt).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+  const manilaToday = () => new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 
   const getFiltered = () => {
-    if (filter==='today')  return vlcJobs.filter(j=>(j.transaction_date||j.created_date||'').slice(0,10)===todayStr);
-    if (filter==='week')   return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=new Date(now-7*86400000));
+    const todayStr = manilaToday();
+    if (filter==='today') return vlcJobs.filter(j=>manilaDate(j.transaction_date||j.created_date)===todayStr);
+    if (filter==='yesterday') {
+      const yest = new Date(); yest.setDate(yest.getDate()-1);
+      const yestStr = yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return vlcJobs.filter(j=>manilaDate(j.transaction_date||j.created_date)===yestStr);
+    }
+    if (filter==='7days') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6); cutoff.setHours(0,0,0,0);
+      return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=cutoff);
+    }
+    if (filter==='14days') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-13); cutoff.setHours(0,0,0,0);
+      return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=cutoff);
+    }
     if (filter==='month')  return vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+    if (filter==='custom'&&customFrom&&customTo) return vlcJobs.filter(j=>{const s=manilaDate(j.transaction_date||j.created_date);return s>=customFrom&&s<=customTo;});
     return vlcJobs;
   };
   const filtered = getFiltered();
@@ -2998,7 +3069,7 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
   const posColors=['var(--gold)','var(--silver)','var(--bronze)'];
   const posLabels=['1ST','2ND','3RD'];
 
-  const filterLabel = {today:'Today',week:'This Week',month:'This Month',all:'All Time'}[filter];
+  const filterLabel = {today:'Today',yesterday:'Yesterday','7days':'Last 7 Days','14days':'Last 14 Days',month:'This Month',custom:'Custom Range'}[filter]||'';
 
   return (
     <div>
@@ -3012,11 +3083,25 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
       </div>
 
       {/* Period filter */}
-      <div className="tabs" style={{marginBottom:16}}>
-        {[{k:'today',l:'Today'},{k:'week',l:'Week'},{k:'month',l:'Month'},{k:'all',l:'All'}].map(t=>(
-          <div key={t.k} className={`tab ${filter===t.k?'active':''}`} onClick={()=>setFilter(t.k)}>{t.l}</div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:14,padding:'0 2px'}}>
+        {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'custom',l:'Custom'}].map(t=>(
+          <button key={t.k}
+            className={`btn btn-sm ${filter===t.k?'btn-primary':'btn-ghost'}`}
+            onClick={()=>setFilter(t.k)}
+            style={{borderRadius:20,fontSize:12,fontWeight:700,padding:'6px 14px'}}>
+            {t.l}
+          </button>
         ))}
       </div>
+      {filter==='custom'&&(
+        <div style={{display:'flex',gap:8,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
+          <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+            style={{flex:1,minWidth:130,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13}}/>
+          <span style={{color:'var(--text2)',fontSize:12}}>to</span>
+          <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+            style={{flex:1,minWidth:130,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13}}/>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="stats-grid" style={{marginBottom:16}}>
