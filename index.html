@@ -625,12 +625,14 @@ const Ic = {
 /* Avatar component */
 function Av({ emp, size=40, fs=15, center=false }) {
   const [err,setErr] = useState(false);
-  // Re-check err if avatar_url changes (new photo uploaded)
-  React.useEffect(()=>{ setErr(false); },[emp?.avatar_url]);
-  const hasImg = emp?.avatar_url && !err;
+  // Merge localStorage avatar (DB doesn't store base64, localStorage does)
+  const localAvatar = emp?.id ? (()=>{ try { return localStorage.getItem('kgcar_avatar_'+emp.id)||''; } catch(e){ return ''; } })() : '';
+  const avatarSrc = emp?.avatar_url || localAvatar;
+  React.useEffect(()=>{ setErr(false); },[avatarSrc]);
+  const hasImg = avatarSrc && !err;
   return (
     <div style={{width:size,height:size,borderRadius:'50%',background:hasImg?'transparent':(emp?.avatar_color||'#D94A4A'),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:fs,overflow:'hidden',flexShrink:0,margin:center?'0 auto':undefined}}>
-      {hasImg ? <img src={emp.avatar_url} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(emp?.full_name)}
+      {hasImg ? <img src={avatarSrc} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(emp?.full_name)}
     </div>
   );
 }
@@ -2131,7 +2133,11 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
   };
 
   const openAdd =()=>{setEditing(null);setForm(emptyEmpForm);setPreview('');setShowModal(true);};
-  const openEdit=emp=>{setEditing(emp);setForm({...emp,avatar_url:emp.avatar_url||''});setPreview(emp.avatar_url||'');setShowModal(true);};
+  const openEdit=emp=>{
+    const localAv = emp?.id ? (()=>{ try { return localStorage.getItem('kgcar_avatar_'+emp.id)||''; } catch(e){ return ''; } })() : '';
+    const av = emp.avatar_url||localAv||'';
+    setEditing(emp);setForm({...emp,avatar_url:av});setPreview(av);setShowModal(true);
+  };
 
   const handleImg=e=>{
     const f=e.target.files[0]; if(!f) return;
@@ -2160,14 +2166,24 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
     if (!form.full_name.trim()) return showToast('Enter employee name','warning');
     setSaving(true);
     try {
-      // Save avatar_url (base64) — included so photo renders in Av component
-      const saveData = {...form};
+      // Strip avatar_url from DB payload — store it in localStorage instead
+      // This avoids payload-too-large errors on Base44 entity API
+      const {avatar_url:avatarBase64, ...saveData} = form;
+      let savedId = editing?.id;
       if(editing) {
         await api('update','Employee',{id:editing.id,data:saveData});
         logEvent({event_type:'employee_updated',title:`Employee updated — ${form.full_name}`,description:`Commission: ${form.commission_percentage}% | Status: ${form.is_active?'Active':'Inactive'}`,actor_name:form.full_name,entity_id:editing.id});
       } else {
         const created = await api('create','Employee',{data:saveData});
-        logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:created?.id||''});
+        savedId = created?.id;
+        logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:savedId||''});
+      }
+      // Persist avatar to localStorage so it survives without the DB
+      if (savedId && avatarBase64) {
+        try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e){}
+      } else if (savedId && !avatarBase64) {
+        // Photo was removed
+        try { localStorage.removeItem('kgcar_avatar_'+savedId); } catch(e){}
       }
       await onRefresh(); setShowModal(false);
       showToast(editing?'Employee updated!':'Employee added!','success');
