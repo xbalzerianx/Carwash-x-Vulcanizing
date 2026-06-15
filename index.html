@@ -2055,11 +2055,11 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                       </div>
                       <div style={{flex:1}}>
                         <div style={{display:'flex',alignItems:'center',gap:6}}>
-                          <span style={{fontSize:13,fontWeight:700}}>{p.note || (isAdvance ? 'Cash Advance' : 'Earned Payout')}</span>
+                          <span style={{fontSize:13,fontWeight:700}}>{isAdvance ? (p.note||'Cash Advance') : 'Earned Payout'}</span>
                           {isAdvance && <span style={{fontSize:9,fontWeight:800,background:'rgba(77,166,255,0.18)',color:'#4DA6FF',padding:'2px 7px',borderRadius:20,border:'1px solid rgba(77,166,255,0.3)',letterSpacing:.5}}>ADVANCE</span>}
                         </div>
-                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>
-                          {pd.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {pd.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
+                        <div style={{fontSize:12,fontWeight:600,color:'var(--text)',marginTop:3}}>
+                          {pd.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} <span style={{color:'var(--text2)',fontWeight:400}}>·</span> {pd.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
                         </div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
