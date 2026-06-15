@@ -11,15 +11,20 @@
     },
     "amount": {
       "type": "number",
-      "title": "Amount Paid Out"
+      "title": "Amount"
     },
     "note": {
       "type": "string",
-      "title": "Note (e.g. advance, full payout)"
+      "title": "Note"
     },
     "payout_date": {
       "type": "string",
       "title": "Payout Date (ISO)"
+    },
+    "is_advance": {
+      "type": "boolean",
+      "title": "Is Cash Advance",
+      "default": false
     },
     "business_type": {
       "type": "string",

@@ -2044,20 +2044,27 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                 </div>
               : empPayouts.map((p,i) => {
                   const pd = new Date(p.payout_date||p.created_date);
+                  const isAdvance = p.is_advance === true || (p.note||'').toLowerCase().includes('advance');
                   return (
                     <div key={p.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 20px',
                       borderBottom:'1px solid var(--border)',background:i%2===0?'var(--bg)':'var(--bg2)'}}>
-                      <div style={{width:36,height:36,borderRadius:10,background:'rgba(212,175,55,0.12)',
-                        display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>💳</div>
+                      <div style={{width:36,height:36,borderRadius:10,
+                        background: isAdvance ? 'rgba(77,166,255,0.12)' : 'rgba(212,175,55,0.12)',
+                        display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
+                        {isAdvance ? '💵' : '💳'}
+                      </div>
                       <div style={{flex:1}}>
-                        <div style={{fontSize:13,fontWeight:700}}>{p.note||'Commission Payout'}</div>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{fontSize:13,fontWeight:700}}>{p.note || (isAdvance ? 'Cash Advance' : 'Commission Payout')}</span>
+                          {isAdvance && <span style={{fontSize:9,fontWeight:800,background:'rgba(77,166,255,0.18)',color:'#4DA6FF',padding:'2px 7px',borderRadius:20,border:'1px solid rgba(77,166,255,0.3)',letterSpacing:.5}}>ADVANCE</span>}
+                        </div>
                         <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>
                           {pd.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})} · {pd.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}
                         </div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
-                        <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>{peso(p.amount||0)}</div>
-                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Paid out</div>
+                        <div style={{fontSize:14,fontWeight:800,color: isAdvance ? '#4DA6FF' : 'var(--gold)'}}>{peso(p.amount||0)}</div>
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{isAdvance ? 'Advance' : 'Paid out'}</div>
                       </div>
                     </div>
                   );
@@ -2087,7 +2094,12 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
   const [payoutEmp,setPayoutEmp]=useState(null);
   const [payoutAmt,setPayoutAmt]=useState('');
   const [payoutNote,setPayoutNote]=useState('');
-  const [payoutSaving,setPayoutSaving]=useState(false)
+  const [payoutSaving,setPayoutSaving]=useState(false);
+  const [showAdvanceModal,setShowAdvanceModal]=useState(false);
+  const [advanceEmp,setAdvanceEmp]=useState(null);
+  const [advanceAmt,setAdvanceAmt]=useState('');
+  const [advanceNote,setAdvanceNote]=useState('');
+  const [advanceSaving,setAdvanceSaving]=useState(false);
   const [confirmDeleteEmp,setConfirmDeleteEmp]=useState(null);
   const fileRef=useRef();
   const COLORS=['#D94A4A','#22C55E','#D4AF37','#B8BCC2','#B87333','#6C63FF','#E91E8C','#00BCD4'];
@@ -2130,6 +2142,28 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
       showToast(`Payout of ${peso(amt)} recorded for ${payoutEmp.full_name}`,'success');
     } catch(e){showToast('Error: '+e.message,'error');}
     finally{setPayoutSaving(false);}
+  };
+
+  const handleAdvance = async () => {
+    const amt = parseFloat(advanceAmt);
+    if (!amt || amt <= 0) return showToast('Enter a valid amount','warning');
+    setAdvanceSaving(true);
+    try {
+      await api('create','CommissionPayout',{data:{
+        employee_id:   advanceEmp.id,
+        employee_name: advanceEmp.full_name,
+        amount:        amt,
+        note:          advanceNote || 'Cash Advance',
+        payout_date:   new Date().toISOString(),
+        is_advance:    true,
+      }});
+      logEvent({event_type:'cash_advance',title:`Cash Advance — ${advanceEmp.full_name}`,description:`${advanceNote||'Cash Advance'} · ${peso(amt)}`,actor_name:advanceEmp.full_name,entity_id:advanceEmp.id,amount:amt});
+      await onRefresh();
+      setShowAdvanceModal(false);
+      setAdvanceAmt(''); setAdvanceNote('');
+      showToast(`Cash advance of ${peso(amt)} recorded for ${advanceEmp.full_name}`,'success');
+    } catch(e){showToast('Error: '+e.message,'error');}
+    finally{setAdvanceSaving(false);}
   };
 
   const openAdd =()=>{setEditing(null);setForm(emptyEmpForm);setPreview('');setShowModal(true);};
@@ -2248,7 +2282,10 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
                   <div style={{background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 12px',marginBottom:10}}>
                     <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                       <span style={{fontSize:11,color:'var(--text2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>This Month Commission</span>
-                      <button className="btn btn-sm btn-primary" style={{padding:'3px 10px',fontSize:11}} onClick={e=>{e.stopPropagation();setPayoutEmp(emp);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}>Pay Out</button>
+                      <div style={{display:'flex',gap:6}}>
+                        <button className="btn btn-sm" style={{padding:'3px 10px',fontSize:11,background:'rgba(77,166,255,0.15)',color:'#4DA6FF',border:'1px solid rgba(77,166,255,0.3)'}} onClick={e=>{e.stopPropagation();setAdvanceEmp(emp);setAdvanceAmt('');setAdvanceNote('');setShowAdvanceModal(true);}}>💵 Advance</button>
+                        <button className="btn btn-sm btn-primary" style={{padding:'3px 10px',fontSize:11}} onClick={e=>{e.stopPropagation();setPayoutEmp(emp);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}>Pay Out</button>
+                      </div>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:6}}>
                       {[{l:'Earned',v:peso(cs.earned),c:'var(--gold)'},{l:'Paid',v:peso(cs.paid),c:'var(--success)'},{l:'Balance',v:peso(cs.remaining),c:cs.remaining>0?'var(--red)':'var(--text2)'}].map((x,i)=>(
@@ -2355,6 +2392,41 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
           </div>
         );
       })()}
+
+      {showAdvanceModal && advanceEmp && (
+        <div className="modal-overlay" onClick={()=>setShowAdvanceModal(false)}>
+          <div className="modal" style={{maxWidth:380}} onClick={e=>e.stopPropagation()}>
+            <div className="modal-title">💵 Cash Advance</div>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18,background:'var(--glass)',border:'1px solid var(--border)',borderRadius:12,padding:14}}>
+              <Av emp={advanceEmp} size={46} fs={17} />
+              <div>
+                <div style={{fontWeight:800,fontSize:15}}>{advanceEmp.full_name}</div>
+                <div style={{fontSize:12,color:'var(--text2)'}}>Cash advance — separate from earned commission</div>
+              </div>
+            </div>
+            <div style={{background:'rgba(77,166,255,0.08)',border:'1px solid rgba(77,166,255,0.2)',borderRadius:10,padding:'10px 14px',marginBottom:16,fontSize:12,color:'#4DA6FF',lineHeight:1.5}}>
+              ℹ️ This records a cash advance against the employee. It will appear in their payout history.
+            </div>
+            <div className="form-group">
+              <label className="form-label">Advance Amount (₱)</label>
+              <input className="form-input" type="number" min="1" placeholder="e.g. 500" value={advanceAmt} onChange={e=>setAdvanceAmt(e.target.value)} style={{fontSize:22,fontWeight:800,textAlign:'center'}} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Note (optional)</label>
+              <input className="form-input" placeholder="e.g. Cash advance June 15..." value={advanceNote} onChange={e=>setAdvanceNote(e.target.value)} />
+            </div>
+            {parseFloat(advanceAmt) > 0 && (
+              <div style={{background:'rgba(77,166,255,0.08)',border:'1px solid rgba(77,166,255,0.2)',borderRadius:10,padding:12,marginBottom:14,fontSize:13}}>
+                Recording advance of <strong style={{color:'#4DA6FF'}}>{peso(parseFloat(advanceAmt)||0)}</strong> for {advanceEmp.full_name}
+              </div>
+            )}
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setShowAdvanceModal(false)}>Cancel</button>
+              <button className="btn" style={{flex:1,background:'#4DA6FF',color:'#fff',fontWeight:800}} onClick={handleAdvance} disabled={advanceSaving||!advanceAmt||parseFloat(advanceAmt)<=0}>{advanceSaving?'Saving...':'Record Advance'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {viewEmp && (
         <EmpProfileModal
