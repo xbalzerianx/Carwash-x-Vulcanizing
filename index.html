@@ -1495,7 +1495,7 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
   const filtered = applyPeriod(carWashes.filter(w => {
     if (!search) return true;
     const q=search.toLowerCase();
-    return w.employee_name?.toLowerCase().includes(q)||w.customer_name?.toLowerCase().includes(q)||w.plate_number?.toLowerCase().includes(q);
+    return w.employee_name?.toLowerCase().includes(q)||w.plate_number?.toLowerCase().includes(q);
   })).sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
 
   const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
@@ -3801,7 +3801,7 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
   const sorted=[...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
   const filtered=applyPeriod(sorted.filter(j=>{
     const q=search.toLowerCase();
-    return !q||(j.vehicle_info||'').toLowerCase().includes(q)||(j.employee_name||'').toLowerCase().includes(q)||(j.customer_name||'').toLowerCase().includes(q);
+    return !q||(j.employee_name||'').toLowerCase().includes(q)||(j.vehicle_info||'').toLowerCase().includes(q);
   }));
 
   const openEdit=j=>{
