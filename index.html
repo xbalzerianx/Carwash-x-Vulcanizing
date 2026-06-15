@@ -2055,7 +2055,7 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                       </div>
                       <div style={{flex:1}}>
                         <div style={{display:'flex',alignItems:'center',gap:6}}>
-                          <span style={{fontSize:13,fontWeight:700}}>{p.note || (isAdvance ? 'Cash Advance' : 'Commission Payout')}</span>
+                          <span style={{fontSize:13,fontWeight:700}}>{p.note || (isAdvance ? 'Cash Advance' : 'Earned Payout')}</span>
                           {isAdvance && <span style={{fontSize:9,fontWeight:800,background:'rgba(77,166,255,0.18)',color:'#4DA6FF',padding:'2px 7px',borderRadius:20,border:'1px solid rgba(77,166,255,0.3)',letterSpacing:.5}}>ADVANCE</span>}
                         </div>
                         <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>
@@ -2064,7 +2064,7 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
                         <div style={{fontSize:14,fontWeight:800,color: isAdvance ? '#4DA6FF' : 'var(--gold)'}}>{peso(p.amount||0)}</div>
-                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{isAdvance ? 'Advance' : 'Paid out'}</div>
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{isAdvance ? 'Advance' : 'Earned Payout'}</div>
                       </div>
                     </div>
                   );
@@ -2132,10 +2132,10 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         employee_id:   payoutEmp.id,
         employee_name: payoutEmp.full_name,
         amount:        amt,
-        note:          payoutNote || 'Advance payout',
+        note:          payoutNote || 'Earned Payout',
         payout_date:   new Date().toISOString(),
       }});
-      logEvent({event_type:'commission_paid',title:`Commission paid — ${payoutEmp.full_name}`,description:`${payoutNote||'Advance payout'} | Remaining after: ${peso(getCommStats(payoutEmp.id).remaining - amt)}`,actor_name:payoutEmp.full_name,entity_id:payoutEmp.id,amount:amt});
+      logEvent({event_type:'commission_paid',title:`Commission paid — ${payoutEmp.full_name}`,description:`${payoutNote||'Earned Payout'} | Remaining after: ${peso(getCommStats(payoutEmp.id).remaining - amt)}`,actor_name:payoutEmp.full_name,entity_id:payoutEmp.id,amount:amt});
       await onRefresh();
       setShowPayoutModal(false);
       setPayoutAmt(''); setPayoutNote('');
