@@ -1456,6 +1456,7 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
   const [search,  setSearch]  = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [editWash, setEditWash] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -1621,8 +1622,43 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
         </div>
       )}
       <div className="form-group mb-4" style={{position:'relative'}}>
-        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>{Ic.search}</div>
-        <input className="form-input" placeholder="Search employee, customer, plate..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}} />
+        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15,zIndex:2}}>{Ic.search}</div>
+        <input
+          className="form-input"
+          placeholder="Search employee or plate..."
+          value={search}
+          onChange={e=>{ setSearch(e.target.value); setShowSuggestions(true); }}
+          onFocus={()=>setShowSuggestions(true)}
+          onBlur={()=>setTimeout(()=>setShowSuggestions(false),180)}
+          style={{paddingLeft:34, paddingRight: search ? 32 : 12}}
+        />
+        {search && (
+          <button onClick={()=>{setSearch('');setShowSuggestions(false);}} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text2)',cursor:'pointer',fontSize:16,lineHeight:1,padding:2}}>✕</button>
+        )}
+        {showSuggestions && search.length > 0 && (() => {
+          const q = search.toLowerCase();
+          const matched = activeEmps.filter(e => e.full_name.toLowerCase().includes(q));
+          if (!matched.length) return null;
+          return (
+            <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:999,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:10,marginTop:4,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',overflow:'hidden'}}>
+              <div style={{padding:'6px 12px 4px',fontSize:10,color:'var(--text2)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5,borderBottom:'1px solid var(--border)'}}>Employees</div>
+              {matched.map(e => (
+                <div key={e.id}
+                  onMouseDown={()=>{ setSearch(e.full_name); setShowSuggestions(false); }}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',cursor:'pointer',transition:'background .15s'}}
+                  onMouseEnter={ev=>ev.currentTarget.style.background='rgba(77,166,255,0.08)'}
+                  onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}
+                >
+                  <Av emp={e} size={30} fs={11} />
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{e.full_name}</div>
+                    <div style={{fontSize:10,color:'var(--text2)'}}>{e.commission_percentage}% commission</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
       <div className="stats-grid" style={{gridTemplateColumns:'1fr 1fr 1fr',marginBottom:16}}>
         {[{l:'Cars',v:filtered.length,c:'var(--blue)',cls:'stat-blue'},{l:'Revenue',v:peso(tSales),c:'var(--success)',cls:'stat-green'},{l:'Commission',v:peso(tComm),c:'var(--gold)',cls:'stat-yellow'}].map((s,i)=>(
