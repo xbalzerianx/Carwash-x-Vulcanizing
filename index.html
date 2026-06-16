@@ -2338,13 +2338,13 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         <span style={{fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,whiteSpace:'nowrap'}}>Viewing:</span>
         <select
           value={selMonth+'-'+selYear}
-          onChange={e=>{const[m,y]=e.target.value.split('-');setSelMonth(parseInt(m));setSelYear(parseInt(y));}}
+          onChange={e=>{const parts=e.target.value.split('-');setSelMonth(parseInt(parts[0]));setSelYear(parseInt(parts[1]));}}
           style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',
             color:'var(--text)',fontSize:13,fontWeight:700,cursor:'pointer',outline:'none',
             borderColor: bizType==='vulcanizing'?'var(--red)':'var(--blue)'}}>
           {monthOptions.map((o,i)=>(
             <option key={i} value={o.month+'-'+o.year}>
-              {o.month===nowRef.getMonth()&&o.year===nowRef.getFullYear()?'📅 This Month':o.label}
+              {o.month===nowRef.getMonth()&&o.year===nowRef.getFullYear()?'This Month':o.label}
             </option>
           ))}
         </select>
