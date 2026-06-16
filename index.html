@@ -2333,23 +2333,21 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         <div className="section-title" style={{marginBottom:0}}>{bizType==='vulcanizing'?'🔧 Vulcanizing Employees':'🚗 Car Wash Employees'}</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} Add Employee</button>
       </div>
-      {/* Month Filter */}
-      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-        <span style={{fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5}}>Viewing:</span>
-        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-          {monthOptions.map((o,i)=>{
-            const active = o.month===selMonth && o.year===selYear;
-            return (
-              <button key={i} onClick={()=>{setSelMonth(o.month);setSelYear(o.year);}}
-                style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:20,border:'1px solid',cursor:'pointer',transition:'all .15s',
-                  background: active?(bizType==='vulcanizing'?'var(--red)':'var(--blue)'):'var(--glass)',
-                  borderColor: active?(bizType==='vulcanizing'?'var(--red)':'var(--blue)'):'var(--border)',
-                  color: active?'#fff':'var(--text2)'}}>
-                {o.month===nowRef.getMonth()&&o.year===nowRef.getFullYear()?'This Month':o.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* Month Filter — dropdown */}
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+        <span style={{fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,whiteSpace:'nowrap'}}>Viewing:</span>
+        <select
+          value={selMonth+'-'+selYear}
+          onChange={e=>{const[m,y]=e.target.value.split('-');setSelMonth(parseInt(m));setSelYear(parseInt(y));}}
+          style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',
+            color:'var(--text)',fontSize:13,fontWeight:700,cursor:'pointer',outline:'none',
+            borderColor: bizType==='vulcanizing'?'var(--red)':'var(--blue)'}}>
+          {monthOptions.map((o,i)=>(
+            <option key={i} value={o.month+'-'+o.year}>
+              {o.month===nowRef.getMonth()&&o.year===nowRef.getFullYear()?'📅 This Month':o.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="grid-2">
         {displayEmployees.map(emp=>{
