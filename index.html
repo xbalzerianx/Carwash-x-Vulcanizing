@@ -2146,22 +2146,35 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
   const [advanceNote,setAdvanceNote]=useState('');
   const [advanceSaving,setAdvanceSaving]=useState(false);
   const [confirmDeleteEmp,setConfirmDeleteEmp]=useState(null);
+  // Month filter: default to current month
+  const nowRef = new Date();
+  const [selMonth, setSelMonth] = useState(nowRef.getMonth());
+  const [selYear,  setSelYear]  = useState(nowRef.getFullYear());
+  // Build last 12 months options
+  const monthOptions = React.useMemo(()=>{
+    const opts=[];
+    for(let i=0;i<12;i++){
+      const d=new Date(nowRef.getFullYear(), nowRef.getMonth()-i, 1);
+      opts.push({month:d.getMonth(), year:d.getFullYear(),
+        label: d.toLocaleDateString('en-PH',{month:'long',year:'numeric'})});
+    }
+    return opts;
+  },[]);
   const fileRef=useRef();
   const COLORS=['#D94A4A','#22C55E','#D4AF37','#B8BCC2','#B87333','#6C63FF','#E91E8C','#00BCD4'];
   // Filter employees by business type
   const displayEmployees = employees.filter(e=>bizType==='vulcanizing'?(e.business_type==='vulcanizing'):(e.business_type==='carwash'||!e.business_type));
 
-  // Commission math
+  // Commission math — uses selMonth/selYear filter
   const getCommStats = (empId) => {
-    const now = new Date();
     const monthWashes = carWashes.filter(w => {
       const d = new Date(w.transaction_date||w.created_date);
-      return w.employee_id===empId && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+      return w.employee_id===empId && d.getMonth()===selMonth && d.getFullYear()===selYear;
     });
     const earned  = monthWashes.reduce((s,w)=>s+(w.commission_amount||0),0);
     const paid    = (payouts||[]).filter(p => {
       const d = new Date(p.payout_date||p.created_date);
-      return p.employee_id===empId && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+      return p.employee_id===empId && d.getMonth()===selMonth && d.getFullYear()===selYear;
     }).reduce((s,p)=>s+(p.amount||0),0);
     return { earned, paid, remaining: earned - paid };
   };
@@ -2302,21 +2315,41 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
   };
 
   const getStats=id=>{
-    const ws=carWashes.filter(w=>w.employee_id===id),now=new Date();
+    const ws=carWashes.filter(w=>w.employee_id===id);
     return {
       total:ws.length,
       today:ws.filter(w=>(w.transaction_date||w.created_date||'').startsWith(today())).length,
-      month:ws.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length,
+      month:ws.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()===selMonth&&d.getFullYear()===selYear;}).length,
       sales:ws.reduce((s,w)=>s+(w.total_amount||0),0),
       comm:ws.reduce((s,w)=>s+(w.commission_amount||0),0),
     };
   };
+
+  const selectedMonthLabel = monthOptions.find(o=>o.month===selMonth&&o.year===selYear)?.label || '';
 
   return (
     <div>
       <div className="flex-between mb-4">
         <div className="section-title" style={{marginBottom:0}}>{bizType==='vulcanizing'?'🔧 Vulcanizing Employees':'🚗 Car Wash Employees'}</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>{Ic.plus} Add Employee</button>
+      </div>
+      {/* Month Filter */}
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+        <span style={{fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5}}>Viewing:</span>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {monthOptions.map((o,i)=>{
+            const active = o.month===selMonth && o.year===selYear;
+            return (
+              <button key={i} onClick={()=>{setSelMonth(o.month);setSelYear(o.year);}}
+                style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:20,border:'1px solid',cursor:'pointer',transition:'all .15s',
+                  background: active?(bizType==='vulcanizing'?'var(--red)':'var(--blue)'):'var(--glass)',
+                  borderColor: active?(bizType==='vulcanizing'?'var(--red)':'var(--blue)'):'var(--border)',
+                  color: active?'#fff':'var(--text2)'}}>
+                {o.month===nowRef.getMonth()&&o.year===nowRef.getFullYear()?'This Month':o.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="grid-2">
         {displayEmployees.map(emp=>{
@@ -2340,17 +2373,26 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
               </div>
               {(() => {
                 const cs = getCommStats(emp.id);
-                return cs.earned > 0 ? (
+                const mLabel = monthOptions.find(o=>o.month===selMonth&&o.year===selYear);
+                const isCurrentMonth = selMonth===nowRef.getMonth()&&selYear===nowRef.getFullYear();
+                const boxLabel = isCurrentMonth ? 'This Month Commission' : (mLabel?.label||'') + ' Commission';
+                return (
                   <div style={{background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 12px',marginBottom:10}}>
-                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                      <span style={{fontSize:11,color:'var(--text2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>This Month Commission</span>
-                      <div style={{display:'flex',gap:6}}>
-                        <button className="btn btn-sm" style={{padding:'3px 10px',fontSize:11,background:'rgba(77,166,255,0.15)',color:'#4DA6FF',border:'1px solid rgba(77,166,255,0.3)'}} onClick={e=>{e.stopPropagation();setAdvanceEmp(emp);setAdvanceAmt('');setAdvanceNote('');setShowAdvanceModal(true);}}>💵 Advance</button>
-                        <button className="btn btn-sm btn-primary" style={{padding:'3px 10px',fontSize:11}} onClick={e=>{e.stopPropagation();setPayoutEmp(emp);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}>Pay Out</button>
-                      </div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                      <span style={{fontSize:11,color:'var(--text2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>{boxLabel}</span>
+                      {isCurrentMonth && (
+                        <div style={{display:'flex',gap:6}}>
+                          <button className="btn btn-sm" style={{padding:'3px 10px',fontSize:11,background:'rgba(77,166,255,0.15)',color:'#4DA6FF',border:'1px solid rgba(77,166,255,0.3)'}} onClick={e=>{e.stopPropagation();setAdvanceEmp(emp);setAdvanceAmt('');setAdvanceNote('');setShowAdvanceModal(true);}}>💵 Advance</button>
+                          <button className="btn btn-sm btn-primary" style={{padding:'3px 10px',fontSize:11}} onClick={e=>{e.stopPropagation();setPayoutEmp(emp);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}>Pay Out</button>
+                        </div>
+                      )}
                     </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:6}}>
-                      {[{l:'Earned',v:peso(cs.earned),c:'var(--gold)'},{l:'Paid',v:peso(cs.paid),c:'var(--success)'},{l:'Balance',v:peso(cs.remaining),c:cs.remaining>0?'var(--red)':'var(--text2)'}].map((x,i)=>(
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:4}}>
+                      {[
+                        {l:'Earned', v:peso(cs.earned),    c:'var(--gold)'},
+                        {l:'Paid',   v:peso(cs.paid),      c:'var(--success)'},
+                        {l:'Balance',v:peso(cs.remaining), c:cs.remaining>0?'var(--red)':'var(--text2)'}
+                      ].map((x,i)=>(
                         <div key={i} style={{textAlign:'center',background:'var(--glass)',borderRadius:7,padding:'6px 4px'}}>
                           <div style={{fontSize:13,fontWeight:800,color:x.c}}>{x.v}</div>
                           <div style={{fontSize:10,color:'var(--text2)'}}>{x.l}</div>
@@ -2358,7 +2400,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
                       ))}
                     </div>
                   </div>
-                ) : null;
+                );
               })()}
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                 <button className="btn btn-ghost btn-sm" style={{flex:'1 1 60px',minWidth:0}} onClick={e=>{e.stopPropagation();openEdit(emp);}}>{Ic.edit} Edit</button>
