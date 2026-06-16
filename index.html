@@ -1496,10 +1496,15 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
   const filtered = applyPeriod(carWashes.filter(w => {
     if (!search) return true;
     const q=search.toLowerCase().trim();
+    // Check if query exactly matches a known employee name
+    const matchedEmp = activeEmps.find(e=>e.full_name.toLowerCase()===q);
+    if(matchedEmp) {
+      // Match by employee_id (most reliable) OR by stored employee_name (for old records)
+      return w.employee_id===matchedEmp.id
+        || (w.employee_name||'').toLowerCase()===q;
+    }
+    // Partial search — match name or plate
     const empName=(w.employee_name||'').toLowerCase();
-    // If query exactly matches a known employee name, do exact match only
-    const exactEmpMatch = activeEmps.some(e=>e.full_name.toLowerCase()===q);
-    if(exactEmpMatch) return empName===q||w.plate_number?.toLowerCase()===q;
     return empName.includes(q)||w.plate_number?.toLowerCase().includes(q);
   })).sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
 
