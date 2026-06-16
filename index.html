@@ -3858,6 +3858,7 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
 /* ── VlcTransactions ── */
 function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefresh, showToast }) {
   const [search,setSearch]=React.useState('');
+  const [showSuggestionsVlc, setShowSuggestionsVlc]=React.useState(false);
   const [filter,setFilter]=React.useState('today');
   const [customFrom,setCustomFrom]=React.useState('');
   const [customTo,setCustomTo]=React.useState('');
@@ -3904,8 +3905,13 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
 
   const sorted=[...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
   const filtered=applyPeriod(sorted.filter(j=>{
-    const q=search.toLowerCase();
-    return !q||(j.employee_name||'').toLowerCase().includes(q)||(j.vehicle_info||'').toLowerCase().includes(q);
+    const q=search.toLowerCase().trim();
+    if(!q) return true;
+    // Exact employee match → use employee_id (reliable, avoids orphaned name matches)
+    const matchedEmp = vlcEmps.find(e=>e.full_name.toLowerCase()===q);
+    if(matchedEmp) return j.employee_id===matchedEmp.id;
+    // Partial search → name or vehicle info
+    return (j.employee_name||'').toLowerCase().includes(q)||(j.vehicle_info||'').toLowerCase().includes(q);
   }));
 
   const openEdit=j=>{
@@ -4017,10 +4023,41 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
       )}
       {/* Search bar */}
       <div style={{position:'relative',marginBottom:12}}>
-        <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',fontSize:13}}>🔍</span>
-        <input placeholder="Search vehicle, employee, customer…" value={search} onChange={e=>setSearch(e.target.value)}
-          style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px 8px 32px',
-            color:'var(--text)',fontSize:12,boxSizing:'border-box'}}/>
+        <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',fontSize:13,zIndex:2}}>🔍</span>
+        <input placeholder="Search employee or vehicle…" value={search}
+          onChange={e=>{ setSearch(e.target.value); setShowSuggestionsVlc(true); }}
+          onFocus={()=>setShowSuggestionsVlc(true)}
+          onBlur={()=>setTimeout(()=>setShowSuggestionsVlc(false),180)}
+          style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,
+            padding:'8px 32px 8px 32px',color:'var(--text)',fontSize:12,boxSizing:'border-box'}}/>
+        {search && (
+          <button onClick={()=>{setSearch('');setShowSuggestionsVlc(false);}}
+            style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text2)',cursor:'pointer',fontSize:15,lineHeight:1,padding:2}}>✕</button>
+        )}
+        {showSuggestionsVlc && search.length > 0 && (() => {
+          const q = search.toLowerCase();
+          const matched = vlcEmps.filter(e => e.full_name.toLowerCase().includes(q));
+          if (!matched.length) return null;
+          return (
+            <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:999,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:10,marginTop:4,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',overflow:'hidden'}}>
+              <div style={{padding:'6px 12px 4px',fontSize:10,color:'var(--text2)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5,borderBottom:'1px solid var(--border)'}}>Employees</div>
+              {matched.map(e=>(
+                <div key={e.id}
+                  onMouseDown={()=>{ setSearch(e.full_name); setShowSuggestionsVlc(false); }}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',cursor:'pointer',transition:'background .15s'}}
+                  onMouseEnter={ev=>ev.currentTarget.style.background='rgba(217,74,74,0.08)'}
+                  onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}
+                >
+                  <Av emp={e} size={30} fs={11} />
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{e.full_name}</div>
+                    <div style={{fontSize:10,color:'var(--text2)'}}>{e.commission_percentage}% commission</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
       {/* Summary stats */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
