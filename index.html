@@ -966,9 +966,11 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
   filtered.forEach(w => {
     const splits = (()=>{ try{ const a=Array.isArray(w.commission_splits)?w.commission_splits:[]; return a.map(s=>typeof s==='string'?JSON.parse(s):s); }catch{return[];} })();
     if(splits.length>0){
-      splits.forEach(sp=>{ const id=sp.employee_id||sp.id; if(!id)return; if(!empMap[id])empMap[id]={name:sp.employee_name||sp.name||'',id,cars:0,sales:0}; empMap[id].cars++; empMap[id].sales+=(w.total_amount||0); });
+      const teamSize = splits.length;
+      const splitAmt = (w.total_amount||0) / teamSize; // each member gets their share of total
+      splits.forEach(sp=>{ const id=sp.employee_id||sp.id; if(!id)return; if(!empMap[id])empMap[id]={name:sp.employee_name||sp.name||'',id,cars:0,sales:0,teamCars:0}; empMap[id].cars++; empMap[id].sales+=splitAmt; if(teamSize>1) empMap[id].teamCars++; });
     } else {
-      if(!w.employee_id)return; if(!empMap[w.employee_id])empMap[w.employee_id]={name:w.employee_name||'',id:w.employee_id,cars:0,sales:0}; empMap[w.employee_id].cars++; empMap[w.employee_id].sales+=(w.total_amount||0);
+      if(!w.employee_id)return; if(!empMap[w.employee_id])empMap[w.employee_id]={name:w.employee_name||'',id:w.employee_id,cars:0,sales:0,teamCars:0}; empMap[w.employee_id].cars++; empMap[w.employee_id].sales+=(w.total_amount||0);
     }
   });
   const topEmp  = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales)[0];
@@ -1039,7 +1041,10 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                     <div style={{fontSize:11,fontWeight:800,color:posColors[i],minWidth:28,textAlign:'center'}}>{posLabels[i]}</div>
                     <Av emp={emp||{full_name:r.name,avatar_color:'#D94A4A'}} size={36} fs={13} />
                     <div style={{flex:1}}>
-                      <div style={{fontSize:13,fontWeight:700}}>{r.name}</div>
+                      <div style={{fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}>
+                        {r.name}
+                        {r.teamCars>0 && <span style={{fontSize:9,fontWeight:800,background:'rgba(212,175,55,0.18)',color:'var(--gold)',border:'1px solid rgba(212,175,55,0.4)',borderRadius:4,padding:'1px 5px',letterSpacing:.5}}>TEAM</span>}
+                      </div>
                       <div style={{fontSize:11,color:'var(--text2)'}}>{r.cars} cars · {peso(r.sales)}</div>
                     </div>
                     <div style={{fontSize:18,fontWeight:900,color:posColors[i]}}>{r.cars}</div>
@@ -1056,12 +1061,23 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                 const emp = employees.find(e=>e.id===w.employee_id);
                 return (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
-                    <Av emp={emp||{full_name:w.employee_name}} size={32} fs={12} />
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:600}}>{emp?.full_name||w.employee_name}</div>
-                      <div style={{fontSize:11,color:'var(--text2)'}}>{manilaDate(w.transaction_date||w.created_date)} · {parseArr(w.services).length||0} svc</div>
-                    </div>
-                    <div style={{fontSize:13,fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</div>
+                    {(() => {
+                      const rSplits = parseArr(w.commission_splits);
+                      const isTeamTx = rSplits.length > 1;
+                      const dispName = isTeamTx ? w.employee_name : (emp?.full_name||w.employee_name);
+                      const dispEmp  = isTeamTx ? {full_name:w.employee_name, avatar_color:'#D4AF37'} : (emp||{full_name:w.employee_name});
+                      return (<>
+                        <Av emp={dispEmp} size={32} fs={12} />
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:5}}>
+                            {dispName}
+                            {isTeamTx && <span style={{fontSize:9,fontWeight:800,background:'rgba(212,175,55,0.18)',color:'var(--gold)',border:'1px solid rgba(212,175,55,0.4)',borderRadius:4,padding:'1px 5px'}}>TEAM</span>}
+                          </div>
+                          <div style={{fontSize:11,color:'var(--text2)'}}>{manilaDate(w.transaction_date||w.created_date)} · {parseArr(w.services).length||0} svc</div>
+                        </div>
+                        <div style={{fontSize:13,fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</div>
+                      </>);
+                    })()}
                   </div>
                 );
               })}
@@ -2276,9 +2292,22 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         savedId = created?.id;
         logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:savedId||''});
       }
-      if (savedId && avatarBase64) {
-        try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e){}
+      // Upload avatar to CDN and save URL to Employee record
+      if (savedId && avatarBase64 && avatarBase64.startsWith('data:')) {
+        try {
+          const upRes = await api('uploadAvatar','Employee',{base64:avatarBase64, employeeId:savedId});
+          const cdnUrl = upRes?.data?.url || upRes?.url;
+          if (cdnUrl) {
+            await api('update','Employee',{id:savedId, data:{avatar_url:cdnUrl}});
+            // Also cache locally so it shows immediately
+            try { localStorage.setItem('kgcar_avatar_'+savedId, cdnUrl); } catch(e){}
+          }
+        } catch(e){ console.warn('Avatar upload failed:', e); }
+      } else if (savedId && avatarBase64 && avatarBase64.startsWith('http')) {
+        // Already a URL (unchanged) — do nothing
       } else if (savedId && !avatarBase64) {
+        // Clear avatar
+        await api('update','Employee',{id:savedId, data:{avatar_url:''}});
         try { localStorage.removeItem('kgcar_avatar_'+savedId); } catch(e){}
       }
       await onRefresh(); setShowModal(false);
