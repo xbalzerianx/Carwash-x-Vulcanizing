@@ -1703,46 +1703,42 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
                 : filtered.map(w=>{
                     const emp=employees.find(e=>e.id===w.employee_id);
                     const isPaid = !w.payment_status || w.payment_status==='paid';
+                    const txSplits = parseArr(w.commission_splits);
+                    const isTeamTx = txSplits.length > 1;
+                    const dispName = isTeamTx ? w.employee_name : (emp?.full_name||w.employee_name);
+                    const dispEmp  = isTeamTx ? {full_name:w.employee_name, avatar_color:'#D4AF37'} : (emp||{full_name:w.employee_name});
                     return (
-                      {(()=>{
-                        const txSplits = parseArr(w.commission_splits);
-                        const isTeamTx = txSplits.length > 1;
-                        const dispName = isTeamTx ? w.employee_name : (emp?.full_name||w.employee_name);
-                        const dispEmp  = isTeamTx ? {full_name:w.employee_name, avatar_color:'#D4AF37'} : (emp||{full_name:w.employee_name});
-                        return (
-                          <tr key={w.id} style={{opacity: isPaid ? 1 : 0.85}}>
-                            <td style={{fontSize:11}}><div style={{fontWeight:600,color:'var(--text)'}}>{fmt(w.transaction_date||w.created_date)}</div><div style={{color:'var(--text2)',marginTop:1}}>{fmtTime(w.transaction_date||w.created_date)}</div></td>
-                            <td>
-                              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                                <Av emp={dispEmp} size={30} fs={11} />
-                                <div>
-                                  <div style={{fontWeight:800,color:'var(--text)',fontSize:14,lineHeight:1.2}}>{dispName}</div>
-                                  {isTeamTx && <span style={{fontSize:9,fontWeight:800,background:'rgba(212,175,55,0.18)',color:'var(--gold)',border:'1px solid rgba(212,175,55,0.4)',borderRadius:4,padding:'1px 5px',letterSpacing:.5}}>TEAM</span>}
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{fontWeight:700,color:'var(--text)'}}>{w.plate_number||'—'}</td>
-                            <td className='hide-xs' style={{color:'var(--text)',fontWeight:500}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
-                            <td style={{fontWeight:800,color:'var(--blue)',fontSize:14}}>{peso(w.total_amount)}</td>
-                            <td className='hide-xs' style={{color:'var(--success)',fontWeight:700}}>{peso(w.commission_amount)}</td>
-                            <td>
-                              <span style={{
-                                display:'inline-block',padding:'3px 9px',borderRadius:20,fontSize:10,fontWeight:800,letterSpacing:.3,
-                                background: isPaid ? 'rgba(34,197,94,0.15)'  : 'rgba(217,74,74,0.15)',
-                                color:       isPaid ? 'var(--success)'        : 'var(--red)',
-                                border:      isPaid ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(217,74,74,0.4)'}}>
-                                {isPaid ? '✓ PAID' : '✗ UNPAID'}
-                              </span>
-                            </td>
-                            <td>
-                              <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
-                                <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(w)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>
-                                <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })()}
+                      <tr key={w.id} style={{opacity: isPaid ? 1 : 0.85}}>
+                        <td style={{fontSize:11}}><div style={{fontWeight:600,color:'var(--text)'}}>{fmt(w.transaction_date||w.created_date)}</div><div style={{color:'var(--text2)',marginTop:1}}>{fmtTime(w.transaction_date||w.created_date)}</div></td>
+                        <td>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <Av emp={dispEmp} size={30} fs={11} />
+                            <div>
+                              <div style={{fontWeight:800,color:'var(--text)',fontSize:14,lineHeight:1.2}}>{dispName}</div>
+                              {isTeamTx && <span style={{fontSize:9,fontWeight:800,background:'rgba(212,175,55,0.18)',color:'var(--gold)',border:'1px solid rgba(212,175,55,0.4)',borderRadius:4,padding:'1px 5px',letterSpacing:.5}}>TEAM</span>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{fontWeight:700,color:'var(--text)'}}>{w.plate_number||'—'}</td>
+                        <td className='hide-xs' style={{color:'var(--text)',fontWeight:500}}>{parseArr(w.services).map(s=>s.name).join(', ')||'—'}</td>
+                        <td style={{fontWeight:800,color:'var(--blue)',fontSize:14}}>{peso(w.total_amount)}</td>
+                        <td className='hide-xs' style={{color:'var(--success)',fontWeight:700}}>{peso(w.commission_amount)}</td>
+                        <td>
+                          <span style={{
+                            display:'inline-block',padding:'3px 9px',borderRadius:20,fontSize:10,fontWeight:800,letterSpacing:.3,
+                            background: isPaid ? 'rgba(34,197,94,0.15)'  : 'rgba(217,74,74,0.15)',
+                            color:       isPaid ? 'var(--success)'        : 'var(--red)',
+                            border:      isPaid ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(217,74,74,0.4)'}}>
+                            {isPaid ? '✓ PAID' : '✗ UNPAID'}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
+                            <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(w)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>
+                            <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })
               }
