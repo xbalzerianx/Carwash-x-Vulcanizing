@@ -510,16 +510,100 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const API_URL = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
-const APP_ID  = '6a1c42f697e43e4ff43a5097';
+// ── Supabase client (no Base44 dependency) ──
+const SUPA_URL = 'https://lrssrvgmzdtyeabvrxxk.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxyc3NydmdtemR0eWVhYnZyeHhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDI1MTcwNiwiZXhwIjoyMDk1ODI3NzA2fQ.1RDKlS0GzsFw-5VAdWOra9nOnsIIpNyika4aSEsPPV4';
 
+// Table name map: entity → Supabase table
+const TABLE = {
+  Employee:'employees', Service:'services', CarWash:'car_washes',
+  VulcanizingJob:'vulcanizing_jobs', VulcanizingProduct:'vulcanizing_products',
+  CommissionPayout:'commission_payouts', ActivityLog:'activity_logs',
+  RewardCampaign:'reward_campaigns'
+};
+
+// Supabase uses created_at/updated_at; map created_date fields to created_at
+function normRow(row) {
+  if (!row) return row;
+  // Alias created_at → created_date so existing code keeps working
+  row.created_date = row.created_at || row.created_date;
+  row.updated_date = row.updated_at || row.updated_date;
+  return row;
+}
+
+async function supa(method, table, opts={}) {
+  const {select='*',data,query={},id,limit} = opts;
+  let url = `${SUPA_URL}/rest/v1/${table}`;
+  const headers = {
+    'apikey': SUPA_KEY,
+    'Authorization': `Bearer ${SUPA_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+
+  if (method === 'GET') {
+    const params = new URLSearchParams({ select, order:'created_at.desc' });
+    Object.entries(query).forEach(([k,v]) => params.set(k, `eq.${v}`));
+    if (limit) params.set('limit', String(limit));
+    url += '?' + params.toString();
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    return Array.isArray(rows) ? rows.map(normRow) : normRow(rows);
+  }
+  if (method === 'POST') {
+    const res = await fetch(url, { method:'POST', headers, body:JSON.stringify(data) });
+    if (!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return normRow(row);
+  }
+  if (method === 'PATCH') {
+    const params = new URLSearchParams();
+    if (id) params.set('id', `eq.${id}`);
+    Object.entries(query).forEach(([k,v]) => params.set(k, `eq.${v}`));
+    url += '?' + params.toString();
+    const res = await fetch(url, { method:'PATCH', headers, body:JSON.stringify(data) });
+    if (!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return normRow(row);
+  }
+  if (method === 'DELETE') {
+    const params = new URLSearchParams();
+    if (id) params.set('id', `eq.${id}`);
+    url += '?' + params.toString();
+    const res = await fetch(url, { method:'DELETE', headers });
+    if (!res.ok) throw new Error(await res.text());
+    return true;
+  }
+}
+
+// ── api() shim — keeps all existing code working unchanged ──
 async function api(action, entity, extra = {}) {
+  const table = TABLE[entity];
+  if (!table) throw new Error('Unknown entity: ' + entity);
   try {
-    const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID}, body:JSON.stringify({action,entity,...extra}) });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error||'API error');
-    return json.data;
-  } catch(e) { console.error(e); throw e; }
+    switch (action) {
+      case 'list':
+        return supa('GET', table);
+      case 'filter':
+        return { data: await supa('GET', table, { query: extra.query||{} }) };
+      case 'get':
+        return (await supa('GET', table, { query:{id: extra.id} }))[0];
+      case 'create':
+        return supa('POST', table, { data: extra.data });
+      case 'update':
+        return supa('PATCH', table, { id: extra.id, data: extra.data });
+      case 'delete':
+        return supa('DELETE', table, { id: extra.id });
+      case 'uploadAvatar':
+        // base64 stored directly in employee record — just return it
+        return { url: extra.base64 };
+      default:
+        throw new Error('Unknown action: ' + action);
+    }
+  } catch(e) { console.error('[supabase]', action, entity, e.message); throw e; }
 }
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
