@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>KGCAR Carwash — Sales Tracker</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.27.6/babel.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
@@ -3936,13 +3936,13 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
 
   const addProdToEdit=prod=>{
     setEditForm(f=>({...f,products_used:[...f.products_used,{id:prod.id,name:prod.name,price:prod.price||0,cost:prod.default_cost||0}]}));
+  };
 
   const addEditCustomItem=()=>{
     const name=editCustomName.trim(); if(!name) return;
     const price=parseFloat(editCustomPrice)||0; const cost=parseFloat(editCustomCost)||0;
     setEditForm(f=>({...f,products_used:[...f.products_used,{id:'custom_'+Date.now(),name,price,cost}]}));
     setEditCustomName(''); setEditCustomPrice(''); setEditCustomCost(''); setShowEditCustom(false);
-  };
   };
   const removeProdFromEdit=idx=>setEditForm(f=>({...f,products_used:f.products_used.filter((_,i)=>i!==idx)}));
   const updateEditField=(idx,field,val)=>setEditForm(f=>({...f,products_used:f.products_used.map((p,i)=>i===idx?{...p,[field]:parseFloat(val)||0}:p)}));
