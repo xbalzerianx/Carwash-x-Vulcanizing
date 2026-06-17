@@ -1913,7 +1913,7 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
    EMPLOYEES
 ═══════════════════════════════════════════ */
 /* ── Employee Profile Modal (separate component to satisfy hooks rules) ── */
-function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onClose, onEdit }) {
+function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onClose, onEdit, onDeletePayout }) {
   const [empTab,     setEmpTab]     = React.useState('washes');
   const [filter,     setFilter]     = React.useState('all');
   const [customFrom, setCustomFrom] = React.useState('');
@@ -2143,14 +2143,14 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                   const pd = new Date(p.payout_date||p.created_date);
                   const isAdvance = p.is_advance === true;
                   return (
-                    <div key={p.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 20px',
+                    <div key={p.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',
                       borderBottom:'1px solid var(--border)',background:i%2===0?'var(--bg)':'var(--bg2)'}}>
                       <div style={{width:36,height:36,borderRadius:10,
                         background: isAdvance ? 'rgba(77,166,255,0.12)' : 'rgba(212,175,55,0.12)',
                         display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
                         {isAdvance ? '💵' : '💳'}
                       </div>
-                      <div style={{flex:1}}>
+                      <div style={{flex:1,minWidth:0}}>
                         <div style={{display:'flex',alignItems:'center',gap:6}}>
                           <span style={{fontSize:13,fontWeight:700}}>{isAdvance ? (p.note||'Cash Advance') : 'Earned Payout'}</span>
                           {isAdvance && <span style={{fontSize:9,fontWeight:800,background:'rgba(77,166,255,0.18)',color:'#4DA6FF',padding:'2px 7px',borderRadius:20,border:'1px solid rgba(77,166,255,0.3)',letterSpacing:.5}}>ADVANCE</span>}
@@ -2159,9 +2159,24 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                           {pd.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',timeZone:'Asia/Manila'})} <span style={{color:'var(--text2)',fontWeight:400}}>·</span> {pd.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Manila'})}
                         </div>
                       </div>
-                      <div style={{textAlign:'right',flexShrink:0}}>
-                        <div style={{fontSize:14,fontWeight:800,color: isAdvance ? '#4DA6FF' : 'var(--gold)'}}>{peso(p.amount||0)}</div>
-                        <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{isAdvance ? 'Advance' : 'Earned Payout'}</div>
+                      <div style={{textAlign:'right',flexShrink:0,display:'flex',alignItems:'center',gap:8}}>
+                        <div>
+                          <div style={{fontSize:14,fontWeight:800,color: isAdvance ? '#4DA6FF' : 'var(--gold)'}}>{peso(p.amount||0)}</div>
+                          <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>{isAdvance ? 'Advance' : 'Earned Payout'}</div>
+                        </div>
+                        {onDeletePayout && (
+                          <button onClick={()=>onDeletePayout(p)} title='Delete payout'
+                            style={{background:'rgba(217,74,74,0.12)',border:'1px solid rgba(217,74,74,0.25)',
+                              borderRadius:8,padding:'6px 8px',cursor:'pointer',color:'#D94A4A',
+                              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(217,74,74,0.3)'}
+                            onMouseLeave={e=>e.currentTarget.style.background='rgba(217,74,74,0.12)'}>
+                            <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.2'>
+                              <polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6'/>
+                              <path d='M10 11v6'/><path d='M14 11v6'/><path d='M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2'/>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -2576,6 +2591,18 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
           Av={Av}
           onClose={()=>setViewEmp(null)}
           onEdit={()=>{setViewEmp(null);openEdit(employees.find(e=>e.id===viewEmp.id)||viewEmp);}}
+          onDeletePayout={async(p)=>{
+            if(!window.confirm(`Delete this ${p.is_advance?'Cash Advance':'Earned Payout'} of ${peso(p.amount||0)} for ${p.employee_name}? This cannot be undone.`)) return;
+            try {
+              await api('delete','CommissionPayout',{id:p.id});
+              await logEvent({event_type:'payout_deleted',
+                title:`Payout Deleted — ${p.employee_name}`,
+                description:`${p.is_advance?'Cash Advance':'Earned Payout'} of ${peso(p.amount||0)} deleted (was ${new Date(p.payout_date||p.created_date).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',timeZone:'Asia/Manila'})})`,
+                actor_name:p.employee_name, entity_id:p.id, amount:p.amount||0});
+              await loadAll();
+              showToast('Payout deleted','success');
+            } catch(e){ showToast('Delete failed: '+e.message,'error'); }
+          }}
         />
       )}
       {confirmDeleteEmp && (
@@ -3066,6 +3093,9 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
     wash_deleted:         { label:'Wash Delete', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
     employee_deleted:     { label:'Emp Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
     service_deleted:      { label:'Svc Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
+    payout_deleted:       { label:'Payout Del',  color:'var(--red)',    bg:'rgba(217,74,74,.1)'  },
+    commission_advance:   { label:'Advance',     color:'#4DA6FF',       bg:'rgba(77,166,255,.12)' },
+    cash_advance:         { label:'Advance',     color:'#4DA6FF',       bg:'rgba(77,166,255,.12)' },
   };
 
   const sorted = [...logs].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
@@ -3092,11 +3122,25 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
   };
 
   const categories = [
-    {key:'all',         label:'All'},
-    {key:'wash_recorded',label:'Washes'},
-    {key:'commission_paid',label:'Payouts'},
-    {key:'employee_added',label:'Employees'},
-    {key:'service_added',label:'Services'},
+    {key:'all',                label:'All'},
+    {key:'wash_recorded',      label:'🚗 Wash'},
+    {key:'wash_edited',        label:'✏️ Wash Edit'},
+    {key:'wash_deleted',       label:'🗑 Wash Del'},
+    {key:'commission_paid',    label:'💳 Payout'},
+    {key:'cash_advance',       label:'💵 Advance'},
+    {key:'payout_deleted',     label:'🗑 Payout Del'},
+    {key:'employee_added',     label:'👤 New Emp'},
+    {key:'employee_updated',   label:'✏️ Emp Edit'},
+    {key:'employee_deleted',   label:'🗑 Emp Del'},
+    {key:'employee_deactivated',label:'⛔ Deactivated'},
+    {key:'service_added',      label:'🔧 New Svc'},
+    {key:'service_updated',    label:'✏️ Svc Edit'},
+    {key:'service_deleted',    label:'🗑 Svc Del'},
+    {key:'vlc_job_created',    label:'🔩 Vlc Job'},
+    {key:'vlc_job_updated',    label:'✏️ Vlc Edit'},
+    {key:'vlc_job_deleted',    label:'🗑 Vlc Del'},
+    {key:'campaign_created',   label:'🏆 Campaign'},
+    {key:'campaign_updated',   label:'✏️ Campaign'},
   ];
 
   const todayCount  = sorted.filter(l=>new Date(l.created_date||0).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})===new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})).length;
@@ -3167,8 +3211,10 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
                   : <div style={{width:14,height:14,color:cfg.color}}>{
                       (log.event_type==='wash_recorded')   ? Ic.car    :
                       (log.event_type==='commission_paid') ? Ic.gift   :
+                      (log.event_type==='payout_deleted')  ? Ic.trash  :
                       (log.event_type||'').startsWith('emp') ? Ic.users  :
                       (log.event_type||'').startsWith('svc') ? Ic.wrench :
+                      (log.event_type||'').includes('deleted') ? Ic.trash :
                       Ic.log
                     }</div>
                 }
