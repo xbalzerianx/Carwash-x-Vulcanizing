@@ -3507,10 +3507,7 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
                 return (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
                     <div style={{fontSize:11,fontWeight:800,color:posColors[i]||'var(--text2)',minWidth:28,textAlign:'center'}}>{posLabels[i]||`#${i+1}`}</div>
-                    <div style={{width:36,height:36,borderRadius:50,background:emp?.avatar_color||'var(--red)',
-                      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,color:'#fff',flexShrink:0}}>
-                      {r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
-                    </div>
+                    <Av emp={emp||{full_name:r.name,avatar_color:'var(--red)'}} size={36} fs={13} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:13,fontWeight:700}}>{r.name}</div>
                       <div style={{fontSize:11,color:'var(--text2)'}}>{peso(r.sales)} · {peso(r.comm)} comm</div>
@@ -4289,7 +4286,7 @@ function VlcRanking({ vlcJobs, employees }) {
   const board=vlcEmps.map(e=>{
     const jobs=vlcJobs.filter(j=>j.employee_id===e.id);
     const monthJobs=jobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-    return {id:e.id,name:e.full_name,color:e.avatar_color||'#D94A4A',
+    return {id:e.id,name:e.full_name,color:e.avatar_color||'#D94A4A',avatar_url:e.avatar_url||'',
       jobs:monthJobs.length,sales:monthJobs.reduce((s,j)=>s+(j.total_amount||0),0),
       comm:monthJobs.reduce((s,j)=>s+(j.commission_amount||0),0)};
   }).filter(e=>e.jobs>0).sort((a,b)=>b.jobs-a.jobs||b.sales-a.sales);
@@ -4309,10 +4306,7 @@ function VlcRanking({ vlcJobs, employees }) {
             <div key={e.id} className="card" style={{marginBottom:8,padding:'14px 16px',display:'flex',alignItems:'center',gap:14,
               border:i===0?'1px solid rgba(212,175,55,0.4)':undefined}}>
               <div style={{fontSize:26,width:32,textAlign:'center',flexShrink:0}}>{medals[i]||`#${i+1}`}</div>
-              <div style={{width:38,height:38,borderRadius:50,background:e.color,display:'flex',alignItems:'center',
-                justifyContent:'center',fontWeight:900,fontSize:14,color:'#fff',flexShrink:0}}>
-                {e.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
-              </div>
+              <Av emp={{id:e.id,full_name:e.name,avatar_color:e.color,avatar_url:e.avatar_url}} size={38} fs={14} />
               <div style={{flex:1}}>
                 <div style={{fontWeight:800,fontSize:14}}>{e.name}</div>
                 <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{e.jobs} job{e.jobs!==1?'s':''} · {peso(e.sales)}</div>
@@ -4448,10 +4442,7 @@ function VlcReports({ vlcJobs, employees, payouts, showToast }) {
         : empStats.map(e=>(
           <div key={e.id} className="card" style={{marginBottom:10,padding:'14px 16px'}}>
             <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-              <div style={{width:38,height:38,borderRadius:50,background:e.avatar_color||'var(--red)',
-                display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,color:'#fff',flexShrink:0}}>
-                {e.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
-              </div>
+              <Av emp={e} size={38} fs={13} />
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,fontSize:14}}>{e.full_name}</div>
                 <div style={{fontSize:11,color:'var(--text2)'}}>{e.jobs} job{e.jobs!==1?'s':''} · {peso(e.revenue)} revenue</div>
