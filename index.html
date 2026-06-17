@@ -3077,31 +3077,41 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
   const [search, setSearch] = useState('');
 
   const typeConfig = {
-    wash_recorded:        { label:'Wash',        color:'var(--red)',     bg:'rgba(217,74,74,.12)' },
-    employee_added:       { label:'New Emp',     color:'var(--success)', bg:'rgba(34,197,94,.12)' },
-    employee_updated:     { label:'Emp Update',  color:'var(--success)', bg:'rgba(34,197,94,.08)' },
-    employee_deactivated: { label:'Deactivated', color:'var(--text2)',   bg:'rgba(255,255,255,.05)' },
-    service_added:        { label:'New Service', color:'var(--gold)',    bg:'rgba(212,175,55,.12)' },
-    service_updated:      { label:'Svc Update',  color:'var(--gold)',    bg:'rgba(212,175,55,.08)' },
-    commission_paid:      { label:'Payout',      color:'#22C55E',       bg:'rgba(34,197,94,.12)' },
-    campaign_created:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.1)' },
-    campaign_updated:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.08)' },
-    vlc_job_created:      { label:'Vlc Job',     color:'#60A5FA',       bg:'rgba(96,165,250,.12)' },
-    vlc_job_updated:      { label:'Vlc Edit',    color:'#60A5FA',       bg:'rgba(96,165,250,.08)' },
-    vlc_job_deleted:      { label:'Vlc Delete',  color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
-    wash_edited:          { label:'Wash Edit',   color:'#F59E0B',       bg:'rgba(245,158,11,.1)' },
-    wash_deleted:         { label:'Wash Delete', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
-    employee_deleted:     { label:'Emp Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
-    service_deleted:      { label:'Svc Removed', color:'var(--red)',    bg:'rgba(217,74,74,.08)' },
-    payout_deleted:       { label:'Payout Del',  color:'var(--red)',    bg:'rgba(217,74,74,.1)'  },
-    commission_advance:   { label:'Advance',     color:'#4DA6FF',       bg:'rgba(77,166,255,.12)' },
-    cash_advance:         { label:'Advance',     color:'#4DA6FF',       bg:'rgba(77,166,255,.12)' },
+    wash_recorded:        { label:'New Wash',    color:'var(--red)',     bg:'rgba(217,74,74,.12)',   icon:'🚗' },
+    wash_edited:          { label:'Wash Edit',   color:'#F59E0B',        bg:'rgba(245,158,11,.1)',   icon:'✏️' },
+    wash_deleted:         { label:'Wash Del',    color:'var(--red)',     bg:'rgba(217,74,74,.08)',   icon:'🗑️' },
+    commission_paid:      { label:'Payout',      color:'#22C55E',        bg:'rgba(34,197,94,.12)',   icon:'💳' },
+    cash_advance:         { label:'Advance',     color:'#4DA6FF',        bg:'rgba(77,166,255,.12)',  icon:'💵' },
+    commission_advance:   { label:'Advance',     color:'#4DA6FF',        bg:'rgba(77,166,255,.12)',  icon:'💵' },
+    payout_deleted:       { label:'Payout Del',  color:'var(--red)',     bg:'rgba(217,74,74,.1)',    icon:'🗑️' },
+    employee_added:       { label:'New Emp',     color:'var(--success)', bg:'rgba(34,197,94,.12)',   icon:'👤' },
+    employee_updated:     { label:'Emp Edit',    color:'var(--success)', bg:'rgba(34,197,94,.08)',   icon:'✏️' },
+    employee_deleted:     { label:'Emp Removed', color:'var(--red)',     bg:'rgba(217,74,74,.08)',   icon:'🗑️' },
+    employee_deactivated: { label:'Deactivated', color:'var(--text2)',   bg:'rgba(255,255,255,.05)', icon:'⛔' },
+    service_added:        { label:'New Svc',     color:'var(--gold)',    bg:'rgba(212,175,55,.12)',  icon:'🔧' },
+    service_updated:      { label:'Svc Edit',    color:'var(--gold)',    bg:'rgba(212,175,55,.08)',  icon:'✏️' },
+    service_deleted:      { label:'Svc Del',     color:'var(--red)',     bg:'rgba(217,74,74,.08)',   icon:'🗑️' },
+    campaign_created:     { label:'Campaign',    color:'var(--gold)',    bg:'rgba(212,175,55,.1)',   icon:'🏆' },
+    campaign_updated:     { label:'Campaign Ed', color:'var(--gold)',    bg:'rgba(212,175,55,.08)',  icon:'✏️' },
+    vlc_job_created:      { label:'Vlc Job',     color:'#60A5FA',        bg:'rgba(96,165,250,.12)',  icon:'🔩' },
+    vlc_job_updated:      { label:'Vlc Edit',    color:'#60A5FA',        bg:'rgba(96,165,250,.08)',  icon:'✏️' },
+    vlc_job_deleted:      { label:'Vlc Del',     color:'var(--red)',     bg:'rgba(217,74,74,.08)',   icon:'🗑️' },
   };
 
   const sorted = [...logs].sort((a,b)=>new Date(b.created_date)-new Date(a.created_date));
 
-  const filtered = sorted.filter(l => {
-    if (filter !== 'all' && l.event_type !== filter) return false;
+  // Only CarWash-relevant events (exclude vlc_*)
+  const cwLogs = sorted.filter(l=>!(l.event_type||'').startsWith('vlc_'));
+
+  const filtered = cwLogs.filter(l => {
+    if (filter !== 'all') {
+      if (filter === 'wash')    return l.event_type === 'wash_recorded';
+      if (filter === 'edits')   return l.event_type === 'wash_edited';
+      if (filter === 'deleted') return l.event_type === 'wash_deleted';
+      if (filter === 'payouts') return l.event_type === 'commission_paid' || l.event_type === 'cash_advance' || l.event_type === 'commission_advance' || l.event_type === 'payout_deleted';
+      if (filter === 'staff')   return (l.event_type||'').startsWith('employee') || (l.event_type||'').startsWith('service');
+      return l.event_type === filter;
+    }
     if (search) {
       const q = search.toLowerCase();
       return (l.title||'').toLowerCase().includes(q) || (l.description||'').toLowerCase().includes(q) || (l.actor_name||'').toLowerCase().includes(q);
@@ -3109,129 +3119,108 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
     return true;
   });
 
-  const fmtAgo = (d) => {
+  const fmtAgo = d => {
     if (!d) return '';
     const diff = Date.now() - new Date(d).getTime();
     const mins  = Math.floor(diff/60000);
     const hours = Math.floor(diff/3600000);
-    const days  = Math.floor(diff/86400000);
-    if (mins < 1)  return 'just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1)   return 'just now';
+    if (mins < 60)  return `${mins}m ago`;
     if (hours < 24) return `${hours}h ago`;
     return new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Manila'});
   };
 
-  const categories = [
-    {key:'all',                label:'All'},
-    {key:'wash_recorded',      label:'🚗 Wash'},
-    {key:'wash_edited',        label:'✏️ Wash Edit'},
-    {key:'wash_deleted',       label:'🗑 Wash Del'},
-    {key:'commission_paid',    label:'💳 Payout'},
-    {key:'cash_advance',       label:'💵 Advance'},
-    {key:'payout_deleted',     label:'🗑 Payout Del'},
-    {key:'employee_added',     label:'👤 New Emp'},
-    {key:'employee_updated',   label:'✏️ Emp Edit'},
-    {key:'employee_deleted',   label:'🗑 Emp Del'},
-    {key:'employee_deactivated',label:'⛔ Deactivated'},
-    {key:'service_added',      label:'🔧 New Svc'},
-    {key:'service_updated',    label:'✏️ Svc Edit'},
-    {key:'service_deleted',    label:'🗑 Svc Del'},
-    {key:'vlc_job_created',    label:'🔩 Vlc Job'},
-    {key:'vlc_job_updated',    label:'✏️ Vlc Edit'},
-    {key:'vlc_job_deleted',    label:'🗑 Vlc Del'},
-    {key:'campaign_created',   label:'🏆 Campaign'},
-    {key:'campaign_updated',   label:'✏️ Campaign'},
-  ];
+  const todayStr    = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+  const todayCount  = cwLogs.filter(l=>new Date(l.created_date||0).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})===todayStr).length;
+  const washCount   = cwLogs.filter(l=>l.event_type==='wash_recorded').length;
+  const editCount   = cwLogs.filter(l=>l.event_type==='wash_edited').length;
+  const payoutTotal = cwLogs.filter(l=>l.event_type==='commission_paid').reduce((s,l)=>s+(l.amount||0),0);
 
-  const todayCount  = sorted.filter(l=>new Date(l.created_date||0).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})===new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})).length;
-  const washCount   = sorted.filter(l=>l.event_type==='wash_recorded').length;
-  const payoutTotal = sorted.filter(l=>l.event_type==='commission_paid').reduce((s,l)=>s+(l.amount||0),0);
+  const categories = [
+    {key:'all',      label:'All'},
+    {key:'wash',     label:'New Washes'},
+    {key:'edits',    label:'Edits'},
+    {key:'deleted',  label:'Deleted'},
+    {key:'payouts',  label:'Payouts'},
+    {key:'staff',    label:'Staff & Services'},
+  ];
 
   return (
     <div>
       <div className="flex-between mb-4">
-        <div className="section-title" style={{marginBottom:0}}>Activity Log</div>
-        <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} of {logs.length} events</div>
+        <div className="section-title" style={{marginBottom:0}}>🚗 Activity Log — Car Wash</div>
+        <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} of {cwLogs.length} events</div>
       </div>
 
       {/* Stats strip */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
         {[
-          {l:'Today',    v:todayCount,        c:'var(--blue)'},
-          {l:'Washes',   v:washCount,         c:'var(--success)'},
-          {l:'Paid Out', v:peso(payoutTotal), c:'var(--gold)'},
+          {l:'Today',     v:todayCount,        c:'var(--blue)'},
+          {l:'Washes',    v:washCount,         c:'var(--success)'},
+          {l:'Edits',     v:editCount,         c:'#F59E0B'},
+          {l:'Paid Out',  v:peso(payoutTotal), c:'var(--gold)'},
         ].map((s,i)=>(
-          <div key={i} className="stat-card" style={{padding:14}}>
-            <div className="stat-label">{s.l}</div>
-            <div className="stat-value" style={{fontSize:20,color:s.c}}>{s.v}</div>
+          <div key={i} className="card" style={{textAlign:'center',padding:'12px 8px'}}>
+            <div style={{fontSize:18,fontWeight:900,color:s.c}}>{s.v}</div>
+            <div style={{fontSize:10,color:'var(--text2)',marginTop:3}}>{s.l}</div>
           </div>
         ))}
       </div>
 
       {/* Filter chips */}
-      <div style={{display:'flex',gap:6,marginBottom:14,flexWrap:'wrap'}}>
+      <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
         {categories.map(c=>(
-          <button key={c.key} className={`btn btn-sm ${filter===c.key?'btn-primary':'btn-ghost'}`} onClick={()=>setFilter(c.key)}>{c.label}</button>
+          <button key={c.key} className={`btn btn-sm ${filter===c.key?'btn-primary':'btn-ghost'}`}
+            onClick={()=>setFilter(c.key)}>{c.label}</button>
         ))}
       </div>
 
       {/* Search */}
       <div className="form-group mb-4" style={{position:'relative'}}>
-        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>{Ic.search}</div>
-        <input className="form-input" placeholder="Search logs..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}} />
+        <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'var(--text2)',width:15,height:15}}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </div>
+        <input className="form-input" placeholder="Search logs..." value={search}
+          onChange={e=>setSearch(e.target.value)} style={{paddingLeft:34}}/>
       </div>
 
       {/* Log feed */}
       <div className="card" style={{padding:0,overflow:'hidden'}}>
-        {filtered.length === 0 ? (
+        {filtered.length===0 ? (
           <div style={{textAlign:'center',padding:'40px 24px',color:'var(--text2)'}}>
-            <div style={{fontSize:32,marginBottom:10,opacity:.3}}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
+            <div style={{fontSize:40,marginBottom:10,opacity:.3}}>🚗</div>
             <div style={{fontWeight:700}}>No activity yet</div>
-            <div style={{fontSize:13,marginTop:4}}>Events are logged automatically as you use the app</div>
+            <div style={{fontSize:13,marginTop:4}}>Events are logged as washes are recorded, edited, or deleted</div>
           </div>
-        ) : filtered.map((log, i) => {
-          const cfg = typeConfig[log.event_type] || {label:log.event_type,color:'var(--text2)',bg:'rgba(255,255,255,.04)'};
-          const emp = log.actor_name ? employees.find(e=>e.full_name===log.actor_name) : null;
+        ) : filtered.map((log,i)=>{
+          const cfg = typeConfig[log.event_type] || {label:log.event_type,color:'var(--text2)',bg:'rgba(255,255,255,.04)',icon:'📋'};
           return (
             <div key={log.id||i} style={{
-              display:'flex', alignItems:'flex-start', gap:14,
-              padding:'14px 18px',
-              borderBottom: i < filtered.length-1 ? '1px solid var(--border)' : 'none',
-              animation:`fadeIn .3s ease ${i*.02}s both`,
-              transition:'background .15s',
+              display:'flex',alignItems:'flex-start',gap:12,padding:'14px 16px',
+              borderBottom:i<filtered.length-1?'1px solid var(--border)':'none',
+              background:'transparent',transition:'background .15s',
             }}
-            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.02)'}
-            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-              {/* Avatar / Icon */}
-              <div style={{width:38,height:38,borderRadius:'50%',background:cfg.bg,border:`1px solid ${cfg.color}30`,display:'flex',alignItems:'center',justifyContent:'center',flex:'none'}}>
-                {emp
-                  ? <Av emp={emp} size={38} fs={13} />
-                  : <div style={{width:14,height:14,color:cfg.color}}>{
-                      (log.event_type==='wash_recorded')   ? Ic.car    :
-                      (log.event_type==='commission_paid') ? Ic.gift   :
-                      (log.event_type==='payout_deleted')  ? Ic.trash  :
-                      (log.event_type||'').startsWith('emp') ? Ic.users  :
-                      (log.event_type||'').startsWith('svc') ? Ic.wrench :
-                      (log.event_type||'').includes('deleted') ? Ic.trash :
-                      Ic.log
-                    }</div>
-                }
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            >
+              {/* Icon badge */}
+              <div style={{width:36,height:36,borderRadius:10,background:cfg.bg,flexShrink:0,
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>
+                {cfg.icon}
               </div>
               {/* Content */}
               <div style={{flex:1,minWidth:0}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:2}}>
-                  <span className="badge" style={{background:cfg.bg,color:cfg.color,fontSize:9,padding:'2px 7px'}}>{cfg.label}</span>
-                  <span style={{fontSize:13,fontWeight:700}}>{log.title}</span>
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <span style={{fontWeight:700,fontSize:13}}>{log.title||log.event_type}</span>
+                  <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,
+                    background:cfg.bg,color:cfg.color}}>{cfg.label}</span>
                 </div>
-                {log.description && <div style={{fontSize:12,color:'var(--text2)',marginTop:1,lineHeight:1.4}}>{log.description}</div>}
-                {log.amount > 0 && <div style={{fontSize:12,fontWeight:700,color:'var(--success)',marginTop:2}}>{peso(log.amount)}</div>}
-              </div>
-              {/* Time */}
-              <div style={{fontSize:11,color:'var(--text2)',whiteSpace:'nowrap',flexShrink:0,textAlign:'right'}}>
-                <div>{fmtAgo(log.created_date)}</div>
-                <div style={{fontSize:10,marginTop:2}}>{log.created_date ? new Date(log.created_date).toLocaleTimeString('en-PH',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit'}) : ''}</div>
+                {log.description&&<div style={{fontSize:12,color:'var(--text2)',marginTop:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.description}</div>}
+                <div style={{display:'flex',gap:12,marginTop:4,flexWrap:'wrap'}}>
+                  {log.actor_name&&<span style={{fontSize:11,color:'var(--text2)'}}>👷 {log.actor_name}</span>}
+                  {log.amount>0&&<span style={{fontSize:11,color:'var(--gold)',fontWeight:700}}>{peso(log.amount)}</span>}
+                  <span style={{fontSize:11,color:'var(--text2)'}}>{fmtAgo(log.created_date)}</span>
+                </div>
               </div>
             </div>
           );
@@ -3240,7 +3229,6 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
     </div>
   );
 }
-
 /* ═══════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════ */
