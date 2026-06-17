@@ -524,6 +524,24 @@ async function api(action, entity, extra = {}) {
 }
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+
+// Upload a base64 image to Base44 public CDN → returns https:// URL
+async function uploadAvatar(base64DataUrl, empId) {
+  // Convert base64 to blob
+  const res   = await fetch(base64DataUrl);
+  const blob  = await res.blob();
+  const fd    = new FormData();
+  fd.append('file', blob, `avatar_${empId}.jpg`);
+  fd.append('app_id', APP_ID);
+  const r = await fetch('https://superagent-f43a5097.base44.app/upload', {
+    method: 'POST',
+    headers: { 'x-base44-app-id': APP_ID },
+    body: fd,
+  });
+  if (!r.ok) throw new Error('Upload failed: ' + r.status);
+  const json = await r.json();
+  return json.url || json.file_url || json.public_url || '';
+}
 // Base44 stores array fields as JSON strings — parse safely
 // Base44 stores array items as individual JSON strings
 // e.g. services = ['{"name":"Wash","price":200}', '{"name":"Wax","price":500}']
@@ -625,15 +643,23 @@ const Ic = {
 
 /* Avatar component */
 function Av({ emp, size=40, fs=15, center=false }) {
-  const [err,setErr] = useState(false);
-  // Merge localStorage avatar (DB doesn't store base64, localStorage does)
-  const localAvatar = emp?.id ? (()=>{ try { return localStorage.getItem('kgcar_avatar_'+emp.id)||''; } catch(e){ return ''; } })() : '';
-  const avatarSrc = emp?.avatar_url || localAvatar;
-  React.useEffect(()=>{ setErr(false); },[avatarSrc]);
+  const [err, setErr] = useState(false);
+  // Read localStorage as state so it's reactive & works on mobile
+  const [localSrc, setLocalSrc] = useState('');
+  React.useEffect(() => {
+    if (!emp?.id) return;
+    // DB already has CDN URL → use that; only fall back to localStorage for legacy base64
+    if (emp?.avatar_url) { setLocalSrc(''); return; }
+    try { setLocalSrc(localStorage.getItem('kgcar_avatar_' + emp.id) || ''); }
+    catch(e) { setLocalSrc(''); }
+  }, [emp?.id, emp?.avatar_url]);
+
+  const avatarSrc = emp?.avatar_url || localSrc;
+  React.useEffect(() => { setErr(false); }, [avatarSrc]);
   const hasImg = avatarSrc && !err;
   return (
     <div style={{width:size,height:size,borderRadius:'50%',background:hasImg?'transparent':(emp?.avatar_color||'#D94A4A'),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:fs,overflow:'hidden',flexShrink:0,margin:center?'0 auto':undefined}}>
-      {hasImg ? <img src={avatarSrc} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : initials(emp?.full_name)}
+      {hasImg ? <img src={avatarSrc} onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}} /> : initials(emp?.full_name)}
     </div>
   );
 }
@@ -2302,15 +2328,28 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         savedId = created?.id;
         logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:savedId||''});
       }
-      // Save avatar: store compressed base64 directly in Employee.avatar_url
-      // Image is 80x80 JPEG ~4KB — small enough for entity storage, no CDN needed
+      // Save avatar: upload to Base44 CDN → store public URL in DB so all devices see it
       if (savedId && avatarBase64 && avatarBase64.startsWith('data:')) {
         try {
-          await api('update','Employee',{id:savedId, data:{avatar_url:avatarBase64}});
-          try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e){}
-        } catch(e){ console.warn('Avatar save failed:', e); }
-      } else if (savedId && avatarBase64 && (avatarBase64.startsWith('http') || avatarBase64.startsWith('data:'))) {
-        // Already saved (URL or base64 unchanged) — do nothing
+          showToast('Uploading photo…','info');
+          const cdnUrl = await uploadAvatar(avatarBase64, savedId);
+          if (cdnUrl) {
+            await api('update','Employee',{id:savedId, data:{avatar_url:cdnUrl}});
+            try { localStorage.setItem('kgcar_avatar_'+savedId, cdnUrl); } catch(e){}
+          } else {
+            // Fallback: store base64 directly (better than nothing)
+            await api('update','Employee',{id:savedId, data:{avatar_url:avatarBase64}});
+            try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e){}
+          }
+        } catch(e){
+          console.warn('Avatar CDN upload failed, storing base64:', e);
+          try {
+            await api('update','Employee',{id:savedId, data:{avatar_url:avatarBase64}});
+            try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e2){}
+          } catch(e2){ console.warn('Avatar save failed entirely:', e2); }
+        }
+      } else if (savedId && avatarBase64 && avatarBase64.startsWith('http')) {
+        // Already a CDN URL — unchanged, no action needed
       } else if (savedId && !avatarBase64) {
         // Clear avatar
         await api('update','Employee',{id:savedId, data:{avatar_url:''}});
