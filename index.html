@@ -2091,18 +2091,15 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
                           {isTeam && <span style={{marginLeft:6,color:'var(--gold)'}}>· split {splits.length} ways</span>}
                         </div>
                       </div>
-                      {(()=>{
-                        const prodCost = parseArr(w.products_used).reduce((s,p)=>s+(typeof p==='object'?p.cost||0:0),0);
-                        const netAmt   = Math.max(0,(w.total_amount||0)-prodCost);
-                        return (
-                          <div style={{textAlign:'right',flexShrink:0}}>
-                            <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>{peso(netAmt>0?netAmt:w.total_amount||0)}</div>
-                            {prodCost>0&&<div style={{fontSize:10,color:'var(--red)',marginTop:1,fontWeight:700}}>-{peso(prodCost)} cost</div>}
-                            <div style={{fontSize:11,color:'var(--success)',marginTop:2,fontWeight:700}}>+{peso(comm)} comm</div>
-                            <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{commRate}% rate</div>
-                          </div>
-                        );
-                      })()}
+                      <div style={{textAlign:'right',flexShrink:0}}>
+                        {/* For team jobs, show this employee's share of the total */}
+                        <div style={{fontSize:14,fontWeight:800,color:'var(--gold)'}}>
+                          {isTeam && mySplit ? peso(Math.round((w.total_amount||0) / splits.length)) : peso(w.total_amount||0)}
+                        </div>
+                        {isTeam && <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>of {peso(w.total_amount||0)} total</div>}
+                        <div style={{fontSize:11,color:'var(--success)',marginTop:2,fontWeight:700}}>+{peso(comm)} comm</div>
+                        <div style={{fontSize:10,color:'var(--text2)',marginTop:1}}>{commRate}% rate</div>
+                      </div>
                     </div>
                   );
                 })
@@ -2308,7 +2305,8 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
       if (savedId && avatarBase64 && avatarBase64.startsWith('data:')) {
         try {
           const upRes = await api('uploadAvatar','Employee',{base64:avatarBase64, employeeId:savedId});
-          const cdnUrl = upRes?.data?.url || upRes?.url;
+          // api() already unwraps json.data, so upRes = { url: '...' }
+          const cdnUrl = upRes?.url || upRes?.data?.url;
           if (cdnUrl) {
             await api('update','Employee',{id:savedId, data:{avatar_url:cdnUrl}});
             // Also cache locally so it shows immediately
@@ -3599,7 +3597,8 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
   const totalAmount   = form.products_used.reduce((s,p)=>s+(p.price||0),0);
   const totalProdCost = form.products_used.reduce((s,p)=>s+(p.cost||0),0);
   const netAmount     = Math.max(0, totalAmount - totalProdCost);
-  const commissionAmt = Math.round(netAmount * commRate / 100);
+  // Commission is calculated on TOTAL amount (not net) — materials cost is tracked separately
+  const commissionAmt = Math.round(totalAmount * commRate / 100);
 
   const handleSave = async () => {
     if (!form.employee_id)            { showToast('Select an employee','error'); return; }
@@ -3948,7 +3947,7 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
   const editNet     = Math.max(0, editTotal - editCost);
   const editEmp     = editForm ? vlcEmps.find(e=>e.id===editForm.employee_id) : null;
   const editRate    = editEmp ? (editEmp.commission_percentage||40) : 40;
-  const editComm    = Math.round(editNet * editRate / 100);
+  const editComm    = Math.round(editTotal * editRate / 100);  // commission on total, not net
 
   const handleUpdate=async()=>{
     if(!editForm.employee_id){ showToast('Select an employee','error'); return; }
