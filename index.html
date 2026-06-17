@@ -2301,20 +2301,15 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         savedId = created?.id;
         logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:savedId||''});
       }
-      // Upload avatar to CDN and save URL to Employee record
+      // Save avatar: store compressed base64 directly in Employee.avatar_url
+      // Image is 80x80 JPEG ~4KB — small enough for entity storage, no CDN needed
       if (savedId && avatarBase64 && avatarBase64.startsWith('data:')) {
         try {
-          const upRes = await api('uploadAvatar','Employee',{base64:avatarBase64, employeeId:savedId});
-          // api() already unwraps json.data, so upRes = { url: '...' }
-          const cdnUrl = upRes?.url || upRes?.data?.url;
-          if (cdnUrl) {
-            await api('update','Employee',{id:savedId, data:{avatar_url:cdnUrl}});
-            // Also cache locally so it shows immediately
-            try { localStorage.setItem('kgcar_avatar_'+savedId, cdnUrl); } catch(e){}
-          }
-        } catch(e){ console.warn('Avatar upload failed:', e); }
-      } else if (savedId && avatarBase64 && avatarBase64.startsWith('http')) {
-        // Already a URL (unchanged) — do nothing
+          await api('update','Employee',{id:savedId, data:{avatar_url:avatarBase64}});
+          try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e){}
+        } catch(e){ console.warn('Avatar save failed:', e); }
+      } else if (savedId && avatarBase64 && (avatarBase64.startsWith('http') || avatarBase64.startsWith('data:'))) {
+        // Already saved (URL or base64 unchanged) — do nothing
       } else if (savedId && !avatarBase64) {
         // Clear avatar
         await api('update','Employee',{id:savedId, data:{avatar_url:''}});
