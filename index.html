@@ -3597,8 +3597,8 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
   const totalAmount   = form.products_used.reduce((s,p)=>s+(p.price||0),0);
   const totalProdCost = form.products_used.reduce((s,p)=>s+(p.cost||0),0);
   const netAmount     = Math.max(0, totalAmount - totalProdCost);
-  // Commission is calculated on TOTAL amount (not net) — materials cost is tracked separately
-  const commissionAmt = Math.round(totalAmount * commRate / 100);
+  // Commission is on NET amount (total minus material cost)
+  const commissionAmt = Math.round(netAmount * commRate / 100);
 
   const handleSave = async () => {
     if (!form.employee_id)            { showToast('Select an employee','error'); return; }
@@ -3947,7 +3947,7 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
   const editNet     = Math.max(0, editTotal - editCost);
   const editEmp     = editForm ? vlcEmps.find(e=>e.id===editForm.employee_id) : null;
   const editRate    = editEmp ? (editEmp.commission_percentage||40) : 40;
-  const editComm    = Math.round(editTotal * editRate / 100);  // commission on total, not net
+  const editComm    = Math.round(editNet * editRate / 100);
 
   const handleUpdate=async()=>{
     if(!editForm.employee_id){ showToast('Select an employee','error'); return; }
