@@ -2357,30 +2357,18 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
         savedId = created?.id;
         logEvent({event_type:'employee_added',title:`New employee added — ${form.full_name}`,description:`Commission rate: ${form.commission_percentage}%`,actor_name:form.full_name,entity_id:savedId||''});
       }
-      // Save avatar: upload to Base44 CDN → store public URL in DB so all devices see it
+      // Save avatar → Supabase Storage via backend, store permanent public URL in DB
       if (savedId && avatarBase64 && avatarBase64.startsWith('data:')) {
-        try {
-          showToast('Uploading photo…','info');
-          const cdnUrl = await uploadAvatar(avatarBase64, savedId);
-          if (cdnUrl) {
-            await api('update','Employee',{id:savedId, data:{avatar_url:cdnUrl}});
-            try { localStorage.setItem('kgcar_avatar_'+savedId, cdnUrl); } catch(e){}
-          } else {
-            // Fallback: store base64 directly (better than nothing)
-            await api('update','Employee',{id:savedId, data:{avatar_url:avatarBase64}});
-            try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e){}
-          }
-        } catch(e){
-          console.warn('Avatar CDN upload failed, storing base64:', e);
-          try {
-            await api('update','Employee',{id:savedId, data:{avatar_url:avatarBase64}});
-            try { localStorage.setItem('kgcar_avatar_'+savedId, avatarBase64); } catch(e2){}
-          } catch(e2){ console.warn('Avatar save failed entirely:', e2); }
+        showToast('Uploading photo…','info');
+        const cdnUrl = await uploadAvatar(avatarBase64, savedId);
+        if (cdnUrl) {
+          await api('update','Employee',{id:savedId, data:{avatar_url:cdnUrl}});
+          try { localStorage.setItem('kgcar_avatar_'+savedId, cdnUrl); } catch(e){}
         }
       } else if (savedId && avatarBase64 && avatarBase64.startsWith('http')) {
-        // Already a CDN URL — unchanged, no action needed
+        // Already a CDN URL — keep as-is, no re-upload needed
       } else if (savedId && !avatarBase64) {
-        // Clear avatar
+        // Cleared — remove from DB and localStorage
         await api('update','Employee',{id:savedId, data:{avatar_url:''}});
         try { localStorage.removeItem('kgcar_avatar_'+savedId); } catch(e){}
       }

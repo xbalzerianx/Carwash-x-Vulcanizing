@@ -17,6 +17,10 @@
     "avatar_color": {
       "type": "string"
     },
+    "avatar_url": {
+      "type": "string",
+      "description": "Public URL of employee profile photo (Supabase Storage)"
+    },
     "business_type": {
       "type": "string",
       "enum": [
