@@ -525,22 +525,16 @@ async function api(action, entity, extra = {}) {
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
 
-// Upload a base64 image to Base44 public CDN → returns https:// URL
+// Upload a base64 image via backend → Supabase Storage → returns https:// URL
 async function uploadAvatar(base64DataUrl, empId) {
-  // Convert base64 to blob
-  const res   = await fetch(base64DataUrl);
-  const blob  = await res.blob();
-  const fd    = new FormData();
-  fd.append('file', blob, `avatar_${empId}.jpg`);
-  fd.append('app_id', APP_ID);
-  const r = await fetch('https://superagent-f43a5097.base44.app/upload', {
+  const r = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'x-base44-app-id': APP_ID },
-    body: fd,
+    headers: { 'Content-Type': 'application/json', 'x-base44-app-id': APP_ID },
+    body: JSON.stringify({ action: 'uploadAvatar', base64: base64DataUrl, employeeId: empId }),
   });
-  if (!r.ok) throw new Error('Upload failed: ' + r.status);
   const json = await r.json();
-  return json.url || json.file_url || json.public_url || '';
+  if (!json.ok) throw new Error(json.error || 'Upload failed');
+  return json.data.url || '';
 }
 // Base44 stores array fields as JSON strings — parse safely
 // Base44 stores array items as individual JSON strings
