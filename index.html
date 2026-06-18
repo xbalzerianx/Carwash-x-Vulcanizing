@@ -3155,7 +3155,7 @@ function ActivityLogs({ logs=[], employees=[], onRefresh }) {
   };
 
   const todayStr    = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
-  const todayCount  = cwLogs.filter(l=>manilaDate(l.created_date||new Date(0))===todayStr).length;
+  const todayCount  = cwLogs.filter(l=>utcDate(l.created_date||0).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})===todayStr).length;
   const washCount   = cwLogs.filter(l=>l.event_type==='wash_recorded').length;
   const editCount   = cwLogs.filter(l=>l.event_type==='wash_edited').length;
   const payoutTotal = cwLogs.filter(l=>l.event_type==='commission_paid').reduce((s,l)=>s+(l.amount||0),0);
@@ -4629,7 +4629,7 @@ function VlcActivityLogs({ logs=[], employees=[], onRefresh }) {
     return utc(d).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Manila'});
   };
 
-  const todayCount  = sorted.filter(l=>manilaDate(l.created_date||new Date(0))===new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})).length;
+  const todayCount  = sorted.filter(l=>utcDate(l.created_date||0).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})===new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})).length;
   const createdCount= sorted.filter(l=>l.event_type==='vlc_job_created').length;
   const editCount   = sorted.filter(l=>l.event_type==='vlc_job_updated').length;
   const totalRev    = sorted.filter(l=>l.event_type==='vlc_job_created').reduce((s,l)=>s+(l.amount||0),0);
