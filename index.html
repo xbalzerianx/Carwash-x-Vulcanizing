@@ -1502,12 +1502,13 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
   const [saving,   setSaving]  = useState(false);
   const now=new Date();
   const manilaDate = dt => { const d=typeof dt==='string'&&!dt.endsWith('Z')&&!dt.includes('+') ? new Date(dt+'Z') : new Date(dt); return d.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}); };
-  const todayStr   = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
-
   const activeEmps = employees.filter(e=>e.is_active&&(!e.business_type||e.business_type==='carwash'));
   const activeSvcs = services.filter(s=>s.is_active&&(!s.business_type||s.business_type==='carwash'));
 
   const applyPeriod = list => {
+    // Always compute fresh — avoids stale date if page open overnight
+    const todayStr   = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+    const nowDate    = new Date();
     if (filter==='today') return list.filter(w => manilaDate(w.transaction_date||w.created_date)===todayStr);
     if (filter==='yesterday') {
       const y=new Date(); y.setDate(y.getDate()-1);
@@ -1515,16 +1516,19 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
       return list.filter(w => manilaDate(w.transaction_date||w.created_date)===yStr);
     }
     if (filter==='7days') {
-      const cut=new Date(); cut.setDate(cut.getDate()-6); cut.setHours(0,0,0,0);
-      return list.filter(w => new Date(w.transaction_date||w.created_date)>=cut);
+      // Use Manila-aware cutoff: start of 7 days ago in Manila time
+      const cut = new Date(); cut.setDate(cut.getDate()-6);
+      const cutStr = cut.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return list.filter(w => manilaDate(w.transaction_date||w.created_date)>=cutStr);
     }
     if (filter==='14days') {
-      const cut=new Date(); cut.setDate(cut.getDate()-13); cut.setHours(0,0,0,0);
-      return list.filter(w => new Date(w.transaction_date||w.created_date)>=cut);
+      const cut = new Date(); cut.setDate(cut.getDate()-13);
+      const cutStr = cut.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+      return list.filter(w => manilaDate(w.transaction_date||w.created_date)>=cutStr);
     }
     if (filter==='month') return list.filter(w => {
-      const d=new Date(w.transaction_date||w.created_date);
-      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+      const d=utcDate(w.transaction_date||w.created_date);
+      return d.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}).slice(0,7)===todayStr.slice(0,7);
     });
     if (filter==='custom'&&customFrom&&customTo) return list.filter(w => {
       const s=manilaDate(w.transaction_date||w.created_date); return s>=customFrom&&s<=customTo;
@@ -1534,29 +1538,35 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
 
   const filtered = applyPeriod(carWashes.filter(w => {
     if (!search) return true;
-    const q=search.toLowerCase().trim();
-    // Check if query exactly matches a known employee name
-    const matchedEmp = activeEmps.find(e=>e.full_name.toLowerCase()===q);
-    if(matchedEmp) {
-      // 1. Primary employee on the transaction
-      if (w.employee_id===matchedEmp.id) return true;
-      // 2. employee_name field contains the name (covers team records like 'D-BOY, NOBERT')
-      if ((w.employee_name||'').toLowerCase().includes(q)) return true;
-      // 3. commission_splits contains the employee's id (most reliable for team records)
+    const q = search.toLowerCase().trim();
+    // 1. Direct text matches
+    if ((w.employee_name||'').toLowerCase().includes(q)) return true;
+    if ((w.plate_number||'').toLowerCase().includes(q))  return true;
+    if ((w.customer_name||'').toLowerCase().includes(q)) return true;
+    // 2. Check employees array for name or id match
+    try {
+      const emps = parseArr(w.employees);
+      if (emps.some(e=>(e.name||'').toLowerCase().includes(q))) return true;
+    } catch(e) {}
+    // 3. Check commission_splits for name match
+    try {
+      const splits = parseArr(w.commission_splits);
+      if (splits.some(s=>(s.employee_name||'').toLowerCase().includes(q))) return true;
+    } catch(e) {}
+    // 4. Match by employee ID (if exact employee found by name)
+    const matchedEmp = employees.find(e => e.full_name.toLowerCase().includes(q));
+    if (matchedEmp) {
+      if (w.employee_id === matchedEmp.id) return true;
       try {
         const splits = parseArr(w.commission_splits);
-        if (splits.some(s=>s.employee_id===matchedEmp.id||s.id===matchedEmp.id)) return true;
-      } catch(e){}
-      // 4. employees array contains the id
+        if (splits.some(s => s.employee_id===matchedEmp.id || s.id===matchedEmp.id)) return true;
+      } catch(e) {}
       try {
         const emps = parseArr(w.employees);
-        if (emps.some(e=>e.id===matchedEmp.id)) return true;
-      } catch(e){}
-      return false;
+        if (emps.some(e => e.id===matchedEmp.id)) return true;
+      } catch(e) {}
     }
-    // Partial search — match name, plate, or customer name
-    const empName=(w.employee_name||'').toLowerCase();
-    return empName.includes(q)||w.plate_number?.toLowerCase().includes(q)||(w.customer_name||'').toLowerCase().includes(q);
+    return false;
   })).sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date));
 
   const tSales=filtered.reduce((s,w)=>s+(w.total_amount||0),0);
