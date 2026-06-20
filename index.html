@@ -2244,14 +2244,15 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
       const d = new Date(p.payout_date||p.created_date);
       return p.employee_id===empId && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
     }).reduce((s,p)=>s+(p.amount||0),0);
-    return { earned, paid, remaining: earned - paid };
+    const remaining = Math.round((earned - paid) * 100) / 100;
+    return { earned, paid, remaining };
   };
 
   const handlePayout = async () => {
     const amt = parseFloat(payoutAmt);
     if (!amt || amt <= 0) return showToast('Enter a valid amount','warning');
     const stats = getCommStats(payoutEmp.id);
-    if (amt > stats.remaining) return showToast(`Max available: ${peso(stats.remaining)}`,'warning');
+    if (amt > Math.ceil(stats.remaining)) return showToast(`Max available: ${peso(stats.remaining)}`,'warning');
     setPayoutSaving(true);
     try {
       await api('create','CommissionPayout',{data:{
