@@ -2404,13 +2404,19 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
   };
 
   const getStats=id=>{
-    const ws=carWashes.filter(w=>w.employee_id===id),now=new Date();
+    // ✅ FIX: Include jobs where employee is PRIMARY (employee_id) OR TEAM MEMBER (commission_splits)
+    const ws=carWashes.filter(w=>{
+      if(w.employee_id===id) return true;
+      const splits=parseArr(w.commission_splits);
+      return splits.some(sp=>sp.employee_id===id||sp.id===id);
+    });
+    const now=new Date();
     const manilaToday=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
     const manilaDate=dt=>{ const d=typeof dt==='string'&&!dt.endsWith('Z')&&!dt.includes('+') ? new Date(dt+'Z') : new Date(dt); return d.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}); };
     return {
       total:ws.length,
       today:ws.filter(w=>manilaDate(w.transaction_date||w.created_date)===manilaToday).length,
-      month:ws.filter(w=>{const d=new Date(w.transaction_date||w.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length,
+      month:ws.filter(w=>{ const d=manilaDate(w.transaction_date||w.created_date); return d.slice(0,7)===manilaToday.slice(0,7); }).length,
       sales:ws.reduce((s,w)=>s+(w.total_amount||0),0),
       comm:ws.reduce((s,w)=>s+(w.commission_amount||0),0),
     };
