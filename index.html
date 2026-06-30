@@ -2238,22 +2238,20 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
 
   // Commission math
   const getCommStats = (empId) => {
-    const now = new Date();
-    const monthWashes = carWashes.filter(w => {
-      const d = new Date(w.transaction_date||w.created_date);
-      if (d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear()) return false;
+    // ✅ ALL-TIME: commission earned and balance never reset — carries across months
+    const allWashes = carWashes.filter(w => {
       if (w.employee_id===empId) return true;
       try { const sp=parseArr(w.commission_splits); return sp.some(s=>s.employee_id===empId||s.id===empId); } catch(e){}
       return false;
     });
-    const earned = monthWashes.reduce((s,w)=>{
+    const earned = allWashes.reduce((s,w)=>{
       try { const sp=parseArr(w.commission_splits); const my=sp.find(s=>s.employee_id===empId||s.id===empId); if(my) return s+(my.amount||0); } catch(e){}
       return s+(w.commission_amount||0);
     },0);
-    const paid    = (payouts||[]).filter(p => {
-      const d = new Date(p.payout_date||p.created_date);
-      return p.employee_id===empId && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-    }).reduce((s,p)=>s+(p.amount||0),0);
+    // All-time payouts (no monthly filter)
+    const paid = (payouts||[])
+      .filter(p => p.employee_id===empId)
+      .reduce((s,p)=>s+(p.amount||0),0);
     const remaining = Math.round((earned - paid) * 100) / 100;
     return { earned, paid, remaining };
   };
@@ -2453,7 +2451,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
                 return cs.earned > 0 ? (
                   <div style={{background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 12px',marginBottom:10}}>
                     <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                      <span style={{fontSize:11,color:'var(--text2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>This Month Commission</span>
+                      <span style={{fontSize:11,color:'var(--text2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>Commission Earned</span>
                       <div style={{display:'flex',gap:6}}>
                         <button className="btn btn-sm" style={{padding:'3px 10px',fontSize:11,background:'rgba(77,166,255,0.15)',color:'#4DA6FF',border:'1px solid rgba(77,166,255,0.3)'}} onClick={e=>{e.stopPropagation();setAdvanceEmp(emp);setAdvanceAmt('');setAdvanceNote('');setShowAdvanceModal(true);}}>💵 Advance</button>
                         <button className="btn btn-sm btn-primary" style={{padding:'3px 10px',fontSize:11}} onClick={e=>{e.stopPropagation();setPayoutEmp(emp);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}>Pay Out</button>
