@@ -3307,6 +3307,8 @@ function AdminApp({ logout, role, isAdmin }) {
   const [logs,setLogs]=useState([]);
   const [vlcJobs,setVlcJobs]=useState([]);
   const [vlcProducts,setVlcProducts]=useState([]);
+  const [kgWorkOrders,setKgWorkOrders]=useState([]);
+  const [kgAbsences,setKgAbsences]=useState([]);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState(null);
   const [showChangePins,setShowChangePins]=useState(false);
@@ -3318,11 +3320,13 @@ function AdminApp({ logout, role, isAdmin }) {
       const [e,s,w,c,p,l,vj,vp] = await Promise.all([
         safe('Employee'), safe('Service'), safe('CarWash'),
         safe('RewardCampaign'), safe('CommissionPayout'), safe('ActivityLog'),
-        safe('VulcanizingJob'), safe('VulcanizingProduct')
+        safe('VulcanizingJob'), safe('VulcanizingProduct'),
+        safe('KgWorkOrder'), safe('KgAbsence')
       ]);
       setEmployees(e); setServices(s); setCarWashes(w);
       setCampaigns(c); setPayouts(p); setLogs(l);
       setVlcJobs(vj); setVlcProducts(vp);
+      setKgWorkOrders(kwo); setKgAbsences(kga);
     } catch(err) { showToast('Load error: '+err.message,'error'); }
     finally { setLoading(false); }
   };
@@ -3341,6 +3345,11 @@ function AdminApp({ logout, role, isAdmin }) {
     {id:'services',     icon:Ic.wrench,label:'Services',     section:'Admin'},
     {id:'rewards',      icon:Ic.gift,  label:'Rewards',      section:'Admin'},
     {id:'logs',         icon:Ic.log,   label:'Activity Log', section:'Admin'},
+  ] : biz==='kgemployees' ? [
+    {id:'kg-employees',     icon:Ic.users, label:'Staff',        section:'Main'},
+    {id:'kg-record',        icon:Ic.plus,  label:'Record Work',  section:'Main'},
+    {id:'kg-reports',       icon:Ic.chart, label:'Reports',      section:'Analytics'},
+    {id:'logs',             icon:Ic.log,   label:'Activity Log', section:'Admin'},
   ] : [
     {id:'vlc-dashboard',    icon:Ic.home,  label:'Dashboard',    section:'Main'},
     {id:'vlc-record',       icon:'🔧',     label:'Record Job',   section:'Main'},
@@ -3413,13 +3422,13 @@ function AdminApp({ logout, role, isAdmin }) {
         {/* ── Business Switcher ── */}
         <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
           <div style={{display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:10,padding:3,gap:3}}>
-            {[{k:'carwash',label:'🚗 Car Wash'},{k:'vulcanizing',label:'🔧 Vulcanizing'}].map(b=>(
-              <button key={b.k} onClick={()=>{setBizPersist(b.k);setPage(b.k==='carwash'?'dashboard':'vlc-dashboard');}}
+            {[{k:'carwash',label:'🚗 Car Wash'},{k:'vulcanizing',label:'🔧 Vulcanizing'},{k:'kgemployees',label:'👥 KG Staff'}].map(b=>(
+              <button key={b.k} onClick={()=>{setBizPersist(b.k);setPage(b.k==='carwash'?'dashboard':b.k==='vulcanizing'?'vlc-dashboard':'kg-employees');}}
                 style={{flex:1,padding:'7px 4px',fontSize:11,fontWeight:700,borderRadius:8,border:'none',cursor:'pointer',
                   transition:'all .2s',
-                  background:biz===b.k?(b.k==='carwash'?'var(--blue)':'var(--red)'):'transparent',
-                  color:biz===b.k?(b.k==='carwash'?'#111':'#fff'):'var(--text2)',
-                  boxShadow:biz===b.k?(b.k==='carwash'?'0 2px 8px rgba(77,166,255,0.4)':'0 2px 8px rgba(217,74,74,0.4)'):'none'}}>
+                  background:biz===b.k?(b.k==='carwash'?'var(--blue)':b.k==='vulcanizing'?'var(--red)':'var(--gold,#D4AF37)'):'transparent',
+                  color:biz===b.k?(b.k==='carwash'?'#111':b.k==='vulcanizing'?'#fff':'#111'):'var(--text2)',
+                  boxShadow:biz===b.k?(b.k==='carwash'?'0 2px 8px rgba(77,166,255,0.4)':b.k==='vulcanizing'?'0 2px 8px rgba(217,74,74,0.4)':'0 2px 8px rgba(212,175,55,0.4)'):'none'}}>
                 {b.label}
               </button>
             ))}
@@ -3494,6 +3503,9 @@ function AdminApp({ logout, role, isAdmin }) {
           {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='kg-employees'    && <ErrorBoundary><KgEmployees employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
+          {page==='kg-record'       && <ErrorBoundary><KgRecordWork employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='kg-reports'      && <ErrorBoundary><KgReports employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-logs'          && <ErrorBoundary><VlcActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
       </div>
@@ -4897,6 +4909,763 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
     </div>
   );
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   KG EMPLOYEES — Staff & Commission Tracker
+   ═══════════════════════════════════════════════════════════════════ */
+
+const KG_GOLD   = '#D4AF37';
+const KG_GOLD2  = '#B8960C';
+
+const manilaToday = () => new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+const toYM = d => { if (!d) return ''; const dt = typeof d==='string'&&!d.endsWith('Z')&&!d.includes('+')?new Date(d+'Z'):new Date(d); return dt.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}).slice(0,7); };
+const toManilaDate = d => { if (!d) return ''; const dt = typeof d==='string'&&!d.endsWith('Z')&&!d.includes('+')?new Date(d+'Z'):new Date(d); return dt.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}); };
+const workingDaysThisMonth = () => {
+  const n=new Date(); const y=n.getFullYear(); const m=n.getMonth();
+  const days=new Date(y,m+1,0).getDate();
+  let count=0;
+  for(let d=1;d<=days;d++){const dow=new Date(y,m,d).getDay();if(dow!==0)count++;}
+  return count;
+};
+
+function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdit, onViewProfile, onAdvance, onPayout, onAbsent, onToggleActive, onDelete, isAdmin }) {
+  const thisMonth = toYM(new Date().toISOString());
+  const absences = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===thisMonth);
+  const monthPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===thisMonth);
+  const totalPaid = monthPayouts.reduce((s,p)=>s+(p.amount||0),0);
+
+  let earned = 0;
+  const isMonthly = emp.salary_type==='monthly';
+  const workDays = workingDaysThisMonth();
+  const dailyRate = isMonthly ? (workDays>0?(emp.monthly_rate||0)/workDays:0) : 0;
+  if (isMonthly) {
+    const absentCount = absences.length;
+    const daysWorked = Math.max(0, workDays - absentCount);
+    earned = dailyRate * daysWorked;
+  } else {
+    earned = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth)
+                         .reduce((s,w)=>s+(w.worker_commission||0),0);
+  }
+  const balance = earned - totalPaid;
+
+  const todayStr = manilaToday();
+  const todayOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toManilaDate(w.transaction_date||w.created_date)===todayStr);
+  const monthOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth);
+
+  return (
+    <div onClick={()=>onViewProfile&&onViewProfile(emp)}
+      style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:20,cursor:'pointer',transition:'border-color .2s'}}
+      onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(212,175,55,0.4)'}
+      onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+        <Av emp={emp} size={48}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:800,fontSize:16,letterSpacing:.5,color:'var(--text)',textTransform:'uppercase'}}>{emp.full_name}</div>
+          <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{isMonthly?'📅 Monthly':'💼 Commission'}</div>
+        </div>
+        <span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:20,
+          background:emp.is_active!==false?'rgba(34,197,94,.12)':'rgba(255,255,255,.06)',
+          color:emp.is_active!==false?'var(--success)':'var(--text2)',
+          border:emp.is_active!==false?'1px solid rgba(34,197,94,.2)':'1px solid rgba(255,255,255,.1)'}}>
+          {emp.is_active!==false?'Active':'Inactive'}
+        </span>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:12}}>
+        {isMonthly ? (
+          <React.Fragment>
+            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(emp.monthly_rate||0)}</div>
+              <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Monthly</div>
+            </div>
+            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(dailyRate)}</div>
+              <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Daily Rate</div>
+            </div>
+            <div style={{background:absences.length>0?'rgba(217,74,74,0.1)':'var(--bg3,rgba(255,255,255,0.04))',border:absences.length>0?'1px solid rgba(217,74,74,0.25)':'none',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:15,color:absences.length>0?'var(--red)':'var(--text)'}}>{absences.length}</div>
+              <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Absences</div>
+            </div>
+          </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{todayOrders.length}</div>
+              <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Today</div>
+            </div>
+            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{monthOrders.length}</div>
+              <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>This Month</div>
+            </div>
+            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{emp.commission_percentage||0}%</div>
+              <div style={{fontSize:10,color:'var(--text2)',marginTop:2}}>Comm%</div>
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+
+      <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 12px',marginBottom:12}}>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span>{isMonthly?'SALARY EARNED':'COMMISSION EARNED'}</span>
+          {isAdmin && (
+            <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
+              {isMonthly && <button onClick={()=>onAbsent&&onAbsent(emp)} style={{fontSize:10,padding:'2px 8px',borderRadius:6,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',cursor:'pointer',fontWeight:700}}>Mark Absent</button>}
+              <button onClick={()=>onAdvance&&onAdvance(emp)} style={{fontSize:10,padding:'2px 8px',borderRadius:6,background:'rgba(212,175,55,0.15)',color:KG_GOLD,border:'1px solid rgba(212,175,55,0.3)',cursor:'pointer',fontWeight:700}}>Advance</button>
+              <button onClick={()=>onPayout&&onPayout(emp)} style={{fontSize:10,padding:'2px 8px',borderRadius:6,background:'rgba(77,166,255,0.15)',color:'var(--blue,#4DA6FF)',border:'1px solid rgba(77,166,255,0.3)',cursor:'pointer',fontWeight:700}}>Pay Out</button>
+            </div>
+          )}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontWeight:800,fontSize:14,color:KG_GOLD}}>{peso(earned)}</div>
+            <div style={{fontSize:10,color:'var(--text2)'}}>Earned</div>
+          </div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontWeight:800,fontSize:14,color:'var(--text)'}}>{peso(totalPaid)}</div>
+            <div style={{fontSize:10,color:'var(--text2)'}}>Paid</div>
+          </div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontWeight:800,fontSize:14,color:balance>=0?'var(--success)':'var(--red)'}}>{peso(balance)}</div>
+            <div style={{fontSize:10,color:'var(--text2)'}}>Balance</div>
+          </div>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div style={{display:'flex',gap:8}} onClick={e=>e.stopPropagation()}>
+          <button className="btn btn-ghost btn-sm" style={{flex:'1 1 60px'}} onClick={()=>onEdit&&onEdit(emp)}>{Ic.edit} Edit</button>
+          <button className={`btn btn-sm ${emp.is_active!==false?'btn-danger':''}`}
+            style={{flex:'1 1 80px',background:emp.is_active!==false?undefined:'rgba(34,197,94,.15)',color:emp.is_active!==false?undefined:'var(--success)',border:emp.is_active!==false?undefined:'1px solid rgba(34,197,94,.2)'}}
+            onClick={()=>onToggleActive&&onToggleActive(emp)}>
+            {emp.is_active!==false?'Deactivate':'Activate'}
+          </button>
+          <button className="btn btn-sm" style={{background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)',minWidth:36}} onClick={()=>onDelete&&onDelete(emp)}>🗑</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], showToast, onRefresh, isAdmin=true }) {
+  const kgEmps = employees.filter(e => e.business_type==='kgemployees');
+  const [showModal, setShowModal] = useState(false);
+  const [editing,   setEditing]   = useState(null);
+  const [saving,    setSaving]    = useState(false);
+  const [viewEmp,   setViewEmp]   = useState(null);
+  const [showPayoutModal,  setShowPayoutModal]  = useState(false);
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const [showAbsentModal,  setShowAbsentModal]  = useState(false);
+  const [targetEmp, setTargetEmp] = useState(null);
+  const [payoutAmt, setPayoutAmt] = useState('');
+  const [payoutNote,setPayoutNote]= useState('');
+  const [payoutSaving, setPayoutSaving] = useState(false);
+  const [absentDate, setAbsentDate] = useState(manilaToday());
+  const [absentNote, setAbsentNote] = useState('');
+  const [confirmDeleteEmp, setConfirmDeleteEmp] = useState(null);
+  const [preview, setPreview] = useState('');
+
+  const emptyForm = {full_name:'',contact_number:'',salary_type:'monthly',monthly_rate:0,commission_percentage:35,is_active:true,avatar_color:KG_GOLD,avatar_url:'',business_type:'kgemployees',employment_start_date:manilaToday()};
+  const [form, setForm] = useState(emptyForm);
+
+  const openAdd = () => { setForm(emptyForm); setEditing(null); setPreview(''); setShowModal(true); };
+  const openEdit = emp => { setForm({...emptyForm,...emp}); setEditing(emp); setPreview(emp.avatar_url||''); setShowModal(true); };
+
+  const handleAvatarChange = e => {
+    const file=e.target.files[0]; if(!file) return;
+    const canvas=document.createElement('canvas'); canvas.width=80; canvas.height=80;
+    const img=new Image(); img.onload=()=>{ const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,80,80); const url=canvas.toDataURL('image/jpeg',0.7); setPreview(url); setForm(f=>({...f,avatar_url:url})); };
+    img.src=URL.createObjectURL(file);
+  };
+
+  const saveEmp = async e => {
+    e.preventDefault(); if(!form.full_name.trim()){showToast('Name required','error');return;}
+    setSaving(true);
+    try {
+      const payload = {...form};
+      if(payload.avatar_url && payload.avatar_url.length > 50000) { payload.avatar_url = payload.avatar_url.substring(0,50000); }
+      if(editing) { await api('update','Employee',{id:editing.id,data:payload}); showToast('Employee updated','success'); }
+      else        { await api('create','Employee',{data:payload}); showToast('Employee added','success'); }
+      await onRefresh(); setShowModal(false);
+    } catch(err){ showToast('Save failed: '+err.message,'error'); }
+    setSaving(false);
+  };
+
+  const deleteEmp = async emp => {
+    try { await api('delete','Employee',{id:emp.id}); await onRefresh(); showToast('Employee removed','success'); }
+    catch(e){ showToast('Delete failed','error'); }
+    setConfirmDeleteEmp(null);
+  };
+
+  const toggleActive = async emp => {
+    try { await api('update','Employee',{id:emp.id,data:{is_active:!(emp.is_active!==false)}}); await onRefresh(); }
+    catch(e){ showToast('Update failed','error'); }
+  };
+
+  const doPayout = async (is_advance) => {
+    if(!payoutAmt||isNaN(+payoutAmt)){showToast('Enter valid amount','error');return;}
+    setPayoutSaving(true);
+    try {
+      await api('create','CommissionPayout',{data:{employee_id:targetEmp.id,employee_name:targetEmp.full_name,amount:+payoutAmt,note:payoutNote,payout_date:new Date().toISOString(),is_advance,business_type:'kgemployees'}});
+      await logEvent({event_type:is_advance?'kg_advance':'kg_payout',title:(is_advance?'Cash Advance':'Payout')+' — '+targetEmp.full_name,description:peso(+payoutAmt)+(payoutNote?' — '+payoutNote:''),actor_name:targetEmp.full_name,amount:+payoutAmt});
+      await onRefresh(); showToast(is_advance?'Cash advance recorded':'Payout recorded','success');
+      setPayoutAmt(''); setPayoutNote(''); setShowPayoutModal(false); setShowAdvanceModal(false);
+    } catch(err){ showToast('Failed: '+err.message,'error'); }
+    setPayoutSaving(false);
+  };
+
+  const doMarkAbsent = async () => {
+    if(!absentDate){showToast('Select date','error');return;}
+    const exists = kgAbsences.find(a=>a.employee_id===targetEmp.id&&a.absent_date===absentDate);
+    if(exists){showToast('Already marked absent this date','error');return;}
+    try {
+      await api('create','KgAbsence',{data:{employee_id:targetEmp.id,employee_name:targetEmp.full_name,absent_date:absentDate,note:absentNote}});
+      await onRefresh(); showToast('Absence recorded','success');
+      setAbsentDate(manilaToday()); setAbsentNote(''); setShowAbsentModal(false);
+    } catch(err){ showToast('Failed: '+err.message,'error'); }
+  };
+
+  const COLORS = ['#D4AF37','#4DA6FF','#D94A4A','#22c55e','#a855f7','#f97316','#06b6d4','#ec4899'];
+
+  return (
+    <div style={{padding:'0 0 40px'}}>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>👥 KG Employees</div>
+        {isAdmin && <button className="btn btn-primary btn-sm" onClick={openAdd} style={{background:KG_GOLD,color:'#111',border:'none'}}>{Ic.plus} Add Employee</button>}
+      </div>
+
+      {kgEmps.length===0 && (
+        <div style={{textAlign:'center',padding:'60px 20px',color:'var(--text2)'}}>
+          <div style={{fontSize:48,marginBottom:12}}>👥</div>
+          <div style={{fontSize:16,fontWeight:600}}>No KG employees yet</div>
+          <div style={{fontSize:13,marginTop:6}}>Add monthly or commission-based staff here.</div>
+        </div>
+      )}
+
+      <div className="grid-2">
+        {kgEmps.map(emp => (
+          <KgEmployeeCard key={emp.id} emp={emp} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts}
+            onEdit={openEdit} onViewProfile={emp=>setViewEmp(emp)}
+            onAdvance={e=>{setTargetEmp(e);setPayoutAmt('');setPayoutNote('');setShowAdvanceModal(true);}}
+            onPayout={e=>{setTargetEmp(e);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}
+            onAbsent={e=>{setTargetEmp(e);setAbsentDate(manilaToday());setAbsentNote('');setShowAbsentModal(true);}}
+            onToggleActive={toggleActive} onDelete={setConfirmDeleteEmp} isAdmin={isAdmin}/>
+        ))}
+      </div>
+
+      {showModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9000,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowModal(false);}}>
+          <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:480,maxWidth:'100%',maxHeight:'90vh',overflowY:'auto'}}>
+            <h3 style={{margin:'0 0 20px',fontSize:18,fontWeight:700,color:'var(--text)'}}>{editing?'Edit Employee':'Add Employee'}</h3>
+            <form onSubmit={saveEmp}>
+              <div style={{textAlign:'center',marginBottom:20}}>
+                <div style={{width:72,height:72,borderRadius:'50%',margin:'0 auto 10px',overflow:'hidden',border:'3px solid '+KG_GOLD,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:form.avatar_color||KG_GOLD,fontSize:28,fontWeight:800,color:'#fff',position:'relative'}}
+                  onClick={()=>document.getElementById('kg-avatar-input').click()}>
+                  {preview ? <img src={preview} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : initials(form.full_name)}
+                </div>
+                <input id="kg-avatar-input" type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange}/>
+                <div style={{fontSize:11,color:'var(--text2)'}}>Click avatar to upload photo</div>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:8}}>Avatar Color</label>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  {COLORS.map(c=><div key={c} onClick={()=>setForm(f=>({...f,avatar_color:c}))} style={{width:28,height:28,borderRadius:'50%',background:c,cursor:'pointer',border:form.avatar_color===c?'3px solid #fff':'2px solid transparent',boxSizing:'border-box'}}/>)}
+                </div>
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
+                <div style={{gridColumn:'span 2'}}>
+                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Full Name *</label>
+                  <input value={form.full_name} onChange={e=>setForm(f=>({...f,full_name:e.target.value}))} required
+                    style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                </div>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Contact Number</label>
+                  <input value={form.contact_number||''} onChange={e=>setForm(f=>({...f,contact_number:e.target.value}))}
+                    style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                </div>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Employee Type</label>
+                  <select value={form.salary_type||'monthly'} onChange={e=>setForm(f=>({...f,salary_type:e.target.value}))}
+                    style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}>
+                    <option value="monthly">📅 Monthly Rate</option>
+                    <option value="commission">💼 Commission Based</option>
+                  </select>
+                </div>
+                {form.salary_type==='monthly' ? (
+                  <div>
+                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Monthly Rate (₱)</label>
+                    <input type="number" min="0" value={form.monthly_rate||0} onChange={e=>setForm(f=>({...f,monthly_rate:+e.target.value}))}
+                      style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Commission %</label>
+                    <input type="number" min="0" max="100" value={form.commission_percentage||35} onChange={e=>setForm(f=>({...f,commission_percentage:+e.target.value}))}
+                      style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                  </div>
+                )}
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Employment Start Date</label>
+                  <input type="date" value={form.employment_start_date||manilaToday()} onChange={e=>setForm(f=>({...f,employment_start_date:e.target.value}))}
+                    style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                </div>
+              </div>
+
+              <div style={{display:'flex',gap:12,justifyContent:'flex-end',marginTop:20}}>
+                <button type="button" onClick={()=>setShowModal(false)} style={{padding:'10px 24px',borderRadius:10,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'var(--text2)',fontSize:14,cursor:'pointer'}}>Cancel</button>
+                <button type="submit" disabled={saving} style={{padding:'10px 28px',borderRadius:10,border:'none',background:KG_GOLD,color:'#111',fontSize:14,fontWeight:700,cursor:saving?'not-allowed':'pointer',opacity:saving?0.7:1}}>
+                  {saving?'Saving…':'Save Employee'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAbsentModal && targetEmp && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9001,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowAbsentModal(false);}}>
+          <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:400,maxWidth:'100%'}}>
+            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>Mark Absent</h3>
+            <p style={{color:'var(--text2)',fontSize:13,margin:'0 0 20px'}}>Recording absence for <strong style={{color:'var(--text)'}}>{targetEmp.full_name}</strong></p>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Absent Date</label>
+              <input type="date" value={absentDate} onChange={e=>setAbsentDate(e.target.value)}
+                style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Note (optional)</label>
+              <input value={absentNote} onChange={e=>setAbsentNote(e.target.value)} placeholder="e.g. Sick leave, No show..."
+                style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button onClick={()=>setShowAbsentModal(false)} style={{padding:'10px 20px',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'var(--text2)',cursor:'pointer'}}>Cancel</button>
+              <button onClick={doMarkAbsent} style={{padding:'10px 20px',borderRadius:8,border:'none',background:'var(--red)',color:'#fff',fontWeight:700,cursor:'pointer'}}>Mark Absent</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdvanceModal && targetEmp && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9001,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowAdvanceModal(false);}}>
+          <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:380,maxWidth:'100%'}}>
+            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>💰 Cash Advance</h3>
+            <p style={{color:'var(--text2)',fontSize:13,margin:'0 0 20px'}}>For <strong style={{color:'var(--text)'}}>{targetEmp.full_name}</strong></p>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Amount (₱)</label>
+              <input type="number" min="1" value={payoutAmt} onChange={e=>setPayoutAmt(e.target.value)} autoFocus
+                style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:16,boxSizing:'border-box',outline:'none'}}/>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Note</label>
+              <input value={payoutNote} onChange={e=>setPayoutNote(e.target.value)} placeholder="Optional note"
+                style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button onClick={()=>setShowAdvanceModal(false)} disabled={payoutSaving} style={{padding:'10px 20px',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'var(--text2)',cursor:'pointer'}}>Cancel</button>
+              <button onClick={()=>doPayout(true)} disabled={payoutSaving} style={{padding:'10px 20px',borderRadius:8,border:'none',background:KG_GOLD,color:'#111',fontWeight:700,cursor:payoutSaving?'not-allowed':'pointer'}}>
+                {payoutSaving?'Saving…':'Record Advance'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPayoutModal && targetEmp && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9001,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowPayoutModal(false);}}>
+          <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:380,maxWidth:'100%'}}>
+            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>💵 Pay Out</h3>
+            <p style={{color:'var(--text2)',fontSize:13,margin:'0 0 20px'}}>For <strong style={{color:'var(--text)'}}>{targetEmp.full_name}</strong></p>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Amount (₱)</label>
+              <input type="number" min="1" value={payoutAmt} onChange={e=>setPayoutAmt(e.target.value)} autoFocus
+                style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:16,boxSizing:'border-box',outline:'none'}}/>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Note</label>
+              <input value={payoutNote} onChange={e=>setPayoutNote(e.target.value)} placeholder="Optional note"
+                style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button onClick={()=>setShowPayoutModal(false)} disabled={payoutSaving} style={{padding:'10px 20px',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'var(--text2)',cursor:'pointer'}}>Cancel</button>
+              <button onClick={()=>doPayout(false)} disabled={payoutSaving} style={{padding:'10px 20px',borderRadius:8,border:'none',background:'var(--blue,#4DA6FF)',color:'#fff',fontWeight:700,cursor:payoutSaving?'not-allowed':'pointer'}}>
+                {payoutSaving?'Saving…':'Record Payout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteEmp && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9002,padding:16}}>
+          <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:360,maxWidth:'100%',textAlign:'center'}}>
+            <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
+            <h3 style={{margin:'0 0 8px',color:'var(--text)'}}>Remove Employee?</h3>
+            <p style={{color:'var(--text2)',fontSize:14,margin:'0 0 24px'}}>{confirmDeleteEmp.full_name} will be permanently removed.</p>
+            <div style={{display:'flex',gap:12,justifyContent:'center'}}>
+              <button onClick={()=>setConfirmDeleteEmp(null)} style={{padding:'10px 24px',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'var(--text2)',cursor:'pointer'}}>Cancel</button>
+              <button onClick={()=>deleteEmp(confirmDeleteEmp)} style={{padding:'10px 24px',borderRadius:8,border:'none',background:'var(--red)',color:'#fff',fontWeight:700,cursor:'pointer'}}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewEmp && (
+        <KgProfileModal emp={viewEmp} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts}
+          onClose={()=>setViewEmp(null)} isAdmin={isAdmin}
+          onDeleteAbsence={async a=>{try{await api('delete','KgAbsence',{id:a.id});await onRefresh();showToast('Absence removed','success');}catch(e){showToast('Failed','error');}}}
+          onDeleteWorkOrder={async w=>{try{await api('delete','KgWorkOrder',{id:w.id});await onRefresh();showToast('Work order removed','success');}catch(e){showToast('Failed','error');}}}
+          onDeletePayout={async p=>{try{await api('delete','CommissionPayout',{id:p.id});await onRefresh();showToast('Payout removed','success');}catch(e){showToast('Failed','error');}}}
+        />
+      )}
+    </div>
+  );
+}
+
+function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClose, isAdmin, onDeleteAbsence, onDeleteWorkOrder, onDeletePayout }) {
+  const [tab, setTab] = useState('overview');
+  const thisMonth = toYM(new Date().toISOString());
+  const [filterMonth, setFilterMonth] = useState(thisMonth);
+
+  const empAbsences = kgAbsences.filter(a=>a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===filterMonth);
+  const empWorkOrders = kgWorkOrders.filter(w=>w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
+  const empPayouts = payouts.filter(p=>p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth);
+
+  const workDays = workingDaysThisMonth();
+  const isMonthly = emp.salary_type==='monthly';
+
+  let earned=0;
+  if(isMonthly){
+    const daily=(emp.monthly_rate||0)/Math.max(1,workDays);
+    earned=daily*Math.max(0,workDays-empAbsences.length);
+  } else {
+    earned=empWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
+  }
+  const totalPaid=empPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const balance=earned-totalPaid;
+
+  const TABS=[{id:'overview',label:'Overview'},{id:'work',label:isMonthly?'Absences':'Work Orders'},{id:'payouts',label:'Payouts'}];
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9500,padding:16}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,width:560,maxWidth:'100%',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{padding:'20px 24px 16px',borderBottom:'1px solid rgba(255,255,255,0.08)',display:'flex',gap:14,alignItems:'center'}}>
+          <Av emp={emp} size={52}/>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:18,color:'var(--text)',textTransform:'uppercase'}}>{emp.full_name}</div>
+            <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{isMonthly?('📅 Monthly — '+peso(emp.monthly_rate||0)+'/mo'):('💼 Commission — '+(emp.commission_percentage||0)+'%')}</div>
+          </div>
+          <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+            style={{padding:'6px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:13,outline:'none'}}/>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--text2)',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,padding:'16px 24px 0'}}>
+          {[{label:'Earned',val:peso(earned),col:KG_GOLD},{label:'Paid',val:peso(totalPaid),col:'var(--text)'},{label:'Balance',val:peso(balance),col:balance>=0?'var(--success)':'var(--red)'}].map(t=>(
+            <div key={t.label} style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'12px 8px',textAlign:'center'}}>
+              <div style={{fontWeight:800,fontSize:16,color:t.col}}>{t.val}</div>
+              <div style={{fontSize:11,color:'var(--text2)',marginTop:3}}>{t.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:'flex',gap:4,padding:'16px 24px 0'}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{padding:'7px 14px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13,fontWeight:600,
+                background:tab===t.id?KG_GOLD:'transparent',
+                color:tab===t.id?'#111':'var(--text2)'}}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:'12px 24px 24px'}}>
+          {tab==='overview' && (
+            <div>
+              {isMonthly && (
+                <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:16,marginBottom:12}}>
+                  <div style={{fontWeight:700,color:KG_GOLD,marginBottom:10,fontSize:13}}>📅 Monthly Salary Breakdown</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    {[{label:'Monthly Rate',val:peso(emp.monthly_rate||0)},{label:'Daily Rate',val:peso((emp.monthly_rate||0)/Math.max(1,workDays))},{label:'Working Days',val:workDays},{label:'Days Absent',val:empAbsences.length},{label:'Days Worked',val:Math.max(0,workDays-empAbsences.length)},{label:'Earned',val:peso(earned)}].map(r=>(
+                      <div key={r.label} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                        <span style={{fontSize:12,color:'var(--text2)'}}>{r.label}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:'var(--text)'}}>{r.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{background:'rgba(255,255,255,0.03)',borderRadius:12,padding:16}}>
+                <div style={{fontWeight:700,color:'var(--text)',marginBottom:10,fontSize:13}}>💵 Payout Summary</div>
+                {[...empPayouts].reverse().slice(0,5).map(p=>(
+                  <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                    <div>
+                      <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:6}}>{p.is_advance?'Advance':'Payout'}</span>
+                      <span style={{fontSize:12,color:'var(--text2)'}}>{fmt(p.payout_date||p.created_date)}</span>
+                    </div>
+                    <span style={{fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
+                  </div>
+                ))}
+                {empPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'16px 0'}}>No payouts this month</div>}
+              </div>
+            </div>
+          )}
+
+          {tab==='work' && (
+            <div>
+              {isMonthly ? (
+                <div>
+                  <div style={{fontWeight:700,color:'var(--red)',marginBottom:12,fontSize:13}}>🚫 Absences — {filterMonth}</div>
+                  {empAbsences.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No absences recorded this month 🎉</div>}
+                  {empAbsences.map(a=>(
+                    <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(217,74,74,0.08)',borderRadius:8,marginBottom:6}}>
+                      <div>
+                        <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{a.absent_date}</div>
+                        {a.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{a.note}</div>}
+                      </div>
+                      {isAdmin && <button onClick={()=>onDeleteAbsence(a)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <div style={{fontWeight:700,color:KG_GOLD,marginBottom:12,fontSize:13}}>💼 Work Orders — {filterMonth}</div>
+                  {empWorkOrders.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No work orders this month</div>}
+                  {[...empWorkOrders].reverse().map(w=>(
+                    <div key={w.id} style={{padding:'12px',background:'rgba(255,255,255,0.03)',borderRadius:10,marginBottom:8,border:'1px solid rgba(255,255,255,0.06)'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{w.work_description||'—'}</div>
+                          {w.notes && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{w.notes}</div>}
+                          <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{fmt(w.transaction_date||w.created_date)}</div>
+                        </div>
+                        <div style={{textAlign:'right',marginLeft:12}}>
+                          <div style={{fontWeight:800,color:KG_GOLD,fontSize:14}}>{peso(w.worker_commission||0)}</div>
+                          <div style={{fontSize:11,color:'var(--text2)'}}>of {peso(w.work_amount||0)}</div>
+                          {isAdmin && <button onClick={()=>onDeleteWorkOrder(w)} style={{marginTop:6,background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11}}>Remove</button>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab==='payouts' && (
+            <div>
+              <div style={{fontWeight:700,color:'var(--text)',marginBottom:12,fontSize:13}}>💵 All Payouts — {filterMonth}</div>
+              {empPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No payouts this month</div>}
+              {[...empPayouts].reverse().map(p=>(
+                <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:8,marginBottom:6,border:'1px solid rgba(255,255,255,0.06)'}}>
+                  <div>
+                    <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:8}}>{p.is_advance?'Advance':'Payout'}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
+                    {p.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{p.note}</div>}
+                    <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{fmt(p.payout_date||p.created_date)}</div>
+                  </div>
+                  {isAdmin && <button onClick={()=>onDeletePayout(p)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KgRecordWork({ employees=[], showToast, onRefresh }) {
+  const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.salary_type==='commission'&&e.is_active!==false);
+  const [form, setForm] = useState({employee_id:'',work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
+  const [saving, setSaving] = useState(false);
+
+  const selEmp = commEmps.find(e=>e.id===form.employee_id);
+
+  const handleAmtChange = val => {
+    setForm(f=>{
+      const amt = +val;
+      const rate = selEmp ? (selEmp.commission_percentage||0)/100 : 0;
+      return {...f, work_amount:val, worker_commission: rate>0 ? (amt*rate).toFixed(2) : f.worker_commission};
+    });
+  };
+
+  const handleEmpChange = id => {
+    const emp = commEmps.find(e=>e.id===id);
+    setForm(f=>{
+      const amt = +f.work_amount;
+      const rate = emp ? (emp.commission_percentage||0)/100 : 0;
+      return {...f, employee_id:id, worker_commission: amt>0&&rate>0 ? (amt*rate).toFixed(2) : f.worker_commission};
+    });
+  };
+
+  const submit = async e => {
+    e.preventDefault();
+    if(!form.employee_id){showToast('Select employee','error');return;}
+    if(!form.work_description.trim()){showToast('Enter work description','error');return;}
+    if(!form.work_amount||isNaN(+form.work_amount)){showToast('Enter valid amount','error');return;}
+    if(!form.worker_commission||isNaN(+form.worker_commission)){showToast('Enter worker commission','error');return;}
+    setSaving(true);
+    try {
+      await api('create','KgWorkOrder',{data:{
+        employee_id:form.employee_id, employee_name:(selEmp?selEmp.full_name:''),
+        work_description:form.work_description.trim(), work_amount:+form.work_amount,
+        worker_commission:+form.worker_commission, notes:form.notes,
+        transaction_date:form.transaction_date
+      }});
+      await logEvent({event_type:'kg_work_order',title:'Work Order — '+(selEmp?selEmp.full_name:''),description:form.work_description+' | Commission: '+peso(+form.worker_commission),actor_name:(selEmp?selEmp.full_name:''),amount:+form.worker_commission});
+      await onRefresh();
+      showToast('Work order recorded!','success');
+      setForm({employee_id:form.employee_id,work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
+    } catch(err){ showToast('Failed: '+err.message,'error'); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{maxWidth:520,margin:'0 auto',padding:'0 0 40px'}}>
+      <div className="section-title" style={{marginBottom:20}}>💼 Record Work Order</div>
+      {commEmps.length===0 && (
+        <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:20,textAlign:'center',color:'var(--text2)'}}>
+          No commission-based employees found. Add one in the Staff tab.
+        </div>
+      )}
+      <form onSubmit={submit} style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:24}}>
+        <div style={{marginBottom:16}}>
+          <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Employee *</label>
+          <select value={form.employee_id} onChange={e=>handleEmpChange(e.target.value)} required
+            style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}>
+            <option value="">— Select Employee —</option>
+            {commEmps.map(e=><option key={e.id} value={e.id}>{e.full_name} ({e.commission_percentage||0}%)</option>)}
+          </select>
+        </div>
+
+        <div style={{marginBottom:16}}>
+          <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Work Description *</label>
+          <input value={form.work_description} onChange={e=>setForm(f=>({...f,work_description:e.target.value}))} placeholder="What did the worker work on?" required
+            style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:16}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Work Order Amount (₱) *</label>
+            <input type="number" min="0" step="0.01" value={form.work_amount} onChange={e=>handleAmtChange(e.target.value)} placeholder="0.00" required
+              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:KG_GOLD,display:'block',marginBottom:6}}>Worker Commission (₱) *</label>
+            <input type="number" min="0" step="0.01" value={form.worker_commission} onChange={e=>setForm(f=>({...f,worker_commission:e.target.value}))} placeholder="0.00" required
+              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(212,175,55,0.3)',background:'var(--bg3,#1a1a1f)',color:KG_GOLD,fontSize:14,fontWeight:700,boxSizing:'border-box',outline:'none'}}/>
+          </div>
+        </div>
+
+        {selEmp && form.work_amount && (
+          <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:14,fontSize:12,color:'var(--text2)'}}>
+            Auto-calculated: {selEmp.commission_percentage||0}% of {peso(+form.work_amount)} = <strong style={{color:KG_GOLD}}>{peso((+form.work_amount)*(selEmp.commission_percentage||0)/100)}</strong> — you can override above.
+          </div>
+        )}
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:20}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Notes</label>
+            <input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Optional notes"
+              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Date</label>
+            <input type="date" value={form.transaction_date} onChange={e=>setForm(f=>({...f,transaction_date:e.target.value}))}
+              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+          </div>
+        </div>
+
+        <button type="submit" disabled={saving||!form.employee_id} style={{width:'100%',padding:14,borderRadius:10,border:'none',background:KG_GOLD,color:'#111',fontSize:15,fontWeight:800,cursor:(saving||!form.employee_id)?'not-allowed':'pointer',opacity:(saving||!form.employee_id)?0.6:1}}>
+          {saving?'Recording…':'✅ Record Work Order'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function KgReports({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], showToast }) {
+  const kgEmps = employees.filter(e=>e.business_type==='kgemployees');
+  const thisMonth = toYM(new Date().toISOString());
+  const [filterMonth, setFilterMonth] = useState(thisMonth);
+  const workDays = workingDaysThisMonth();
+
+  const rows = kgEmps.map(emp => {
+    const isMonthly = emp.salary_type==='monthly';
+    const absences = kgAbsences.filter(a=>a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===filterMonth);
+    const workOrders = kgWorkOrders.filter(w=>w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
+    const empPayouts = payouts.filter(p=>p.employee_id===emp.id&&p.business_type==='kgemployees'&&toYM(p.payout_date||p.created_date)===filterMonth);
+    let earned=0;
+    if(isMonthly){
+      const daily=(emp.monthly_rate||0)/Math.max(1,workDays);
+      earned=daily*Math.max(0,workDays-absences.length);
+    } else {
+      earned=workOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
+    }
+    const paid=empPayouts.reduce((s,p)=>s+(p.amount||0),0);
+    return {emp:emp,isMonthly:isMonthly,absences:absences.length,workOrders:workOrders.length,earned:earned,paid:paid,balance:earned-paid};
+  });
+
+  const totalEarned=rows.reduce((s,r)=>s+r.earned,0);
+  const totalPaid=rows.reduce((s,r)=>s+r.paid,0);
+  const totalBalance=rows.reduce((s,r)=>s+r.balance,0);
+
+  return (
+    <div style={{padding:'0 0 40px'}}>
+      <div className="flex-between mb-4">
+        <div className="section-title" style={{marginBottom:0}}>📊 KG Staff Reports</div>
+        <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+          style={{padding:'8px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg2)',color:'var(--text)',fontSize:13,outline:'none'}}/>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:24}}>
+        {[{label:'Total Earned',val:peso(totalEarned),col:KG_GOLD},{label:'Total Paid',val:peso(totalPaid),col:'var(--text)'},{label:'Total Balance',val:peso(totalBalance),col:totalBalance>=0?'var(--success)':'var(--red)'}].map(t=>(
+          <div key={t.label} style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'16px 12px',textAlign:'center'}}>
+            <div style={{fontWeight:800,fontSize:20,color:t.col}}>{t.val}</div>
+            <div style={{fontSize:12,color:'var(--text2)',marginTop:4}}>{t.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,overflow:'hidden'}}>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead>
+            <tr style={{background:'rgba(255,255,255,0.04)'}}>
+              {['Employee','Type','Work','Absent','Earned','Paid','Balance'].map(h=>(
+                <th key={h} style={{padding:'12px 14px',textAlign:'left',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,color:'var(--text2)',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r=>(
+              <tr key={r.emp.id} style={{borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                <td style={{padding:'12px 14px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <Av emp={r.emp} size={28}/>
+                    <span style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{r.emp.full_name}</span>
+                  </div>
+                </td>
+                <td style={{padding:'12px 14px'}}><span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:r.isMonthly?'rgba(212,175,55,0.12)':'rgba(77,166,255,0.12)',color:r.isMonthly?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700}}>{r.isMonthly?'Monthly':'Comm'}</span></td>
+                <td style={{padding:'12px 14px',color:'var(--text)',fontWeight:600}}>{r.isMonthly?'—':r.workOrders}</td>
+                <td style={{padding:'12px 14px',color:r.absences>0?'var(--red)':'var(--text2)',fontWeight:600}}>{r.isMonthly?r.absences:'—'}</td>
+                <td style={{padding:'12px 14px',color:KG_GOLD,fontWeight:700}}>{peso(r.earned)}</td>
+                <td style={{padding:'12px 14px',color:'var(--text)',fontWeight:700}}>{peso(r.paid)}</td>
+                <td style={{padding:'12px 14px',color:r.balance>=0?'var(--success)':'var(--red)',fontWeight:800}}>{peso(r.balance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length===0 && <div style={{padding:40,textAlign:'center',color:'var(--text2)'}}>No KG employees found</div>}
+      </div>
+    </div>
+  );
+}
+
 
 /* ── Change PINs Modal (Admin only) ── */
 function ChangePinsModal({ onClose }) {

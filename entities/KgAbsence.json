@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "name": "KgAbsence",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "absent_date": {
+      "type": "string",
+      "description": "YYYY-MM-DD of the absent day"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

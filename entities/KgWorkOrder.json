@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "name": "KgWorkOrder",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "work_description": {
+      "type": "string",
+      "description": "What the worker worked on"
+    },
+    "work_amount": {
+      "type": "number",
+      "description": "Amount of the work order"
+    },
+    "worker_commission": {
+      "type": "number",
+      "description": "Commission earned by the worker"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "transaction_date": {
+      "type": "string",
+      "description": "ISO date of the work"
+    }
+  },
+  "required": []
+}

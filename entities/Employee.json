@@ -25,10 +25,29 @@
       "type": "string",
       "enum": [
         "carwash",
-        "vulcanizing"
+        "vulcanizing",
+        "kgemployees"
       ],
       "default": "carwash",
       "description": "Which business unit this employee belongs to"
+    },
+    "monthly_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Monthly salary (for monthly employees)"
+    },
+    "salary_type": {
+      "type": "string",
+      "enum": [
+        "commission",
+        "monthly"
+      ],
+      "default": "commission",
+      "description": "commission = per work order, monthly = fixed monthly salary"
+    },
+    "employment_start_date": {
+      "type": "string",
+      "description": "Date salary cycle started (YYYY-MM-DD)"
     }
   },
   "required": [],
