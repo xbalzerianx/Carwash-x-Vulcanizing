@@ -549,18 +549,32 @@ const parseArr = v => {
   }).filter(Boolean);
 };
 
-// ── Admin Auth ──
-const ADMIN_HASH = 'c49e7ae022624add43982e06e81604c11708b8bbabff41eb474327dd09e75b49';
-async function hashPassword(pw) {
-  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+// ── Auth (Admin + Assistant) ──
+// Default PINs: both start as 000000. PINs are stored as SHA-256 hashes in localStorage.
+async function hashPin(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+const PIN_DEFAULTS = {
+  admin:     '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203', // 000000
+  assistant: '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203', // 000000
+};
+function getStoredHash(role) {
+  return localStorage.getItem('kgcar_pin_'+role) || PIN_DEFAULTS[role];
+}
 function useAdminAuth() {
-  const key = 'kgcar_admin_auth';
-  const [authed, setAuthed] = React.useState(() => sessionStorage.getItem(key) === ADMIN_HASH);
-  const login  = async pw => { const h = await hashPassword(pw); if (h===ADMIN_HASH){ sessionStorage.setItem(key,h); setAuthed(true); return true; } return false; };
-  const logout = () => { sessionStorage.removeItem(key); setAuthed(false); };
-  return { authed, login, logout };
+  const sesKey = 'kgcar_session_role';
+  const [role, setRole] = React.useState(() => sessionStorage.getItem(sesKey) || null);
+  const authed = !!role;
+  const isAdmin = role === 'admin';
+  const login = async pw => {
+    const h = await hashPin(pw);
+    if (h === getStoredHash('admin'))     { sessionStorage.setItem(sesKey,'admin');     setRole('admin');     return true; }
+    if (h === getStoredHash('assistant')) { sessionStorage.setItem(sesKey,'assistant'); setRole('assistant'); return true; }
+    return false;
+  };
+  const logout = () => { sessionStorage.removeItem(sesKey); setRole(null); };
+  return { authed, login, logout, role, isAdmin };
 }
 
 function LoginScreen({ onLogin }) {
@@ -571,22 +585,24 @@ function LoginScreen({ onLogin }) {
     e.preventDefault();
     setBusy(true); setErr('');
     const ok = await onLogin(pw);
-    if (!ok) { setErr('Incorrect password'); setBusy(false); }
+    if (!ok) { setErr('Incorrect PIN'); setBusy(false); }
   };
   return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',fontFamily:'inherit'}}>
       <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:'48px 40px',width:360,maxWidth:'94vw',textAlign:'center',boxShadow:'0 8px 40px rgba(0,0,0,0.4)'}}>
         <div style={{fontSize:48,marginBottom:16}}>🔒</div>
-        <h2 style={{color:'var(--text)',margin:'0 0 6px',fontSize:22,fontWeight:700}}>Admin Access</h2>
-        <p style={{color:'var(--text2)',fontSize:14,margin:'0 0 28px'}}>KGCAR Carwash Management</p>
+        <h2 style={{color:'var(--text)',margin:'0 0 6px',fontSize:22,fontWeight:700}}>KG Car Services</h2>
+        <p style={{color:'var(--text2)',fontSize:14,margin:'0 0 28px'}}>Enter your PIN to continue</p>
         <form onSubmit={submit}>
           <input
             type="password"
+            inputMode="numeric"
+            maxLength={6}
             value={pw}
             onChange={e=>{setPw(e.target.value);setErr('');}}
-            placeholder="Enter admin password"
+            placeholder="Enter 6-digit PIN"
             autoFocus
-            style={{width:'100%',padding:'12px 16px',borderRadius:10,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:16,marginBottom:12,boxSizing:'border-box',outline:'none'}}
+            style={{width:'100%',padding:'12px 16px',borderRadius:10,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:20,marginBottom:12,boxSizing:'border-box',outline:'none',letterSpacing:8,textAlign:'center'}}
           />
           {err && <p style={{color:'var(--red)',fontSize:13,margin:'0 0 12px'}}>{err}</p>}
           <button type="submit" disabled={busy||!pw}
@@ -1490,7 +1506,7 @@ function RecordCarWash({ employees, services, vlcProducts=[], onSave, showToast 
 /* ═══════════════════════════════════════════
    TRANSACTIONS
 ═══════════════════════════════════════════ */
-function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, showToast }) {
+function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, showToast, isAdmin=true }) {
   const [filter,     setFilter]     = useState('today');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
@@ -1779,8 +1795,8 @@ function Transactions({ carWashes, employees, services=[], onDelete, onRefresh, 
                         </td>
                         <td>
                           <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
-                            <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(w)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>
-                            <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>
+                            {isAdmin && <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(w)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>}
+                            {isAdmin && <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(w.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>}
                           </div>
                         </td>
                       </tr>
@@ -2212,7 +2228,7 @@ function EmpProfileModal({ viewEmp, carWashes, payouts, parseArr, peso, Av, onCl
   );
 }
 
-function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, bizType='carwash' }) {
+function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, bizType='carwash', isAdmin=true }) {
   const emptyEmpForm = {full_name:'',contact_number:'',commission_percentage:40,is_active:true,avatar_color:'#D94A4A',avatar_url:'',business_type:bizType};
   const [showModal,setShowModal]=useState(false);
   const [editing,setEditing]=useState(null);
@@ -2469,11 +2485,11 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
                 ) : null;
               })()}
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                <button className="btn btn-ghost btn-sm" style={{flex:'1 1 60px',minWidth:0}} onClick={e=>{e.stopPropagation();openEdit(emp);}}>{Ic.edit} Edit</button>
-                <button className={`btn btn-sm ${emp.is_active?'btn-danger':''}`} style={{flex:'1 1 80px',minWidth:0,background:emp.is_active?undefined:'rgba(34,197,94,.15)',color:emp.is_active?undefined:'var(--success)',border:emp.is_active?undefined:'1px solid rgba(34,197,94,.2)'}} onClick={e=>{e.stopPropagation();toggleActive(emp);}}>
+                {isAdmin && <button className="btn btn-ghost btn-sm" style={{flex:'1 1 60px',minWidth:0}} onClick={e=>{e.stopPropagation();openEdit(emp);}}>{Ic.edit} Edit</button>}
+                {isAdmin && <button className={`btn btn-sm ${emp.is_active?'btn-danger':''}`} style={{flex:'1 1 80px',minWidth:0,background:emp.is_active?undefined:'rgba(34,197,94,.15)',color:emp.is_active?undefined:'var(--success)',border:emp.is_active?undefined:'1px solid rgba(34,197,94,.2)'}} onClick={e=>{e.stopPropagation();toggleActive(emp);}}>
                   {emp.is_active?'Deactivate':'Activate'}
-                </button>
-                <button className="btn btn-sm" style={{background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)',minWidth:36}} onClick={e=>{e.stopPropagation();setConfirmDeleteEmp(emp);}}>🗑</button>
+                </button>}
+                {isAdmin && <button className="btn btn-sm" style={{background:'rgba(217,74,74,0.12)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.25)',minWidth:36}} onClick={e=>{e.stopPropagation();setConfirmDeleteEmp(emp);}}>🗑</button>}
               </div>
             </div>
           );
@@ -2607,8 +2623,8 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
           peso={peso}
           Av={Av}
           onClose={()=>setViewEmp(null)}
-          onEdit={()=>{setViewEmp(null);openEdit(employees.find(e=>e.id===viewEmp.id)||viewEmp);}}
-          onDeletePayout={async(p)=>{
+          onEdit={isAdmin ? ()=>{setViewEmp(null);openEdit(employees.find(e=>e.id===viewEmp.id)||viewEmp);} : null}
+          onDeletePayout={isAdmin ? async(p)=>{
             if(!window.confirm(`Delete this ${p.is_advance?'Cash Advance':'Earned Payout'} of ${peso(p.amount||0)} for ${p.employee_name}? This cannot be undone.`)) return;
             try {
               await api('delete','CommissionPayout',{id:p.id});
@@ -2619,7 +2635,7 @@ function Employees({ employees, carWashes, payouts=[], showToast, onRefresh, biz
               await loadAll();
               showToast('Payout deleted','success');
             } catch(e){ showToast('Delete failed: '+e.message,'error'); }
-          }}
+          } : null}
         />
       )}
       {confirmDeleteEmp && (
@@ -3270,7 +3286,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function AdminApp({ logout }) {
+function AdminApp({ logout, role, isAdmin }) {
   const [biz,setBiz]=useState(()=>localStorage.getItem('kgBiz')||'carwash');
   // Sync body class for CSS-level blue/red theming
   React.useEffect(()=>{
@@ -3293,6 +3309,7 @@ function AdminApp({ logout }) {
   const [vlcProducts,setVlcProducts]=useState([]);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState(null);
+  const [showChangePins,setShowChangePins]=useState(false);
   const showToast=(msg,type='info')=>setToast({msg,type});
 
   const loadAll=async()=>{
@@ -3446,6 +3463,12 @@ function AdminApp({ logout }) {
                   🔧<span className="hide-xs"> Record Job</span>
                 </button>
             }
+            <span style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:20,background:isAdmin?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:isAdmin?'var(--gold,#D4AF37)':'var(--blue,#4DA6FF)',border:isAdmin?'1px solid rgba(212,175,55,0.3)':'1px solid rgba(77,166,255,0.3)',letterSpacing:.5}}>
+              {isAdmin ? '👑 Admin' : '🙋 Assistant'}
+            </span>
+            {isAdmin && <button onClick={()=>setShowChangePins(true)} title="Change PINs" style={{background:'none',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'var(--text2)',padding:'7px 10px',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:4}}>
+              🔑<span className="hide-xs"> PINs</span>
+            </button>}
             <button onClick={logout} title="Logout" style={{background:'none',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'var(--text2)',padding:'7px 10px',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',gap:4}}>
               🔓<span className="hide-xs"> Logout</span>
             </button>
@@ -3455,25 +3478,26 @@ function AdminApp({ logout }) {
           {/* ── CAR WASH pages ── */}
           {page==='dashboard'        && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
           {page==='record'           && <ErrorBoundary><RecordCarWash employees={employees} services={services} vlcProducts={vlcProducts} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
-          {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} services={services} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
+          {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} services={services} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} onRefresh={loadAll} showToast={showToast} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='ranking'          && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
           {page==='reports'          && <ErrorBoundary><Reports carWashes={carWashes} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
-          {page==='employees'        && <ErrorBoundary><Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='employees'        && <ErrorBoundary><Employees employees={employees} carWashes={carWashes} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='services'         && <ErrorBoundary><Services services={services} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='rewards'          && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='logs'             && <ErrorBoundary><ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
           {/* ── VULCANIZING pages ── */}
           {page==='vlc-dashboard'    && <ErrorBoundary><VlcDashboard vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} setPage={setPage}/></ErrorBoundary>}
           {page==='vlc-record'       && <ErrorBoundary><RecordVlcJob employees={employees} services={services} vlcProducts={vlcProducts} onSave={j=>{setVlcJobs(p=>[j,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
-          {page==='vlc-transactions' && <ErrorBoundary><VlcTransactions vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} onDelete={id=>setVlcJobs(p=>p.filter(j=>j.id!==id))} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
+          {page==='vlc-transactions' && <ErrorBoundary><VlcTransactions vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} onDelete={id=>setVlcJobs(p=>p.filter(j=>j.id!==id))} onRefresh={loadAll} showToast={showToast} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='vlc-ranking'      && <ErrorBoundary><VlcRanking vlcJobs={vlcJobs} employees={employees}/></ErrorBoundary>}
           {page==='vlc-reports'      && <ErrorBoundary><VlcReports vlcJobs={vlcJobs} employees={employees} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
-          {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-logs'          && <ErrorBoundary><VlcActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
       </div>
+      {showChangePins && <ChangePinsModal onClose={()=>setShowChangePins(false)}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     </div>
   );
@@ -3953,7 +3977,7 @@ function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
 }
 
 /* ── VlcTransactions ── */
-function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefresh, showToast }) {
+function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefresh, showToast, isAdmin=true }) {
   const [search,setSearch]=React.useState('');
   const [filter,setFilter]=React.useState('today');
   const [customFrom,setCustomFrom]=React.useState('');
@@ -4183,8 +4207,8 @@ function VlcTransactions({ vlcJobs, employees, vlcProducts=[], onDelete, onRefre
                         </td>
                         <td>
                           <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
-                            <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(j)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>
-                            <button className="btn btn-danger btn-sm" onClick={()=>setConfirmDel(j.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>
+                            {isAdmin && <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(j)} style={{padding:'5px 8px'}} title="Edit">{Ic.edit}</button>}
+                            {isAdmin && <button className="btn btn-danger btn-sm" onClick={()=>setConfirmDel(j.id)} style={{padding:'5px 8px'}}>{Ic.trash}</button>}
                           </div>
                         </td>
                       </tr>
@@ -4723,8 +4747,8 @@ function VlcActivityLogs({ logs=[], employees=[], onRefresh }) {
 
 
 /* ── VlcEmployees — reuses Employees component filtered to vulcanizing ── */
-function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh }) {
-  return <Employees employees={employees} carWashes={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={onRefresh} bizType="vulcanizing"/>;
+function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh, isAdmin=true }) {
+  return <Employees employees={employees} carWashes={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={onRefresh} bizType="vulcanizing" isAdmin={isAdmin}/>;
 }
 
 
@@ -4874,10 +4898,66 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
   );
 }
 
+/* ── Change PINs Modal (Admin only) ── */
+function ChangePinsModal({ onClose }) {
+  const [adminPin,  setAdminPin]  = React.useState('');
+  const [assistPin, setAssistPin] = React.useState('');
+  const [msg, setMsg] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  const save = async e => {
+    e.preventDefault();
+    if (adminPin  && !/^\d{6}$/.test(adminPin))  { setMsg('Admin PIN must be exactly 6 digits.'); return; }
+    if (assistPin && !/^\d{6}$/.test(assistPin)) { setMsg('Assistant PIN must be exactly 6 digits.'); return; }
+    if (!adminPin && !assistPin) { setMsg('Enter at least one PIN to update.'); return; }
+    setSaving(true); setMsg('');
+    try {
+      if (adminPin)  { const h = await hashPin(adminPin);  localStorage.setItem('kgcar_pin_admin',     h); }
+      if (assistPin) { const h = await hashPin(assistPin); localStorage.setItem('kgcar_pin_assistant', h); }
+      setMsg('✅ PINs updated successfully!');
+      setAdminPin(''); setAssistPin('');
+    } catch(e) { setMsg('Error saving PINs.'); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:'36px 32px',width:420,maxWidth:'94vw',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+        <h3 style={{margin:'0 0 8px',fontSize:20,fontWeight:700,color:'var(--text)'}}>🔑 Change PINs</h3>
+        <p style={{color:'var(--text2)',fontSize:13,margin:'0 0 24px'}}>Set new 6-digit PINs for each account. Leave blank to keep current PIN.</p>
+        <form onSubmit={save}>
+          <div style={{marginBottom:20}}>
+            <label style={{display:'block',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--gold)',marginBottom:8}}>👑 ADMIN PIN</label>
+            <input type="password" inputMode="numeric" maxLength={6} value={adminPin} onChange={e=>setAdminPin(e.target.value)}
+              placeholder="Enter new 6-digit PIN"
+              style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:16,boxSizing:'border-box',outline:'none',letterSpacing:4}}/>
+            <p style={{fontSize:11,color:'var(--text2)',margin:'6px 0 0'}}>Leave blank to keep current PIN</p>
+          </div>
+          <div style={{marginBottom:24}}>
+            <label style={{display:'block',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--blue,#4DA6FF)',marginBottom:8}}>🙋 ASSISTANT PIN</label>
+            <input type="password" inputMode="numeric" maxLength={6} value={assistPin} onChange={e=>setAssistPin(e.target.value)}
+              placeholder="Enter new 6-digit PIN"
+              style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:16,boxSizing:'border-box',outline:'none',letterSpacing:4}}/>
+            <p style={{fontSize:11,color:'var(--text2)',margin:'6px 0 0'}}>Leave blank to keep current PIN</p>
+          </div>
+          {msg && <p style={{fontSize:13,color:msg.startsWith('✅')?'var(--success)':'var(--red)',margin:'0 0 16px',textAlign:'center'}}>{msg}</p>}
+          <div style={{borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:20,display:'flex',gap:12,justifyContent:'flex-end'}}>
+            <button type="button" onClick={onClose} style={{padding:'10px 24px',borderRadius:10,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'var(--text2)',fontSize:14,cursor:'pointer'}}>Cancel</button>
+            <button type="submit" disabled={saving} style={{padding:'10px 28px',borderRadius:10,border:'none',background:'var(--gold,#D4AF37)',color:'#000',fontSize:14,fontWeight:700,cursor:saving?'not-allowed':'pointer',opacity:saving?0.7:1}}>
+              {saving ? 'Saving…' : 'Save PINs'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
 function App() {
-  const { authed, login, logout } = useAdminAuth();
+  const { authed, login, logout, role, isAdmin } = useAdminAuth();
   if (!authed) return <LoginScreen onLogin={login} />;
-  return <AdminApp logout={logout} />;
+  return <AdminApp logout={logout} role={role} isAdmin={isAdmin} />;
 }
 
 ReactDOM.render(<ErrorBoundary><App /></ErrorBoundary>, document.getElementById('root'));
