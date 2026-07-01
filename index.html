@@ -3413,10 +3413,10 @@ function AdminApp({ logout, role, isAdmin }) {
       {isMobile&&sidebarOpen&&<div className="sidebar-overlay show" onClick={()=>setSidebarOpen(false)}></div>}
       <div className={`sidebar ${sidebarOpen?'open':'closed'}`}>
         <div className="sidebar-logo">
-          <div className="logo-icon" style={{background:biz==='carwash'?'var(--blue)':'',boxShadow:biz==='carwash'?'0 4px 16px rgba(77,166,255,0.35)':'',color:biz==='carwash'?'#111':''}}>{biz==='carwash'?Ic.drop:'🔧'}</div>
+          <div className="logo-icon" style={{background:biz==='carwash'?'var(--blue)':biz==='vulcanizing'?'':'#D4AF37',boxShadow:biz==='carwash'?'0 4px 16px rgba(77,166,255,0.35)':biz==='vulcanizing'?'':'0 4px 16px rgba(212,175,55,0.35)',color:biz==='carwash'?'#111':biz==='vulcanizing'?'':'#111'}}>{biz==='carwash'?Ic.drop:biz==='vulcanizing'?'🔧':'👥'}</div>
           <div>
             <div className="logo-text">KG Car Services</div>
-            <div className="logo-sub">{biz==='carwash'?'Car Wash':'Vulcanizing'}</div>
+            <div className="logo-sub">{biz==='carwash'?'Car Wash':biz==='vulcanizing'?'Vulcanizing':'KG Staff'}</div>
           </div>
         </div>
         {/* ── Business Switcher ── */}
