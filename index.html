@@ -3317,7 +3317,7 @@ function AdminApp({ logout, role, isAdmin }) {
   const loadAll=async()=>{
     try{
       const safe = async (entity) => { try { return await api('list', entity); } catch(e) { console.warn(entity+' load failed:', e.message); return []; } };
-      const [e,s,w,c,p,l,vj,vp] = await Promise.all([
+      const [e,s,w,c,p,l,vj,vp,kwo,kga] = await Promise.all([
         safe('Employee'), safe('Service'), safe('CarWash'),
         safe('RewardCampaign'), safe('CommissionPayout'), safe('ActivityLog'),
         safe('VulcanizingJob'), safe('VulcanizingProduct'),
@@ -3422,14 +3422,17 @@ function AdminApp({ logout, role, isAdmin }) {
         {/* ── Business Switcher ── */}
         <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
           <div style={{display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:10,padding:3,gap:3}}>
-            {[{k:'carwash',label:'🚗 Car Wash'},{k:'vulcanizing',label:'🔧 Vulcanizing'},{k:'kgemployees',label:'👥 KG Staff'}].map(b=>(
+            {[{k:'carwash',icon:'🚗',label:'Wash'},{k:'vulcanizing',icon:'🔧',label:'Vulc'},{k:'kgemployees',icon:'👥',label:'Staff'}].map(b=>(
               <button key={b.k} onClick={()=>{setBizPersist(b.k);setPage(b.k==='carwash'?'dashboard':b.k==='vulcanizing'?'vlc-dashboard':'kg-employees');}}
-                style={{flex:1,padding:'7px 4px',fontSize:11,fontWeight:700,borderRadius:8,border:'none',cursor:'pointer',
+                title={b.k==='carwash'?'Car Wash':b.k==='vulcanizing'?'Vulcanizing':'KG Staff'}
+                style={{flex:1,minWidth:0,display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+                  padding:'7px 2px',fontSize:11,fontWeight:700,borderRadius:8,border:'none',cursor:'pointer',
+                  whiteSpace:'nowrap',overflow:'hidden',
                   transition:'all .2s',
                   background:biz===b.k?(b.k==='carwash'?'var(--blue)':b.k==='vulcanizing'?'var(--red)':'var(--gold,#D4AF37)'):'transparent',
                   color:biz===b.k?(b.k==='carwash'?'#111':b.k==='vulcanizing'?'#fff':'#111'):'var(--text2)',
                   boxShadow:biz===b.k?(b.k==='carwash'?'0 2px 8px rgba(77,166,255,0.4)':b.k==='vulcanizing'?'0 2px 8px rgba(217,74,74,0.4)':'0 2px 8px rgba(212,175,55,0.4)'):'none'}}>
-                {b.label}
+                <span style={{fontSize:13,lineHeight:1}}>{b.icon}</span><span style={{fontSize:10.5}}>{b.label}</span>
               </button>
             ))}
           </div>
@@ -3468,9 +3471,11 @@ function AdminApp({ logout, role, isAdmin }) {
               ? <button className="btn btn-primary btn-sm" onClick={()=>setPage('record')} style={{display:'flex',alignItems:'center',gap:4}}>
                   {Ic.plus}<span className="hide-xs"> New Wash</span>
                 </button>
-              : <button className="btn btn-primary btn-sm" onClick={()=>setPage('vlc-record')} style={{display:'flex',alignItems:'center',gap:4,background:'var(--red)',color:'#fff'}}>
+              : biz==='vulcanizing'
+              ? <button className="btn btn-primary btn-sm" onClick={()=>setPage('vlc-record')} style={{display:'flex',alignItems:'center',gap:4,background:'var(--red)',color:'#fff'}}>
                   🔧<span className="hide-xs"> Record Job</span>
                 </button>
+              : null
             }
             <span style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:20,background:isAdmin?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:isAdmin?'var(--gold,#D4AF37)':'var(--blue,#4DA6FF)',border:isAdmin?'1px solid rgba(212,175,55,0.3)':'1px solid rgba(77,166,255,0.3)',letterSpacing:.5}}>
               {isAdmin ? '👑 Admin' : '🙋 Assistant'}
