@@ -4937,19 +4937,75 @@ const workingDaysThisMonth = () => {
   return count;
 };
 
+// ── Pay-period helpers (support Monthly / Weekly / Custom-length periods) ──
+const dateToDay = (s) => { const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d)/86400000; };
+const dayToDateStr = (n) => new Date(n*86400000).toISOString().slice(0,10);
+
+// Number of days in the employee's current pay period
+const getPeriodDays = (emp) => {
+  if (emp.salary_type==='weekly') return 7;
+  if (emp.salary_type==='custom') return emp.period_days || 7;
+  return workingDaysThisMonth(); // monthly (unchanged legacy behavior)
+};
+
+// Start/end date strings (YYYY-MM-DD, Manila) of the CURRENT pay period.
+// Monthly = calendar month. Weekly/Custom = rolls forward in fixed-length
+// blocks anchored to employment_start_date (the employee's "reset date").
+const getPeriodRange = (emp) => {
+  if (emp.salary_type!=='weekly' && emp.salary_type!=='custom') {
+    const todayStr = manilaToday();
+    const [y,m] = todayStr.split('-').map(Number);
+    const start = `${y}-${String(m).padStart(2,'0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const end = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+    return { start, end };
+  }
+  const periodLen = getPeriodDays(emp);
+  const anchorStr = emp.employment_start_date || manilaToday();
+  const anchorDay = dateToDay(anchorStr);
+  const todayDay = dateToDay(manilaToday());
+  const diffDays = Math.max(0, todayDay - anchorDay);
+  const periodIndex = Math.floor(diffDays / periodLen);
+  const startDay = anchorDay + periodIndex*periodLen;
+  const endDay = startDay + periodLen - 1;
+  return { start: dayToDateStr(startDay), end: dayToDateStr(endDay) };
+};
+
+// Daily rate — either entered directly, or derived from a period total
+const getDailyRate = (emp) => {
+  if (emp.salary_type==='commission') return 0;
+  const days = getPeriodDays(emp);
+  if (emp.rate_basis==='daily') return emp.monthly_rate||0;
+  return days>0 ? (emp.monthly_rate||0)/days : 0;
+};
+
+// Informational total for the period (e.g. "₱3,500 / week")
+const getPeriodTotalRate = (emp) => {
+  if (emp.rate_basis==='daily') return (emp.monthly_rate||0) * getPeriodDays(emp);
+  return emp.monthly_rate||0;
+};
+
+const salaryPeriodLabel = (emp) => {
+  if (emp.salary_type==='weekly') return 'Weekly';
+  if (emp.salary_type==='custom') return `Custom (${emp.period_days||7}d)`;
+  if (emp.salary_type==='commission') return 'Commission';
+  return 'Monthly';
+};
+
 function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdit, onViewProfile, onAdvance, onPayout, onAbsent, onToggleActive, onDelete, isAdmin }) {
   const thisMonth = toYM(new Date().toISOString());
-  const absences = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===thisMonth);
-  const monthPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===thisMonth);
-  const totalPaid = monthPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const isMonthly = emp.salary_type!=='commission'; // salaried (monthly/weekly/custom) vs commission
+  const period = getPeriodRange(emp);
+  const absences = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date>=period.start && a.absent_date<=period.end);
+  const periodPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_date||p.created_date||'').slice(0,10)>=period.start && (p.payout_date||p.created_date||'').slice(0,10)<=period.end);
+  const totalPaid = periodPayouts.reduce((s,p)=>s+(p.amount||0),0);
 
   let earned = 0;
-  const isMonthly = emp.salary_type==='monthly';
-  const workDays = workingDaysThisMonth();
-  const dailyRate = isMonthly ? (workDays>0?(emp.monthly_rate||0)/workDays:0) : 0;
+  const dailyRate = isMonthly ? getDailyRate(emp) : 0;
+  const periodDays = isMonthly ? getPeriodDays(emp) : 0;
   if (isMonthly) {
     const absentCount = absences.length;
-    const daysWorked = Math.max(0, workDays - absentCount);
+    const daysWorked = Math.max(0, periodDays - absentCount);
     earned = dailyRate * daysWorked;
   } else {
     earned = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth)
@@ -4973,7 +5029,7 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
         <Av emp={emp} size={60}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontWeight:800,fontSize:19,letterSpacing:.5,color:'var(--text)',textTransform:'uppercase'}}>{emp.full_name}</div>
-          <div style={{fontSize:12.5,color:'var(--text2)',marginTop:3}}>{isMonthly?'📅 Monthly':'💼 Commission'}</div>
+          <div style={{fontSize:12.5,color:'var(--text2)',marginTop:3}}>{isMonthly?('📅 '+salaryPeriodLabel(emp)):'💼 Commission'}</div>
         </div>
         <span style={{fontSize:12,fontWeight:700,padding:'4px 12px',borderRadius:20,
           background:emp.is_active!==false?'rgba(34,197,94,.12)':'rgba(255,255,255,.06)',
@@ -4987,8 +5043,8 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
         {isMonthly ? (
           <React.Fragment>
             <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(emp.monthly_rate||0)}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Monthly</div>
+              <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(getPeriodTotalRate(emp))}</div>
+              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{salaryPeriodLabel(emp)}</div>
             </div>
             <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
               <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(dailyRate)}</div>
@@ -5092,7 +5148,7 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
   const [confirmDeleteEmp, setConfirmDeleteEmp] = useState(null);
   const [preview, setPreview] = useState('');
 
-  const emptyForm = {full_name:'',contact_number:'',salary_type:'monthly',monthly_rate:0,commission_percentage:35,is_active:true,avatar_color:KG_GOLD,avatar_url:'',business_type:'kgemployees',employment_start_date:manilaToday()};
+  const emptyForm = {full_name:'',contact_number:'',salary_type:'monthly',monthly_rate:0,rate_basis:'total',period_days:7,commission_percentage:35,is_active:true,avatar_color:KG_GOLD,avatar_url:'',business_type:'kgemployees',employment_start_date:manilaToday()};
   const [form, setForm] = useState(emptyForm);
 
   const openAdd = () => { setForm(emptyForm); setEditing(null); setPreview(''); setShowModal(true); };
@@ -5217,14 +5273,24 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
                   <select value={form.salary_type||'monthly'} onChange={e=>setForm(f=>({...f,salary_type:e.target.value}))}
                     style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}>
                     <option value="monthly">📅 Monthly Rate</option>
+                    <option value="weekly">📆 Weekly Rate</option>
+                    <option value="custom">🗓️ Custom Period</option>
                     <option value="commission">💼 Commission Based</option>
                   </select>
                 </div>
-                {form.salary_type==='monthly' ? (
+                {form.salary_type!=='commission' ? (
                   <div>
-                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Monthly Rate (₱)</label>
-                    <input type="number" min="0" value={form.monthly_rate||0} onChange={e=>setForm(f=>({...f,monthly_rate:+e.target.value}))}
-                      style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Rate Entry</label>
+                    <div style={{display:'flex',gap:6,background:'var(--bg3,#1a1a1f)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:3}}>
+                      {[{v:'total',l:'Total / Period'},{v:'daily',l:'Daily Rate'}].map(o=>(
+                        <button key={o.v} type="button" onClick={()=>setForm(f=>({...f,rate_basis:o.v}))}
+                          style={{flex:1,padding:'7px 4px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:700,
+                            background:(form.rate_basis||'total')===o.v?KG_GOLD:'transparent',
+                            color:(form.rate_basis||'total')===o.v?'#111':'var(--text2)'}}>
+                          {o.l}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div>
@@ -5234,10 +5300,37 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
                     </div>
                   </div>
                 )}
+                {form.salary_type==='custom' && (
+                  <div>
+                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Period Length (days)</label>
+                    <input type="number" min="1" value={form.period_days||7} onChange={e=>setForm(f=>({...f,period_days:+e.target.value}))}
+                      style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                  </div>
+                )}
+                {form.salary_type!=='commission' && (
+                  <div>
+                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>
+                      {(form.rate_basis||'total')==='daily' ? 'Daily Rate (₱)' : (form.salary_type==='weekly'?'Weekly Total (₱)':form.salary_type==='custom'?`Total per ${form.period_days||7} Days (₱)`:'Monthly Rate (₱)')}
+                    </label>
+                    <input type="number" min="0" value={form.monthly_rate||0} onChange={e=>setForm(f=>({...f,monthly_rate:+e.target.value}))}
+                      style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                    {(form.rate_basis||'total')==='daily' && form.salary_type!=='monthly' && (
+                      <div style={{fontSize:11.5,color:KG_GOLD,marginTop:6,fontWeight:600}}>
+                        = {peso((form.monthly_rate||0) * (form.salary_type==='weekly'?7:(form.period_days||7)))} per {form.salary_type==='weekly'?'week':`${form.period_days||7}-day period`}
+                      </div>
+                    )}
+                    {(form.rate_basis||'total')==='daily' && form.salary_type==='monthly' && (
+                      <div style={{fontSize:11.5,color:KG_GOLD,marginTop:6,fontWeight:600}}>
+                        ≈ {peso((form.monthly_rate||0) * workingDaysThisMonth())} this month ({workingDaysThisMonth()} working days)
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
-                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Employment Start Date</label>
+                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>{form.salary_type==='weekly'||form.salary_type==='custom'?'Period Start / Reset Date':'Employment Start Date'}</label>
                   <input type="date" value={form.employment_start_date||manilaToday()} onChange={e=>setForm(f=>({...f,employment_start_date:e.target.value}))}
                     style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+                  {(form.salary_type==='weekly'||form.salary_type==='custom') && <div style={{fontSize:10.5,color:'var(--text2)',marginTop:4}}>Pay periods roll forward from this date</div>}
                 </div>
               </div>
 
@@ -5360,17 +5453,21 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
   const empWorkOrders = kgWorkOrders.filter(w=>w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
   const empPayouts = payouts.filter(p=>p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth);
 
-  const workDays = workingDaysThisMonth();
-  const isMonthly = emp.salary_type==='monthly';
+  const isMonthly = emp.salary_type!=='commission';
+  const periodRange = getPeriodRange(emp);
+  const periodDays = getPeriodDays(emp);
+  // "Earned/Paid/Balance" badges always reflect the CURRENT live pay period (not the browsed filterMonth)
+  const periodAbsences = kgAbsences.filter(a=>a.employee_id===emp.id && a.absent_date && a.absent_date>=periodRange.start && a.absent_date<=periodRange.end);
+  const periodPayouts = payouts.filter(p=>p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_date||p.created_date||'').slice(0,10)>=periodRange.start && (p.payout_date||p.created_date||'').slice(0,10)<=periodRange.end);
 
   let earned=0;
   if(isMonthly){
-    const daily=(emp.monthly_rate||0)/Math.max(1,workDays);
-    earned=daily*Math.max(0,workDays-empAbsences.length);
+    const daily=getDailyRate(emp);
+    earned=daily*Math.max(0,periodDays-periodAbsences.length);
   } else {
     earned=empWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
   }
-  const totalPaid=empPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const totalPaid = isMonthly ? periodPayouts.reduce((s,p)=>s+(p.amount||0),0) : empPayouts.reduce((s,p)=>s+(p.amount||0),0);
   const balance=earned-totalPaid;
   const workRevenue = !isMonthly ? empWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0) : 0;
 
@@ -5383,7 +5480,7 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
           <Av emp={emp} size={52}/>
           <div style={{flex:1}}>
             <div style={{fontWeight:800,fontSize:18,color:'var(--text)',textTransform:'uppercase'}}>{emp.full_name}</div>
-            <div style={{fontSize:13,color:'var(--text2)',marginTop:3}}>{isMonthly?('📅 Monthly — '+peso(emp.monthly_rate||0)+'/mo'):'💼 Commission Based'}</div>
+            <div style={{fontSize:13,color:'var(--text2)',marginTop:3}}>{isMonthly?('📅 '+salaryPeriodLabel(emp)+' — '+peso(getPeriodTotalRate(emp))+'/'+(emp.salary_type==='weekly'?'wk':emp.salary_type==='custom'?(emp.period_days||7)+'d':'mo')):'💼 Commission Based'}</div>
           </div>
           <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
             style={{padding:'6px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:13,outline:'none'}}/>
@@ -5428,9 +5525,10 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
             <div>
               {isMonthly && (
                 <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:16,marginBottom:12}}>
-                  <div style={{fontWeight:700,color:KG_GOLD,marginBottom:10,fontSize:13}}>📅 Monthly Salary Breakdown</div>
+                  <div style={{fontWeight:700,color:KG_GOLD,marginBottom:2,fontSize:13}}>📅 {salaryPeriodLabel(emp)} Salary Breakdown</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginBottom:10}}>Current period: {periodRange.start} → {periodRange.end}</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                    {[{label:'Monthly Rate',val:peso(emp.monthly_rate||0)},{label:'Daily Rate',val:peso((emp.monthly_rate||0)/Math.max(1,workDays))},{label:'Working Days',val:workDays},{label:'Days Absent',val:empAbsences.length},{label:'Days Worked',val:Math.max(0,workDays-empAbsences.length)},{label:'Earned',val:peso(earned)}].map(r=>(
+                    {[{label:salaryPeriodLabel(emp)+' Rate',val:peso(getPeriodTotalRate(emp))},{label:'Daily Rate',val:peso(getDailyRate(emp))},{label:'Period Days',val:periodDays},{label:'Days Absent',val:periodAbsences.length},{label:'Days Worked',val:Math.max(0,periodDays-periodAbsences.length)},{label:'Earned',val:peso(earned)}].map(r=>(
                       <div key={r.label} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
                         <span style={{fontSize:12,color:'var(--text2)'}}>{r.label}</span>
                         <span style={{fontSize:12,fontWeight:700,color:'var(--text)'}}>{r.val}</span>
@@ -5628,13 +5726,13 @@ function KgReports({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], s
   const workDays = workingDaysThisMonth();
 
   const rows = kgEmps.map(emp => {
-    const isMonthly = emp.salary_type==='monthly';
+    const isMonthly = emp.salary_type!=='commission';
     const absences = kgAbsences.filter(a=>a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===filterMonth);
     const workOrders = kgWorkOrders.filter(w=>w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
     const empPayouts = payouts.filter(p=>p.employee_id===emp.id&&p.business_type==='kgemployees'&&toYM(p.payout_date||p.created_date)===filterMonth);
     let earned=0;
     if(isMonthly){
-      const daily=(emp.monthly_rate||0)/Math.max(1,workDays);
+      const daily=getDailyRate(emp);
       earned=daily*Math.max(0,workDays-absences.length);
     } else {
       earned=workOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
@@ -5682,7 +5780,7 @@ function KgReports({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], s
                     <span style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{r.emp.full_name}</span>
                   </div>
                 </td>
-                <td style={{padding:'12px 14px'}}><span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:r.isMonthly?'rgba(212,175,55,0.12)':'rgba(77,166,255,0.12)',color:r.isMonthly?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700}}>{r.isMonthly?'Monthly':'Comm'}</span></td>
+                <td style={{padding:'12px 14px'}}><span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:r.isMonthly?'rgba(212,175,55,0.12)':'rgba(77,166,255,0.12)',color:r.isMonthly?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700}}>{r.isMonthly?salaryPeriodLabel(r.emp):'Comm'}</span></td>
                 <td style={{padding:'12px 14px',color:'var(--text)',fontWeight:600}}>{r.isMonthly?'—':r.workOrders}</td>
                 <td style={{padding:'12px 14px',color:r.absences>0?'var(--red)':'var(--text2)',fontWeight:600}}>{r.isMonthly?r.absences:'—'}</td>
                 <td style={{padding:'12px 14px',color:KG_GOLD,fontWeight:700}}>{peso(r.earned)}</td>

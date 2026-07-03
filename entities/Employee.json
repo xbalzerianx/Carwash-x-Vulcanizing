@@ -34,20 +34,36 @@
     "monthly_rate": {
       "type": "number",
       "default": 0,
-      "description": "Monthly salary (for monthly employees)"
+      "description": "Rate value for the pay period. Meaning depends on rate_basis: if 'total', this is the full period total (monthly/weekly/custom total); if 'daily', this is the daily rate and the period total is derived (daily * period days)."
     },
     "salary_type": {
       "type": "string",
       "enum": [
         "commission",
-        "monthly"
+        "monthly",
+        "weekly",
+        "custom"
       ],
       "default": "commission",
-      "description": "commission = per work order, monthly = fixed monthly salary"
+      "description": "commission = per work order; monthly = fixed calendar-month salary; weekly = fixed 7-day period, rolling from employment_start_date; custom = fixed period_days-length period, rolling from employment_start_date"
+    },
+    "rate_basis": {
+      "type": "string",
+      "enum": [
+        "total",
+        "daily"
+      ],
+      "default": "total",
+      "description": "total = monthly_rate holds the full period total; daily = monthly_rate holds a daily rate, period total is computed (daily * period days)"
+    },
+    "period_days": {
+      "type": "number",
+      "default": 7,
+      "description": "Length in days of the pay period, only used when salary_type='custom'"
     },
     "employment_start_date": {
       "type": "string",
-      "description": "Date salary cycle started (YYYY-MM-DD)"
+      "description": "Date salary cycle started/reset (YYYY-MM-DD). For weekly/custom salary types, pay periods roll forward in fixed-length blocks anchored to this date."
     }
   },
   "required": [],
