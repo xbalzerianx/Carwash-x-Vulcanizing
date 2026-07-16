@@ -5619,7 +5619,7 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
 }
 
 function KgRecordWork({ employees=[], showToast, onRefresh }) {
-  const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.salary_type==='commission'&&e.is_active!==false);
+  const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.is_active!==false);
   const [form, setForm] = useState({employee_id:'',work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
   const [saving, setSaving] = useState(false);
 
