@@ -4995,10 +4995,14 @@ const salaryPeriodLabel = (emp) => {
 function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdit, onViewProfile, onAdvance, onPayout, onAbsent, onToggleActive, onDelete, isAdmin }) {
   const thisMonth = toYM(new Date().toISOString());
   const isMonthly = emp.salary_type!=='commission'; // salaried (monthly/weekly/custom) vs commission
+  const hasComm = isMonthly && emp.has_commission === true;
   const period = getPeriodRange(emp);
   const absences = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date>=period.start && a.absent_date<=period.end);
+  
+  // Salary payouts
   const periodPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_date||p.created_date||'').slice(0,10)>=period.start && (p.payout_date||p.created_date||'').slice(0,10)<=period.end);
-  const totalPaid = periodPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const salaryPeriodPayouts = periodPayouts.filter(p => (p.payout_type || 'salary') === 'salary');
+  const salaryPaid = salaryPeriodPayouts.reduce((s,p)=>s+(p.amount||0),0);
 
   let earned = 0;
   const dailyRate = isMonthly ? getDailyRate(emp) : 0;
@@ -5011,9 +5015,21 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
     earned = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth)
                          .reduce((s,w)=>s+(w.worker_commission||0),0);
   }
-  const workRevenue = !isMonthly ? kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth)
-                         .reduce((s,w)=>s+(w.work_amount||0),0) : 0;
-  const balance = earned - totalPaid;
+  const salaryBalance = earned - salaryPaid;
+
+  // Commission section data
+  const commMonthOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth);
+  const commEarned = commMonthOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
+  const commRevenue = commMonthOrders.reduce((s,w)=>s+(w.work_amount||0),0);
+  
+  const commMonthPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_type||'commission')==='commission' && toYM(p.payout_date||p.created_date)===thisMonth);
+  const commPaid = commMonthPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const commBalance = commEarned - commPaid;
+
+  // Keep these defined for pure commission and pure salary layout rendering
+  const totalPaid = isMonthly ? salaryPaid : commPaid;
+  const balance = isMonthly ? salaryBalance : commBalance;
+  const workRevenue = !isMonthly ? commRevenue : 0;
 
   const todayStr = manilaToday();
   const todayOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toManilaDate(w.transaction_date||w.created_date)===todayStr);
@@ -5039,81 +5055,170 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
         </span>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
-        {isMonthly ? (
-          <React.Fragment>
-            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(getPeriodTotalRate(emp))}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{salaryPeriodLabel(emp)}</div>
-            </div>
-            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(dailyRate)}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Daily Rate</div>
-            </div>
-            <div style={{background:absences.length>0?'rgba(217,74,74,0.1)':'var(--bg3,rgba(255,255,255,0.04))',border:absences.length>0?'1px solid rgba(217,74,74,0.25)':'none',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:absences.length>0?'var(--red)':'var(--text)'}}>{absences.length}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Absences</div>
-            </div>
-          </React.Fragment>
-        ) : (
-          <React.Fragment>
-            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{todayOrders.length}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Today</div>
-            </div>
-            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{monthOrders.length}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>This Month</div>
-            </div>
-            <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:17,color:KG_GOLD}}>{kgWorkOrders.filter(w=>w.employee_id===emp.id).length}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>All-Time</div>
-            </div>
-          </React.Fragment>
-        )}
-      </div>
+      {!hasComm ? (
+        <React.Fragment>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
+            {isMonthly ? (
+              <React.Fragment>
+                <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(getPeriodTotalRate(emp))}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{salaryPeriodLabel(emp)}</div>
+                </div>
+                <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{peso(dailyRate)}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Daily Rate</div>
+                </div>
+                <div style={{background:absences.length>0?'rgba(217,74,74,0.1)':'var(--bg3,rgba(255,255,255,0.04))',border:absences.length>0?'1px solid rgba(217,74,74,0.25)':'none',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:17,color:absences.length>0?'var(--red)':'var(--text)'}}>{absences.length}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Absences</div>
+                </div>
+              </React.Fragment>
+            ) : (
+              <React.Fragment>
+                <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{todayOrders.length}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Today</div>
+                </div>
+                <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:17,color:'var(--text)'}}>{monthOrders.length}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>This Month</div>
+                </div>
+                <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:17,color:KG_GOLD}}>{kgWorkOrders.filter(w=>w.employee_id===emp.id).length}</div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>All-Time</div>
+                </div>
+              </React.Fragment>
+            )}
+          </div>
 
-      <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 12px',marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <span>{isMonthly?'SALARY EARNED':'COMMISSION EARNED'}</span>
-          {isAdmin && (
-            <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
-              {isMonthly && <button onClick={()=>onAbsent&&onAbsent(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',cursor:'pointer',fontWeight:700}}>Mark Absent</button>}
-              <button onClick={()=>onAdvance&&onAdvance(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(212,175,55,0.15)',color:KG_GOLD,border:'1px solid rgba(212,175,55,0.3)',cursor:'pointer',fontWeight:700}}>Advance</button>
-              <button onClick={()=>onPayout&&onPayout(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(77,166,255,0.15)',color:'var(--blue,#4DA6FF)',border:'1px solid rgba(77,166,255,0.3)',cursor:'pointer',fontWeight:700}}>Pay Out</button>
+          <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 12px',marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>{isMonthly?'SALARY EARNED':'COMMISSION EARNED'}</span>
+              {isAdmin && (
+                <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
+                  {isMonthly && <button onClick={()=>onAbsent&&onAbsent(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',cursor:'pointer',fontWeight:700}}>Mark Absent</button>}
+                  <button onClick={()=>onAdvance&&onAdvance(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(212,175,55,0.15)',color:KG_GOLD,border:'1px solid rgba(212,175,55,0.3)',cursor:'pointer',fontWeight:700}}>Advance</button>
+                  <button onClick={()=>onPayout&&onPayout(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(77,166,255,0.15)',color:'var(--blue,#4DA6FF)',border:'1px solid rgba(77,166,255,0.3)',cursor:'pointer',fontWeight:700}}>Pay Out</button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        {!isMonthly && (
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:10,padding:'12px 14px',marginBottom:10}}>
-            <div>
-              <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase'}}>Work Earnings (Revenue)</div>
-              <div style={{fontWeight:800,fontSize:20,color:'var(--text)',marginTop:2}}>{peso(workRevenue)}</div>
-            </div>
-            <div style={{fontSize:22,color:'var(--text2)'}}>→</div>
-            <div style={{textAlign:'right'}}>
-              <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase'}}>His Commission</div>
-              <div style={{fontWeight:900,fontSize:24,color:KG_GOLD,marginTop:2}}>{peso(earned)}</div>
+            {!isMonthly && (
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:10,padding:'12px 14px',marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase'}}>Work Earnings (Revenue)</div>
+                  <div style={{fontWeight:800,fontSize:20,color:'var(--text)',marginTop:2}}>{peso(workRevenue)}</div>
+                </div>
+                <div style={{fontSize:22,color:'var(--text2)'}}>→</div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase'}}>His Commission</div>
+                  <div style={{fontWeight:900,fontSize:24,color:KG_GOLD,marginTop:2}}>{peso(earned)}</div>
+                </div>
+              </div>
+            )}
+            <div style={{display:'grid',gridTemplateColumns:isMonthly?'repeat(3,1fr)':'repeat(2,1fr)',gap:8}}>
+              {isMonthly && (
+                <div style={{textAlign:'center'}}>
+                  <div style={{fontWeight:800,fontSize:16,color:KG_GOLD}}>{peso(earned)}</div>
+                  <div style={{fontSize:11,color:'var(--text2)'}}>Earned</div>
+                </div>
+              )}
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:16,color:'var(--text)'}}>{peso(totalPaid)}</div>
+                <div style={{fontSize:11,color:'var(--text2)'}}>Paid</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:16,color:balance>=0?'var(--success)':'var(--red)'}}>{peso(balance)}</div>
+                <div style={{fontSize:11,color:'var(--text2)'}}>Balance</div>
+              </div>
             </div>
           </div>
-        )}
-        <div style={{display:'grid',gridTemplateColumns:isMonthly?'repeat(3,1fr)':'repeat(2,1fr)',gap:8}}>
-          {isMonthly && (
-            <div style={{textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:16,color:KG_GOLD}}>{peso(earned)}</div>
-              <div style={{fontSize:11,color:'var(--text2)'}}>Earned</div>
+        </React.Fragment>
+      ) : (
+        <React.Fragment>
+          {/* SALARY SECTION */}
+          <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,padding:16,marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>── SALARY ──</span>
+              {isAdmin && (
+                <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
+                  <button onClick={()=>onAbsent&&onAbsent(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',cursor:'pointer',fontWeight:700}}>Mark Absent</button>
+                  <button onClick={()=>onAdvance&&onAdvance(emp, 'salary')} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(212,175,55,0.15)',color:KG_GOLD,border:'1px solid rgba(212,175,55,0.3)',cursor:'pointer',fontWeight:700}}>Salary Adv</button>
+                  <button onClick={()=>onPayout&&onPayout(emp, 'salary')} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(77,166,255,0.15)',color:'var(--blue,#4DA6FF)',border:'1px solid rgba(77,166,255,0.3)',cursor:'pointer',fontWeight:700}}>Salary Pay</button>
+                </div>
+              )}
             </div>
-          )}
-          <div style={{textAlign:'center'}}>
-            <div style={{fontWeight:800,fontSize:16,color:'var(--text)'}}>{peso(totalPaid)}</div>
-            <div style={{fontSize:11,color:'var(--text2)'}}>Paid</div>
+
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:12}}>
+              <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(getPeriodTotalRate(emp))}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>{salaryPeriodLabel(emp)}</div>
+              </div>
+              <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(dailyRate)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Daily Rate</div>
+              </div>
+              <div style={{background:absences.length>0?'rgba(217,74,74,0.1)':'var(--bg3,rgba(255,255,255,0.04))',border:absences.length>0?'1px solid rgba(217,74,74,0.25)':'none',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:absences.length>0?'var(--red)':'var(--text)'}}>{absences.length}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Absences</div>
+              </div>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,background:'var(--bg3,rgba(255,255,255,0.02))',borderRadius:10,padding:'10px 12px'}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{peso(earned)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)'}}>Earned</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(salaryPaid)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)'}}>Paid</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:salaryBalance>=0?'var(--success)':'var(--red)'}}>{peso(salaryBalance)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)'}}>Balance</div>
+              </div>
+            </div>
           </div>
-          <div style={{textAlign:'center'}}>
-            <div style={{fontWeight:800,fontSize:16,color:balance>=0?'var(--success)':'var(--red)'}}>{peso(balance)}</div>
-            <div style={{fontSize:11,color:'var(--text2)'}}>Balance</div>
+
+          {/* COMMISSION SECTION */}
+          <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,padding:16,marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>── COMMISSION ──</span>
+              {isAdmin && (
+                <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
+                  <button onClick={()=>onAdvance&&onAdvance(emp, 'commission')} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(212,175,55,0.15)',color:KG_GOLD,border:'1px solid rgba(212,175,55,0.3)',cursor:'pointer',fontWeight:700}}>Comm Adv</button>
+                  <button onClick={()=>onPayout&&onPayout(emp, 'commission')} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(77,166,255,0.15)',color:'var(--blue,#4DA6FF)',border:'1px solid rgba(77,166,255,0.3)',cursor:'pointer',fontWeight:700}}>Comm Pay</button>
+                </div>
+              )}
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:12}}>
+              <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{commMonthOrders.length}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Jobs (Month)</div>
+              </div>
+              <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(commRevenue)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Revenue</div>
+              </div>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,background:'var(--bg3,rgba(255,255,255,0.02))',borderRadius:10,padding:'10px 12px'}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{peso(commEarned)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)'}}>Earned</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(commPaid)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)'}}>Paid</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontWeight:800,fontSize:15,color:commBalance>=0?'var(--success)':'var(--red)'}}>{peso(commBalance)}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)'}}>Balance</div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </React.Fragment>
+      )}
 
       {isAdmin && (
         <div style={{display:'flex',gap:10}} onClick={e=>e.stopPropagation()}>
@@ -5129,7 +5234,6 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
     </div>
   );
 }
-
 function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], showToast, onRefresh, isAdmin=true }) {
   const kgEmps = employees.filter(e => e.business_type==='kgemployees');
   const [showModal, setShowModal] = useState(false);
@@ -5143,12 +5247,13 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
   const [payoutAmt, setPayoutAmt] = useState('');
   const [payoutNote,setPayoutNote]= useState('');
   const [payoutSaving, setPayoutSaving] = useState(false);
+  const [payoutType, setPayoutType] = useState('salary');
   const [absentDate, setAbsentDate] = useState(manilaToday());
   const [absentNote, setAbsentNote] = useState('');
   const [confirmDeleteEmp, setConfirmDeleteEmp] = useState(null);
   const [preview, setPreview] = useState('');
 
-  const emptyForm = {full_name:'',contact_number:'',salary_type:'monthly',monthly_rate:0,rate_basis:'total',period_days:7,commission_percentage:35,is_active:true,avatar_color:KG_GOLD,avatar_url:'',business_type:'kgemployees',employment_start_date:manilaToday()};
+  const emptyForm = {full_name:'',contact_number:'',salary_type:'monthly',monthly_rate:0,rate_basis:'total',period_days:7,commission_percentage:35,is_active:true,avatar_color:KG_GOLD,avatar_url:'',business_type:'kgemployees',employment_start_date:manilaToday(),has_commission:false};
   const [form, setForm] = useState(emptyForm);
 
   const openAdd = () => { setForm(emptyForm); setEditing(null); setPreview(''); setShowModal(true); };
@@ -5189,7 +5294,7 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
     if(!payoutAmt||isNaN(+payoutAmt)){showToast('Enter valid amount','error');return;}
     setPayoutSaving(true);
     try {
-      await api('create','CommissionPayout',{data:{employee_id:targetEmp.id,employee_name:targetEmp.full_name,amount:+payoutAmt,note:payoutNote,payout_date:new Date().toISOString(),is_advance,business_type:'kgemployees'}});
+      await api('create','CommissionPayout',{data:{employee_id:targetEmp.id,employee_name:targetEmp.full_name,amount:+payoutAmt,note:payoutNote,payout_date:new Date().toISOString(),is_advance,business_type:'kgemployees',payout_type:payoutType}});
       await logEvent({event_type:is_advance?'kg_advance':'kg_payout',title:(is_advance?'Cash Advance':'Payout')+' — '+targetEmp.full_name,description:peso(+payoutAmt)+(payoutNote?' — '+payoutNote:''),actor_name:targetEmp.full_name,amount:+payoutAmt});
       await onRefresh(); showToast(is_advance?'Cash advance recorded':'Payout recorded','success');
       setPayoutAmt(''); setPayoutNote(''); setShowPayoutModal(false); setShowAdvanceModal(false);
@@ -5229,8 +5334,16 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
         {kgEmps.map(emp => (
           <KgEmployeeCard key={emp.id} emp={emp} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts}
             onEdit={openEdit} onViewProfile={emp=>setViewEmp(emp)}
-            onAdvance={e=>{setTargetEmp(e);setPayoutAmt('');setPayoutNote('');setShowAdvanceModal(true);}}
-            onPayout={e=>{setTargetEmp(e);setPayoutAmt('');setPayoutNote('');setShowPayoutModal(true);}}
+            onAdvance={(emp,type)=>{
+              setTargetEmp(emp);
+              setPayoutType(type || (emp.salary_type==='commission' ? 'commission' : 'salary'));
+              setPayoutAmt(''); setPayoutNote(''); setShowAdvanceModal(true);
+            }}
+            onPayout={(emp,type)=>{
+              setTargetEmp(emp);
+              setPayoutType(type || (emp.salary_type==='commission' ? 'commission' : 'salary'));
+              setPayoutAmt(''); setPayoutNote(''); setShowPayoutModal(true);
+            }}
             onAbsent={e=>{setTargetEmp(e);setAbsentDate(manilaToday());setAbsentNote('');setShowAbsentModal(true);}}
             onToggleActive={toggleActive} onDelete={setConfirmDeleteEmp} isAdmin={isAdmin}/>
         ))}
@@ -5278,6 +5391,21 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
                     <option value="commission">💼 Commission Based</option>
                   </select>
                 </div>
+                {form.salary_type!=='commission' && (
+                  <div>
+                    <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Also earns commission?</label>
+                    <div style={{display:'flex',alignItems:'center',gap:10,background:'var(--bg3,#1a1a1f)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'10px 12px',cursor:'pointer'}}
+                      onClick={()=>setForm(f=>({...f,has_commission:!f.has_commission}))}>
+                      <input type="checkbox" checked={!!form.has_commission} readOnly style={{cursor:'pointer',accentColor:KG_GOLD,width:16,height:16}} />
+                      <span style={{fontSize:13,color:'var(--text)',fontWeight:600}}>Earns commission</span>
+                    </div>
+                    {form.has_commission && (
+                      <div style={{fontSize:11,color:KG_GOLD,marginTop:4,fontWeight:500}}>
+                        Commission entered manually per work order
+                      </div>
+                    )}
+                  </div>
+                )}
                 {form.salary_type!=='commission' ? (
                   <div>
                     <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Rate Entry</label>
@@ -5371,7 +5499,7 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
       {showAdvanceModal && targetEmp && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9001,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowAdvanceModal(false);}}>
           <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:380,maxWidth:'100%'}}>
-            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>💰 Cash Advance</h3>
+            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>💰 Cash Advance {payoutType === 'commission' ? '(Commission)' : '(Salary)'}</h3>
             <p style={{color:'var(--text2)',fontSize:13,margin:'0 0 20px'}}>For <strong style={{color:'var(--text)'}}>{targetEmp.full_name}</strong></p>
             <div style={{marginBottom:14}}>
               <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Amount (₱)</label>
@@ -5396,7 +5524,7 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
       {showPayoutModal && targetEmp && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9001,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowPayoutModal(false);}}>
           <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:28,width:380,maxWidth:'100%'}}>
-            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>💵 Pay Out</h3>
+            <h3 style={{margin:'0 0 6px',fontSize:18,fontWeight:700,color:'var(--text)'}}>💵 Pay Out {payoutType === 'commission' ? '(Commission)' : '(Salary)'}</h3>
             <p style={{color:'var(--text2)',fontSize:13,margin:'0 0 20px'}}>For <strong style={{color:'var(--text)'}}>{targetEmp.full_name}</strong></p>
             <div style={{marginBottom:14}}>
               <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Amount (₱)</label>
@@ -5445,70 +5573,132 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
 }
 
 function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClose, isAdmin, onDeleteAbsence, onDeleteWorkOrder, onDeletePayout }) {
-  const [tab, setTab] = useState('work');
+  const isMonthly = emp.salary_type !== 'commission';
+  const hasComm   = isMonthly && emp.has_commission === true;
+
+  // Default tab: for hasComm → 'absences', for monthly → 'absences', for commission → 'work'
+  const defaultTab = isMonthly ? 'absences' : 'work';
+  const [tab, setTab] = useState(defaultTab);
   const thisMonth = toYM(new Date().toISOString());
   const [filterMonth, setFilterMonth] = useState(thisMonth);
 
-  const empAbsences = kgAbsences.filter(a=>a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===filterMonth);
-  const empWorkOrders = kgWorkOrders.filter(w=>w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
-  const empPayouts = payouts.filter(p=>p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth);
+  // --- Filtered lists by filterMonth ---
+  const empAbsences   = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===filterMonth);
+  const empWorkOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
+  const empPayouts    = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth);
 
-  const isMonthly = emp.salary_type!=='commission';
-  const periodRange = getPeriodRange(emp);
-  const periodDays = getPeriodDays(emp);
-  // "Earned/Paid/Balance" badges always reflect the CURRENT live pay period (not the browsed filterMonth)
-  const periodAbsences = kgAbsences.filter(a=>a.employee_id===emp.id && a.absent_date && a.absent_date>=periodRange.start && a.absent_date<=periodRange.end);
-  const periodPayouts = payouts.filter(p=>p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_date||p.created_date||'').slice(0,10)>=periodRange.start && (p.payout_date||p.created_date||'').slice(0,10)<=periodRange.end);
+  // Split payouts by type for hasComm employees
+  const empSalaryPayouts = empPayouts.filter(p => (p.payout_type||'salary')==='salary');
+  const empCommPayouts   = empPayouts.filter(p => (p.payout_type||'commission')==='commission');
 
-  let earned=0;
-  if(isMonthly){
-    const daily=getDailyRate(emp);
-    earned=daily*Math.max(0,periodDays-periodAbsences.length);
-  } else {
-    earned=empWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
-  }
-  const totalPaid = isMonthly ? periodPayouts.reduce((s,p)=>s+(p.amount||0),0) : empPayouts.reduce((s,p)=>s+(p.amount||0),0);
-  const balance=earned-totalPaid;
-  const workRevenue = !isMonthly ? empWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0) : 0;
+  // --- Current live period calcs (salary) ---
+  const periodRange    = getPeriodRange(emp);
+  const periodDays     = getPeriodDays(emp);
+  const periodAbsences = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date>=periodRange.start && a.absent_date<=periodRange.end);
+  const periodPayouts  = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_date||p.created_date||'').slice(0,10)>=periodRange.start && (p.payout_date||p.created_date||'').slice(0,10)<=periodRange.end);
+  const salaryPeriodPayouts = isMonthly ? periodPayouts.filter(p=>(p.payout_type||'salary')==='salary') : [];
+  const salaryEarned   = isMonthly ? getDailyRate(emp)*Math.max(0,periodDays-periodAbsences.length) : 0;
+  const salaryPaid     = salaryPeriodPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const salaryBalance  = salaryEarned - salaryPaid;
 
-  const TABS=[{id:'work',label:isMonthly?'Absences':'Work Orders'},{id:'overview',label:'Overview'},{id:'payouts',label:'Payouts'}];
+  // --- Commission calcs (this month) ---
+  const commWorkOrders  = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
+  const commEarned      = commWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
+  const commRevenue     = commWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0);
+  const commPayoutsAll  = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_type||'commission')==='commission' && toYM(p.payout_date||p.created_date)===filterMonth);
+  const commPaid        = commPayoutsAll.reduce((s,p)=>s+(p.amount||0),0);
+  const commBalance     = commEarned - commPaid;
+
+  // --- For pure commission employees (unchanged) ---
+  const pureEarned  = !isMonthly ? empWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0) : 0;
+  const pureRevenue = !isMonthly ? empWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0) : 0;
+  const purePaid    = !isMonthly ? empPayouts.reduce((s,p)=>s+(p.amount||0),0) : 0;
+  const pureBalance = pureEarned - purePaid;
+
+  // TABS
+  const TABS = hasComm
+    ? [{id:'absences',label:'Absences'},{id:'work',label:'Work Orders'},{id:'overview',label:'Overview'},{id:'payouts',label:'Payouts'}]
+    : isMonthly
+      ? [{id:'absences',label:'Absences'},{id:'overview',label:'Overview'},{id:'payouts',label:'Payouts'}]
+      : [{id:'work',label:'Work Orders'},{id:'overview',label:'Overview'},{id:'payouts',label:'Payouts'}];
+
+  const StatTile = ({label,val,col})=>(
+    <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'12px 8px',textAlign:'center'}}>
+      <div style={{fontWeight:800,fontSize:16,color:col||'var(--text)'}}>{val}</div>
+      <div style={{fontSize:11,color:'var(--text2)',marginTop:3}}>{label}</div>
+    </div>
+  );
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9500,padding:16}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,width:560,maxWidth:'100%',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,width:580,maxWidth:'100%',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
+        {/* Header */}
         <div style={{padding:'20px 24px 16px',borderBottom:'1px solid rgba(255,255,255,0.08)',display:'flex',gap:14,alignItems:'center'}}>
           <Av emp={emp} size={52}/>
           <div style={{flex:1}}>
             <div style={{fontWeight:800,fontSize:18,color:'var(--text)',textTransform:'uppercase'}}>{emp.full_name}</div>
-            <div style={{fontSize:13,color:'var(--text2)',marginTop:3}}>{isMonthly?('📅 '+salaryPeriodLabel(emp)+' — '+peso(getPeriodTotalRate(emp))+'/'+(emp.salary_type==='weekly'?'wk':emp.salary_type==='custom'?(emp.period_days||7)+'d':'mo')):'💼 Commission Based'}</div>
+            <div style={{fontSize:13,color:'var(--text2)',marginTop:3}}>
+              {isMonthly
+                ? ('📅 '+salaryPeriodLabel(emp)+' — '+peso(getPeriodTotalRate(emp))+'/'+(emp.salary_type==='weekly'?'wk':emp.salary_type==='custom'?(emp.period_days||7)+'d':'mo'))
+                : '💼 Commission Based'}
+              {hasComm && <span style={{marginLeft:8,fontSize:11,padding:'2px 7px',borderRadius:10,background:'rgba(212,175,55,0.15)',color:KG_GOLD,fontWeight:700}}>+ Commission</span>}
+            </div>
           </div>
           <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
             style={{padding:'6px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:13,outline:'none'}}/>
           <button onClick={onClose} style={{background:'none',border:'none',color:'var(--text2)',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
         </div>
 
-        {!isMonthly && (
-          <div style={{margin:'16px 24px 0',display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:12,padding:'14px 18px'}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase'}}>Work Earnings (Revenue)</div>
-              <div style={{fontWeight:800,fontSize:22,color:'var(--text)',marginTop:3}}>{peso(workRevenue)}</div>
+        {/* Summary badges */}
+        {hasComm ? (
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 24px 0'}}>
+            {/* Salary summary */}
+            <div style={{background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.18)',borderRadius:12,padding:'12px 14px'}}>
+              <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase',marginBottom:8}}>Salary (this period)</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+                <StatTile label="Earned"  val={peso(salaryEarned)}  col={KG_GOLD}/>
+                <StatTile label="Paid"    val={peso(salaryPaid)}/>
+                <StatTile label="Balance" val={peso(salaryBalance)} col={salaryBalance>=0?'var(--success)':'var(--red)'}/>
+              </div>
             </div>
-            <div style={{fontSize:24,color:'var(--text2)'}}>→</div>
-            <div style={{textAlign:'right'}}>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase'}}>His Commission</div>
-              <div style={{fontWeight:900,fontSize:26,color:KG_GOLD,marginTop:3}}>{peso(earned)}</div>
+            {/* Commission summary */}
+            <div style={{background:'rgba(77,166,255,0.05)',border:'1px solid rgba(77,166,255,0.18)',borderRadius:12,padding:'12px 14px'}}>
+              <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:'var(--blue,#4DA6FF)',textTransform:'uppercase',marginBottom:8}}>Commission (this month)</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+                <StatTile label="Earned"  val={peso(commEarned)}  col='var(--blue,#4DA6FF)'/>
+                <StatTile label="Paid"    val={peso(commPaid)}/>
+                <StatTile label="Balance" val={peso(commBalance)} col={commBalance>=0?'var(--success)':'var(--red)'}/>
+              </div>
+            </div>
+          </div>
+        ) : isMonthly ? (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,padding:'16px 24px 0'}}>
+            <StatTile label="Earned"  val={peso(salaryEarned)}  col={KG_GOLD}/>
+            <StatTile label="Paid"    val={peso(salaryPaid)}/>
+            <StatTile label="Balance" val={peso(salaryBalance)} col={salaryBalance>=0?'var(--success)':'var(--red)'}/>
+          </div>
+        ) : (
+          <div>
+            <div style={{margin:'16px 24px 0',display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:12,padding:'14px 18px'}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase'}}>Work Revenue</div>
+                <div style={{fontWeight:800,fontSize:22,color:'var(--text)',marginTop:3}}>{peso(pureRevenue)}</div>
+              </div>
+              <div style={{fontSize:24,color:'var(--text2)'}}>→</div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase'}}>Commission</div>
+                <div style={{fontWeight:900,fontSize:26,color:KG_GOLD,marginTop:3}}>{peso(pureEarned)}</div>
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8,padding:'12px 24px 0'}}>
+              <StatTile label="Paid"    val={peso(purePaid)}/>
+              <StatTile label="Balance" val={peso(pureBalance)} col={pureBalance>=0?'var(--success)':'var(--red)'}/>
             </div>
           </div>
         )}
-        <div style={{display:'grid',gridTemplateColumns:isMonthly?'repeat(3,1fr)':'repeat(2,1fr)',gap:8,padding:'16px 24px 0'}}>
-          {(isMonthly?[{label:'Earned',val:peso(earned),col:KG_GOLD}]:[]).concat([{label:'Paid',val:peso(totalPaid),col:'var(--text)'},{label:'Balance',val:peso(balance),col:balance>=0?'var(--success)':'var(--red)'}]).map(t=>(
-            <div key={t.label} style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'12px 8px',textAlign:'center'}}>
-              <div style={{fontWeight:800,fontSize:16,color:t.col}}>{t.val}</div>
-              <div style={{fontSize:11,color:'var(--text2)',marginTop:3}}>{t.label}</div>
-            </div>
-          ))}
-        </div>
 
+        {/* Tabs */}
         <div style={{display:'flex',gap:4,padding:'16px 24px 0'}}>
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)}
@@ -5520,15 +5710,67 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
           ))}
         </div>
 
+        {/* Tab content */}
         <div style={{flex:1,overflowY:'auto',padding:'12px 24px 24px'}}>
+
+          {/* ABSENCES tab */}
+          {tab==='absences' && (
+            <div>
+              <div style={{fontWeight:700,color:'var(--red)',marginBottom:12,fontSize:13}}>🚫 Absences — {filterMonth}</div>
+              {empAbsences.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No absences this month 🎉</div>}
+              {empAbsences.map(a=>(
+                <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(217,74,74,0.08)',borderRadius:8,marginBottom:6}}>
+                  <div>
+                    <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{a.absent_date}</div>
+                    {a.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{a.note}</div>}
+                  </div>
+                  {isAdmin && <button onClick={()=>onDeleteAbsence(a)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* WORK ORDERS tab */}
+          {tab==='work' && (
+            <div>
+              <div style={{fontWeight:700,color:KG_GOLD,marginBottom:12,fontSize:13}}>💼 Work Orders — {filterMonth}</div>
+              {empWorkOrders.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No work orders this month</div>}
+              {[...empWorkOrders].reverse().map(w=>(
+                <div key={w.id} style={{padding:'12px',background:'rgba(255,255,255,0.03)',borderRadius:10,marginBottom:8,border:'1px solid rgba(255,255,255,0.06)'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{w.work_description||'—'}</div>
+                      {w.notes && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{w.notes}</div>}
+                      <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{fmt(w.transaction_date||w.created_date)}</div>
+                    </div>
+                    <div style={{textAlign:'right',marginLeft:12}}>
+                      <div style={{fontSize:12,color:'var(--text2)'}}>{peso(w.work_amount||0)}</div>
+                      <div style={{fontWeight:800,color:KG_GOLD,fontSize:16}}>+{peso(w.worker_commission||0)}</div>
+                      {isAdmin && <button onClick={()=>onDeleteWorkOrder(w)} style={{marginTop:6,background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11}}>Remove</button>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* OVERVIEW tab */}
           {tab==='overview' && (
             <div>
+              {/* Salary breakdown — for monthly/weekly/custom */}
               {isMonthly && (
                 <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:16,marginBottom:12}}>
                   <div style={{fontWeight:700,color:KG_GOLD,marginBottom:2,fontSize:13}}>📅 {salaryPeriodLabel(emp)} Salary Breakdown</div>
                   <div style={{fontSize:11,color:'var(--text2)',marginBottom:10}}>Current period: {periodRange.start} → {periodRange.end}</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                    {[{label:salaryPeriodLabel(emp)+' Rate',val:peso(getPeriodTotalRate(emp))},{label:'Daily Rate',val:peso(getDailyRate(emp))},{label:'Period Days',val:periodDays},{label:'Days Absent',val:periodAbsences.length},{label:'Days Worked',val:Math.max(0,periodDays-periodAbsences.length)},{label:'Earned',val:peso(earned)}].map(r=>(
+                    {[
+                      {label:salaryPeriodLabel(emp)+' Rate', val:peso(getPeriodTotalRate(emp))},
+                      {label:'Daily Rate',   val:peso(getDailyRate(emp))},
+                      {label:'Period Days',  val:periodDays},
+                      {label:'Days Absent',  val:periodAbsences.length},
+                      {label:'Days Worked',  val:Math.max(0,periodDays-periodAbsences.length)},
+                      {label:'Salary Earned',val:peso(salaryEarned)},
+                    ].map(r=>(
                       <div key={r.label} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
                         <span style={{fontSize:12,color:'var(--text2)'}}>{r.label}</span>
                         <span style={{fontSize:12,fontWeight:700,color:'var(--text)'}}>{r.val}</span>
@@ -5537,57 +5779,94 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
                   </div>
                 </div>
               )}
+              {/* Commission breakdown — for hasComm or pure commission */}
+              {(hasComm || !isMonthly) && (
+                <div style={{background:'rgba(77,166,255,0.05)',border:'1px solid rgba(77,166,255,0.18)',borderRadius:12,padding:16,marginBottom:12}}>
+                  <div style={{fontWeight:700,color:'var(--blue,#4DA6FF)',marginBottom:2,fontSize:13}}>💼 Commission Breakdown — {filterMonth}</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    {[
+                      {label:'Jobs',           val:commWorkOrders.length},
+                      {label:'Total Revenue',  val:peso(commRevenue)},
+                      {label:'Commission Earned', val:peso(commEarned)},
+                      {label:'Commission Paid',   val:peso(commPaid)},
+                    ].map(r=>(
+                      <div key={r.label} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                        <span style={{fontSize:12,color:'var(--text2)'}}>{r.label}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:'var(--text)'}}>{r.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Payout summary preview */}
               <div style={{background:'rgba(255,255,255,0.03)',borderRadius:12,padding:16}}>
-                <div style={{fontWeight:700,color:'var(--text)',marginBottom:10,fontSize:13}}>💵 Payout Summary</div>
-                {[...empPayouts].reverse().slice(0,5).map(p=>(
+                <div style={{fontWeight:700,color:'var(--text)',marginBottom:10,fontSize:13}}>💵 Recent Payouts</div>
+                {empPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'12px 0'}}>No payouts this month</div>}
+                {[...empPayouts].reverse().slice(0,4).map(p=>(
                   <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                    <div>
-                      <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:6}}>{p.is_advance?'Advance':'Payout'}</span>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700}}>{p.is_advance?'Advance':'Payout'}</span>
+                      {hasComm && <span style={{fontSize:10,padding:'2px 6px',borderRadius:5,background:'rgba(255,255,255,0.06)',color:'var(--text2)',fontWeight:600}}>{(p.payout_type||'salary').toUpperCase()}</span>}
                       <span style={{fontSize:12,color:'var(--text2)'}}>{fmt(p.payout_date||p.created_date)}</span>
                     </div>
                     <span style={{fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
                   </div>
                 ))}
-                {empPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'16px 0'}}>No payouts this month</div>}
               </div>
             </div>
           )}
 
-          {tab==='work' && (
+          {/* PAYOUTS tab */}
+          {tab==='payouts' && (
             <div>
-              {isMonthly ? (
+              {hasComm ? (
                 <div>
-                  <div style={{fontWeight:700,color:'var(--red)',marginBottom:12,fontSize:13}}>🚫 Absences — {filterMonth}</div>
-                  {empAbsences.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No absences recorded this month 🎉</div>}
-                  {empAbsences.map(a=>(
-                    <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(217,74,74,0.08)',borderRadius:8,marginBottom:6}}>
-                      <div>
-                        <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{a.absent_date}</div>
-                        {a.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{a.note}</div>}
+                  {/* Salary payouts section */}
+                  <div style={{marginBottom:20}}>
+                    <div style={{fontWeight:700,color:KG_GOLD,marginBottom:10,fontSize:13}}>📅 Salary Payouts — {filterMonth}</div>
+                    {empSalaryPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'12px 0'}}>No salary payouts this month</div>}
+                    {[...empSalaryPayouts].reverse().map(p=>(
+                      <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(212,175,55,0.05)',borderRadius:8,marginBottom:6,border:'1px solid rgba(212,175,55,0.15)'}}>
+                        <div>
+                          <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.2)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:8}}>{p.is_advance?'Advance':'Payout'}</span>
+                          <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
+                          {p.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{p.note}</div>}
+                          <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{fmt(p.payout_date||p.created_date)}</div>
+                        </div>
+                        {isAdmin && <button onClick={()=>onDeletePayout(p)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
                       </div>
-                      {isAdmin && <button onClick={()=>onDeleteAbsence(a)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  {/* Commission payouts section */}
+                  <div>
+                    <div style={{fontWeight:700,color:'var(--blue,#4DA6FF)',marginBottom:10,fontSize:13}}>💼 Commission Payouts — {filterMonth}</div>
+                    {empCommPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'12px 0'}}>No commission payouts this month</div>}
+                    {[...empCommPayouts].reverse().map(p=>(
+                      <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(77,166,255,0.05)',borderRadius:8,marginBottom:6,border:'1px solid rgba(77,166,255,0.15)'}}>
+                        <div>
+                          <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.2)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:8}}>{p.is_advance?'Advance':'Payout'}</span>
+                          <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
+                          {p.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{p.note}</div>}
+                          <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{fmt(p.payout_date||p.created_date)}</div>
+                        </div>
+                        {isAdmin && <button onClick={()=>onDeletePayout(p)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div>
-                  <div style={{fontWeight:700,color:KG_GOLD,marginBottom:12,fontSize:13}}>💼 Work Orders — {filterMonth}</div>
-                  {empWorkOrders.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No work orders this month</div>}
-                  {[...empWorkOrders].reverse().map(w=>(
-                    <div key={w.id} style={{padding:'12px',background:'rgba(255,255,255,0.03)',borderRadius:10,marginBottom:8,border:'1px solid rgba(255,255,255,0.06)'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{w.work_description||'—'}</div>
-                          {w.notes && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{w.notes}</div>}
-                          <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{fmt(w.transaction_date||w.created_date)}</div>
-                        </div>
-                        <div style={{textAlign:'right',marginLeft:12}}>
-                          <div style={{fontSize:12,color:'var(--text2)'}}>{peso(w.work_amount||0)}</div>
-                          <div style={{fontWeight:800,color:KG_GOLD,fontSize:16}}>+{peso(w.worker_commission||0)}</div>
-                          {w.work_amount>0 && <div style={{fontSize:10.5,color:'var(--text2)',marginTop:1}}>{((w.worker_commission||0)/w.work_amount*100).toFixed(0)}% rate</div>}
-                          {isAdmin && <button onClick={()=>onDeleteWorkOrder(w)} style={{marginTop:6,background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11}}>Remove</button>}
-                        </div>
+                  <div style={{fontWeight:700,color:'var(--text)',marginBottom:12,fontSize:13}}>💵 All Payouts — {filterMonth}</div>
+                  {empPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No payouts this month</div>}
+                  {[...empPayouts].reverse().map(p=>(
+                    <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:8,marginBottom:6,border:'1px solid rgba(255,255,255,0.06)'}}>
+                      <div>
+                        <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:8}}>{p.is_advance?'Advance':'Payout'}</span>
+                        <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
+                        {p.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{p.note}</div>}
+                        <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{fmt(p.payout_date||p.created_date)}</div>
                       </div>
+                      {isAdmin && <button onClick={()=>onDeletePayout(p)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
                     </div>
                   ))}
                 </div>
@@ -5595,28 +5874,13 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
             </div>
           )}
 
-          {tab==='payouts' && (
-            <div>
-              <div style={{fontWeight:700,color:'var(--text)',marginBottom:12,fontSize:13}}>💵 All Payouts — {filterMonth}</div>
-              {empPayouts.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No payouts this month</div>}
-              {[...empPayouts].reverse().map(p=>(
-                <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:8,marginBottom:6,border:'1px solid rgba(255,255,255,0.06)'}}>
-                  <div>
-                    <span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:p.is_advance?'rgba(212,175,55,0.15)':'rgba(77,166,255,0.15)',color:p.is_advance?KG_GOLD:'var(--blue,#4DA6FF)',fontWeight:700,marginRight:8}}>{p.is_advance?'Advance':'Payout'}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{peso(p.amount||0)}</span>
-                    {p.note && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{p.note}</div>}
-                    <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{fmt(p.payout_date||p.created_date)}</div>
-                  </div>
-                  {isAdmin && <button onClick={()=>onDeletePayout(p)} style={{background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'4px 8px',cursor:'pointer',fontSize:12}}>Remove</button>}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 }
+
+
 
 function KgRecordWork({ employees=[], showToast, onRefresh }) {
   const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.is_active!==false);
