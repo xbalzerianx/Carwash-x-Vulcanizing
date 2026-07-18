@@ -1,70 +1,19 @@
 {
   "type": "object",
   "properties": {
-    "full_name": {
-      "type": "string"
-    },
-    "contact_number": {
-      "type": "string"
-    },
-    "commission_percentage": {
-      "type": "number"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
-    },
-    "avatar_color": {
-      "type": "string"
-    },
-    "avatar_url": {
-      "type": "string",
-      "description": "Public URL of employee profile photo (Supabase Storage)"
-    },
-    "business_type": {
-      "type": "string",
-      "enum": [
-        "carwash",
-        "vulcanizing",
-        "kgemployees"
-      ],
-      "default": "carwash",
-      "description": "Which business unit this employee belongs to"
-    },
-    "monthly_rate": {
-      "type": "number",
-      "default": 0,
-      "description": "Rate value for the pay period. Meaning depends on rate_basis: if 'total', this is the full period total (monthly/weekly/custom total); if 'daily', this is the daily rate and the period total is derived (daily * period days)."
-    },
-    "salary_type": {
-      "type": "string",
-      "enum": [
-        "commission",
-        "monthly",
-        "weekly",
-        "custom"
-      ],
-      "default": "commission",
-      "description": "commission = per work order; monthly = fixed calendar-month salary; weekly = fixed 7-day period, rolling from employment_start_date; custom = fixed period_days-length period, rolling from employment_start_date"
-    },
-    "rate_basis": {
-      "type": "string",
-      "enum": [
-        "total",
-        "daily"
-      ],
-      "default": "total",
-      "description": "total = monthly_rate holds the full period total; daily = monthly_rate holds a daily rate, period total is computed (daily * period days)"
-    },
-    "period_days": {
-      "type": "number",
-      "default": 7,
-      "description": "Length in days of the pay period, only used when salary_type='custom'"
-    },
-    "employment_start_date": {
-      "type": "string",
-      "description": "Date salary cycle started/reset (YYYY-MM-DD). For weekly/custom salary types, pay periods roll forward in fixed-length blocks anchored to this date."
-    }
+    "full_name": { "type": "string" },
+    "contact_number": { "type": "string" },
+    "commission_percentage": { "type": "number" },
+    "is_active": { "type": "boolean", "default": true },
+    "avatar_color": { "type": "string" },
+    "avatar_url": { "type": "string" },
+    "business_type": { "type": "string", "enum": ["carwash","vulcanizing","kgemployees"], "default": "carwash" },
+    "monthly_rate": { "type": "number", "default": 0 },
+    "salary_type": { "type": "string", "enum": ["commission","monthly","weekly","custom"], "default": "commission" },
+    "rate_basis": { "type": "string", "enum": ["total","daily"], "default": "total" },
+    "period_days": { "type": "number", "default": 7 },
+    "employment_start_date": { "type": "string" },
+    "has_commission": { "type": "boolean", "default": false, "description": "Salaried employee who also earns commission per work order" }
   },
   "required": [],
   "name": "Employee"

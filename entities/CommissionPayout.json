@@ -1,40 +1,14 @@
 {
   "type": "object",
   "properties": {
-    "employee_id": {
-      "type": "string",
-      "title": "Employee ID"
-    },
-    "employee_name": {
-      "type": "string",
-      "title": "Employee Name"
-    },
-    "amount": {
-      "type": "number",
-      "title": "Amount"
-    },
-    "note": {
-      "type": "string",
-      "title": "Note"
-    },
-    "payout_date": {
-      "type": "string",
-      "title": "Payout Date (ISO)"
-    },
-    "is_advance": {
-      "type": "boolean",
-      "title": "Is Cash Advance",
-      "default": false
-    },
-    "business_type": {
-      "type": "string",
-      "enum": [
-        "carwash",
-        "vulcanizing",
-        "kgemployees"
-      ],
-      "default": "carwash"
-    }
+    "employee_id": { "type": "string" },
+    "employee_name": { "type": "string" },
+    "amount": { "type": "number" },
+    "note": { "type": "string" },
+    "payout_date": { "type": "string" },
+    "is_advance": { "type": "boolean", "default": false },
+    "business_type": { "type": "string", "enum": ["carwash","vulcanizing","kgemployees"], "default": "carwash" },
+    "payout_type": { "type": "string", "enum": ["salary","commission"], "default": "commission", "description": "Distinguishes salary vs commission payouts for dual-earning employees" }
   },
   "required": [],
   "name": "CommissionPayout"
