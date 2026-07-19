@@ -5962,16 +5962,50 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
   const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.is_active!==false);
   const [form, setForm] = useState({employee_id:'',work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
   const [saving, setSaving] = useState(false);
+  // Commission input mode: 'percent' = enter % and auto-calc ₱, 'direct' = enter ₱ directly
+  const [commMode, setCommMode] = useState('percent');
+  const [commPct,  setCommPct]  = useState('');
 
   const selEmp = commEmps.find(e=>e.id===form.employee_id);
 
-  const handleAmtChange = val => {
-    setForm(f=>({...f, work_amount:val}));
+  // When employee changes, pre-fill % from their profile
+  const handleEmpChange = id => {
+    const emp = commEmps.find(e=>e.id===id);
+    const pct = emp?.commission_percentage || '';
+    setCommPct(String(pct));
+    const amt = +form.work_amount||0;
+    const autoComm = amt && pct ? (amt * (+pct) / 100).toFixed(2) : '';
+    setForm(f=>({...f, employee_id:id, worker_commission: commMode==='percent' ? autoComm : f.worker_commission}));
   };
 
-  const handleEmpChange = id => {
-    setForm(f=>({...f, employee_id:id}));
+  // When amount changes, recalculate commission if in % mode
+  const handleAmtChange = val => {
+    const newComm = commMode==='percent' && commPct && +val
+      ? (+val * +commPct / 100).toFixed(2)
+      : form.worker_commission;
+    setForm(f=>({...f, work_amount:val, worker_commission: commMode==='percent' ? newComm : f.worker_commission}));
   };
+
+  // When % changes, recalculate ₱
+  const handlePctChange = val => {
+    setCommPct(val);
+    const newComm = +form.work_amount && +val ? (+form.work_amount * +val / 100).toFixed(2) : '';
+    setForm(f=>({...f, worker_commission: newComm}));
+  };
+
+  // Switch modes
+  const switchMode = mode => {
+    setCommMode(mode);
+    if (mode==='percent') {
+      // re-calc ₱ from current %
+      const newComm = +form.work_amount && +commPct ? (+form.work_amount * +commPct / 100).toFixed(2) : '';
+      setForm(f=>({...f, worker_commission: newComm}));
+    }
+  };
+
+  const commAmt  = parseFloat(form.worker_commission)||0;
+  const workAmt  = parseFloat(form.work_amount)||0;
+  const derivedPct = workAmt>0 && commAmt>0 ? (commAmt/workAmt*100).toFixed(1) : null;
 
   const submit = async e => {
     e.preventDefault();
@@ -5990,10 +6024,14 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
       await logEvent({event_type:'kg_work_order',title:'Work Order — '+(selEmp?selEmp.full_name:''),description:form.work_description+' | Commission: '+peso(+form.worker_commission),actor_name:(selEmp?selEmp.full_name:''),amount:+form.worker_commission});
       await onRefresh();
       showToast('Work order recorded!','success');
+      const resetComm = commMode==='percent' && commPct ? '' : '';
       setForm({employee_id:form.employee_id,work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
     } catch(err){ showToast('Failed: '+err.message,'error'); }
     setSaving(false);
   };
+
+  const inputStyle = {width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'};
+  const labelStyle = {fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6};
 
   return (
     <div style={{maxWidth:520,margin:'0 auto',padding:'0 0 40px'}}>
@@ -6004,50 +6042,116 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
         </div>
       )}
       <form onSubmit={submit} style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:24}}>
+
+        {/* Employee */}
         <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Employee *</label>
+          <label style={labelStyle}>Employee *</label>
           <select value={form.employee_id} onChange={e=>handleEmpChange(e.target.value)} required
-            style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}>
+            style={{...inputStyle}}>
             <option value="">— Select Employee —</option>
-            {commEmps.map(e=><option key={e.id} value={e.id}>{e.full_name}</option>)}
+            {commEmps.map(e=><option key={e.id} value={e.id}>{e.full_name}{e.commission_percentage?` (${e.commission_percentage}%)`:''}</option>)}
           </select>
         </div>
 
+        {/* Work Description */}
         <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Work Description *</label>
+          <label style={labelStyle}>Work Description *</label>
           <input value={form.work_description} onChange={e=>setForm(f=>({...f,work_description:e.target.value}))} placeholder="What did the worker work on?" required
-            style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+            style={inputStyle}/>
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:16}}>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Work Order Amount (₱) *</label>
-            <input type="number" min="0" step="0.01" value={form.work_amount} onChange={e=>handleAmtChange(e.target.value)} placeholder="0.00" required
-              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
-          </div>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:KG_GOLD,display:'block',marginBottom:6}}>Worker Commission (₱) *</label>
-            <input type="number" min="0" step="0.01" value={form.worker_commission} onChange={e=>setForm(f=>({...f,worker_commission:e.target.value}))} placeholder="0.00" required
-              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(212,175,55,0.3)',background:'var(--bg3,#1a1a1f)',color:KG_GOLD,fontSize:14,fontWeight:700,boxSizing:'border-box',outline:'none'}}/>
-          </div>
+        {/* Work Amount */}
+        <div style={{marginBottom:16}}>
+          <label style={labelStyle}>Work Order Amount (₱) *</label>
+          <input type="number" min="0" step="0.01" value={form.work_amount} onChange={e=>handleAmtChange(e.target.value)} placeholder="0.00" required
+            style={inputStyle}/>
         </div>
 
-        {selEmp && form.work_amount && (
-          <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:14,fontSize:12,color:'var(--text2)'}}>
-            Enter the worker's commission for this job amount manually above.
+        {/* Commission Section */}
+        <div style={{background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:12,padding:14,marginBottom:16}}>
+          {/* Mode toggle */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <label style={{...labelStyle,marginBottom:0,color:KG_GOLD}}>Worker Commission</label>
+            <div style={{display:'flex',gap:0,background:'rgba(0,0,0,0.25)',borderRadius:8,padding:2}}>
+              {[{v:'percent',l:'% Rate'},{v:'direct',l:'₱ Direct'}].map(opt=>(
+                <button key={opt.v} type="button" onClick={()=>switchMode(opt.v)}
+                  style={{padding:'5px 14px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:700,
+                    background:commMode===opt.v?KG_GOLD:'transparent',
+                    color:commMode===opt.v?'#111':'var(--text2)',transition:'all 0.15s'}}>
+                  {opt.l}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
 
+          {commMode==='percent' ? (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div>
+                <label style={{...labelStyle,color:'var(--text2)'}}>Commission Rate (%)</label>
+                <div style={{position:'relative'}}>
+                  <input type="number" min="0" max="100" step="0.1" value={commPct} onChange={e=>handlePctChange(e.target.value)} placeholder="e.g. 40"
+                    style={{...inputStyle,border:'1px solid rgba(212,175,55,0.3)',paddingRight:32}}/>
+                  <span style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',color:KG_GOLD,fontWeight:800,fontSize:14,pointerEvents:'none'}}>%</span>
+                </div>
+              </div>
+              <div>
+                <label style={{...labelStyle,color:KG_GOLD}}>Commission Amount (₱)</label>
+                <div style={{...inputStyle,display:'flex',alignItems:'center',justifyContent:'space-between',
+                  border:'1px solid rgba(212,175,55,0.4)',background:'rgba(212,175,55,0.06)',cursor:'default'}}>
+                  <span style={{color:commAmt>0?KG_GOLD:'var(--text2)',fontWeight:800,fontSize:15}}>
+                    {commAmt>0 ? peso(commAmt) : '—'}
+                  </span>
+                  <span style={{fontSize:10,color:'var(--text2)',fontWeight:600}}>AUTO</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div>
+                <label style={{...labelStyle,color:KG_GOLD}}>Commission Amount (₱) *</label>
+                <input type="number" min="0" step="0.01" value={form.worker_commission} onChange={e=>setForm(f=>({...f,worker_commission:e.target.value}))} placeholder="0.00" required
+                  style={{...inputStyle,border:'1px solid rgba(212,175,55,0.4)',color:KG_GOLD,fontWeight:700}}/>
+              </div>
+              <div>
+                <label style={{...labelStyle,color:'var(--text2)'}}>Equivalent Rate</label>
+                <div style={{...inputStyle,display:'flex',alignItems:'center',justifyContent:'space-between',
+                  border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.2)',cursor:'default'}}>
+                  <span style={{color:derivedPct?'var(--text)':'var(--text2)',fontWeight:700,fontSize:15}}>
+                    {derivedPct ? `${derivedPct}%` : '—'}
+                  </span>
+                  <span style={{fontSize:10,color:'var(--text2)',fontWeight:600}}>CALC</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Live summary pill */}
+          {workAmt>0 && commAmt>0 && (
+            <div style={{marginTop:10,display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+              background:'rgba(212,175,55,0.1)',borderRadius:8,padding:'7px 12px'}}>
+              <span style={{fontSize:12,color:'var(--text2)'}}>Work:</span>
+              <span style={{fontSize:13,fontWeight:800,color:'var(--text)'}}>{peso(workAmt)}</span>
+              <span style={{fontSize:12,color:'var(--text2)',margin:'0 2px'}}>→</span>
+              <span style={{fontSize:12,color:'var(--text2)'}}>Commission:</span>
+              <span style={{fontSize:13,fontWeight:800,color:KG_GOLD}}>{peso(commAmt)}</span>
+              <span style={{fontSize:11,color:'var(--text2)',background:'rgba(212,175,55,0.15)',borderRadius:4,padding:'1px 6px',fontWeight:700}}>
+                {derivedPct}%
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Notes + Date */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:20}}>
           <div>
-            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Notes</label>
+            <label style={labelStyle}>Notes</label>
             <input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Optional notes"
-              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+              style={inputStyle}/>
           </div>
           <div>
-            <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6}}>Date</label>
+            <label style={labelStyle}>Date</label>
             <input type="date" value={form.transaction_date} onChange={e=>setForm(f=>({...f,transaction_date:e.target.value}))}
-              style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',fontSize:14,boxSizing:'border-box',outline:'none'}}/>
+              style={inputStyle}/>
           </div>
         </div>
 
