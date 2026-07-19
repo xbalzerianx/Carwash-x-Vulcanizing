@@ -955,52 +955,36 @@ function Ranking({ carWashes, employees, campaign={} }) {
 /* ═══════════════════════════════════════════
    DASHBOARD
 ═══════════════════════════════════════════ */
-function Dashboard({ carWashes, employees, services, campaign, setPage }) {
+function Dashboard({ carWashes, employees, services, campaign, setPage, onRefresh, showToast }) {
   const now = new Date();
   const [filter, setFilter] = React.useState('today');
   const [customFrom, setCustomFrom] = React.useState('');
   const [customTo,   setCustomTo]   = React.useState('');
+  const [markingPaid, setMarkingPaid] = React.useState(null); // id being updated
 
-  // ── date helpers (Manila-aware) ──
-  const manilaToday = () => {
-    return new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Manila'}); // YYYY-MM-DD
-  };
-  const manilaDate = dt => {
-    const d = new Date(dt);
-    return d.toLocaleDateString('en-CA', {timeZone:'Asia/Manila'});
-  };
+  const manilaToday = () => new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Manila'});
+  const manilaDate  = dt => { const d = typeof dt==='string'&&!dt.endsWith('Z')&&!dt.includes('+') ? new Date(dt+'Z') : new Date(dt); return d.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}); };
 
   const getFiltered = () => {
     const todayStr = manilaToday();
     if (filter==='today') return carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===todayStr);
     if (filter==='yesterday') {
       const yest = new Date(); yest.setDate(yest.getDate()-1);
-      const yestStr = yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
-      return carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===yestStr);
+      return carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}));
     }
-    if (filter==='7days') {
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6); cutoff.setHours(0,0,0,0);
-      return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=cutoff);
-    }
-    if (filter==='14days') {
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-13); cutoff.setHours(0,0,0,0);
-      return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=cutoff);
-    }
-    if (filter==='month') {
-      return carWashes.filter(w=>{ const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
-    }
-    if (filter==='custom' && customFrom && customTo) {
-      return carWashes.filter(w=>{ const s=manilaDate(w.transaction_date||w.created_date); return s>=customFrom&&s<=customTo; });
-    }
+    if (filter==='7days')  { const c=new Date(); c.setDate(c.getDate()-6); c.setHours(0,0,0,0); return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=c); }
+    if (filter==='14days') { const c=new Date(); c.setDate(c.getDate()-13); c.setHours(0,0,0,0); return carWashes.filter(w=>new Date(w.transaction_date||w.created_date)>=c); }
+    if (filter==='month')  return carWashes.filter(w=>{ const d=new Date(w.transaction_date||w.created_date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+    if (filter==='custom'&&customFrom&&customTo) return carWashes.filter(w=>{ const s=manilaDate(w.transaction_date||w.created_date); return s>=customFrom&&s<=customTo; });
     return carWashes;
   };
 
   const filtered   = getFiltered();
+  const unpaid     = filtered.filter(w => w.payment_status === 'unpaid');
   const totalSales = filtered.reduce((s,w)=>s+(w.total_amount||0),0);
   const totalComm  = filtered.reduce((s,w)=>s+(w.commission_amount||0),0);
   const avgSale    = filtered.length>0 ? totalSales/filtered.length : 0;
 
-  // Today always for "top today" stat
   const todayStr = manilaToday();
   const todayW   = carWashes.filter(w=>manilaDate(w.transaction_date||w.created_date)===todayStr);
 
@@ -1009,7 +993,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
     const splits = (()=>{ try{ const a=Array.isArray(w.commission_splits)?w.commission_splits:[]; return a.map(s=>typeof s==='string'?JSON.parse(s):s); }catch{return[];} })();
     if(splits.length>0){
       const teamSize = splits.length;
-      const splitAmt = (w.total_amount||0) / teamSize; // each member gets their share of total
+      const splitAmt = (w.total_amount||0) / teamSize;
       splits.forEach(sp=>{ const id=sp.employee_id||sp.id; if(!id)return; if(!empMap[id])empMap[id]={name:sp.employee_name||sp.name||'',id,cars:0,sales:0,teamCars:0}; empMap[id].cars++; empMap[id].sales+=splitAmt; if(teamSize>1) empMap[id].teamCars++; });
     } else {
       if(!w.employee_id)return; if(!empMap[w.employee_id])empMap[w.employee_id]={name:w.employee_name||'',id:w.employee_id,cars:0,sales:0,teamCars:0}; empMap[w.employee_id].cars++; empMap[w.employee_id].sales+=(w.total_amount||0);
@@ -1018,6 +1002,17 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
   const topEmp  = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales)[0];
   const ranking = Object.values(empMap).sort((a,b)=>b.cars-a.cars||b.sales-a.sales).slice(0,3);
   const recent  = [...carWashes].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).slice(0,5);
+
+  const markPaid = async (w) => {
+    setMarkingPaid(w.id);
+    try {
+      await api('update','CarWash',{id:w.id, data:{payment_status:'paid', amount_paid: w.total_amount||w.amount_paid||0}});
+      await logEvent({event_type:'wash_edited',title:`Marked Paid — ${w.customer_name||w.plate_number||'Car Wash'}`,description:`₱${w.total_amount||0} — marked as paid`,actor_name:w.employee_name||'Admin',entity_id:w.id});
+      if(onRefresh) await onRefresh();
+      if(showToast) showToast('Marked as paid ✓','success');
+    } catch(e) { if(showToast) showToast('Failed to update','error'); }
+    setMarkingPaid(null);
+  };
 
   const filterLabels = {today:'Today',yesterday:'Yesterday','7days':'Last 7 Days','14days':'Last 14 Days',month:'This Month',custom:'Custom'};
   const periodLabel  = filterLabels[filter]||'';
@@ -1038,12 +1033,8 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
       {/* Period filter */}
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:14,padding:'0 2px'}}>
         {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'custom',l:'Custom'}].map(t=>(
-          <button key={t.k}
-            className={`btn btn-sm ${filter===t.k?'btn-blue':'btn-ghost'}`}
-            onClick={()=>setFilter(t.k)}
-            style={{borderRadius:20,fontSize:12,fontWeight:700,padding:'6px 14px'}}>
-            {t.l}
-          </button>
+          <button key={t.k} className={`btn btn-sm ${filter===t.k?'btn-blue':'btn-ghost'}`} onClick={()=>setFilter(t.k)}
+            style={{borderRadius:20,fontSize:12,fontWeight:700,padding:'6px 14px'}}>{t.l}</button>
         ))}
       </div>
       {filter==='custom'&&(
@@ -1056,12 +1047,14 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
         </div>
       )}
 
+      {/* Stats */}
       <div className="stats-grid">
         {[
-          {label:`Cars (${periodLabel})`,   value:filtered.length,    sub:`${todayW.length} today`,           cls:'stat-blue',   color:'var(--blue)'},
-          {label:`Sales (${periodLabel})`,  value:peso(totalSales),   sub:`avg ${peso(avgSale)} / car`,       cls:'stat-green',  color:'var(--success)'},
-          {label:'Commission',              value:peso(totalComm),    sub:`${periodLabel}`,                   cls:'stat-yellow', color:'var(--gold)'},
-          {label:'Top Performer',           value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.cars} cars · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray', color:'var(--silver)'},
+          {label:`Cars (${periodLabel})`,  value:filtered.length,   sub:`${todayW.length} today`,          cls:'stat-blue',   color:'var(--blue)'},
+          {label:`Sales (${periodLabel})`, value:peso(totalSales),  sub:`avg ${peso(avgSale)} / car`,      cls:'stat-green',  color:'var(--success)'},
+          {label:'Commission',             value:peso(totalComm),   sub:periodLabel,                       cls:'stat-yellow', color:'var(--gold)'},
+          {label:'Unpaid',                 value:unpaid.length,     sub:unpaid.length>0?`${peso(unpaid.reduce((s,w)=>s+(w.total_amount||0),0))} outstanding`:'All settled ✓',
+            cls:unpaid.length>0?'stat-red':'stat-gray', color:unpaid.length>0?'var(--red)':'var(--text2)'},
         ].map((s,i)=>(
           <div key={i} className={`stat-card ${s.cls}`}>
             <div className="stat-label">{s.label}</div>
@@ -1070,6 +1063,42 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
           </div>
         ))}
       </div>
+
+      {/* ── UNPAID TRANSACTIONS ── */}
+      {unpaid.length > 0 && (
+        <div style={{background:'rgba(217,74,74,0.06)',border:'1px solid rgba(217,74,74,0.25)',borderRadius:16,padding:16,marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontWeight:800,color:'var(--red)',fontSize:14}}>❌ Unpaid — {periodLabel}</div>
+            <div style={{fontSize:12,color:'var(--text2)',fontWeight:600}}>{unpaid.length} transaction{unpaid.length!==1?'s':''} · {peso(unpaid.reduce((s,w)=>s+(w.total_amount||0),0))}</div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {[...unpaid].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).map(w=>(
+              <div key={w.id} style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(217,74,74,0.15)'}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                    <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{w.customer_name||w.plate_number||'—'}</span>
+                    {w.plate_number&&w.customer_name&&<span style={{fontSize:11,color:'var(--text2)'}}>· {w.plate_number}</span>}
+                  </div>
+                  <div style={{fontSize:11,color:'var(--text2)'}}>
+                    {w.employee_name||'—'} · {manilaDate(w.transaction_date||w.created_date)} · {parseArr(w.services).length||0} svc
+                  </div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0,marginRight:8}}>
+                  <div style={{fontSize:15,fontWeight:800,color:'var(--red)'}}>{peso(w.total_amount||0)}</div>
+                </div>
+                <button
+                  onClick={()=>markPaid(w)}
+                  disabled={markingPaid===w.id}
+                  style={{flexShrink:0,padding:'7px 14px',borderRadius:8,border:'none',cursor:markingPaid===w.id?'wait':'pointer',
+                    background:'rgba(34,197,94,0.15)',color:'var(--success)',fontWeight:700,fontSize:12,
+                    border:'1px solid rgba(34,197,94,0.3)',whiteSpace:'nowrap',opacity:markingPaid===w.id?0.6:1}}>
+                  {markingPaid===w.id ? '...' : '✓ Mark Paid'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid-2">
         <div className="card">
@@ -1101,6 +1130,7 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
             ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No transactions yet</div>
             : recent.map((w,i) => {
                 const emp = employees.find(e=>e.id===w.employee_id);
+                const isPaid = !w.payment_status || w.payment_status==='paid';
                 return (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
                     {(() => {
@@ -1117,7 +1147,14 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
                           </div>
                           <div style={{fontSize:11,color:'var(--text2)'}}>{manilaDate(w.transaction_date||w.created_date)} · {parseArr(w.services).length||0} svc</div>
                         </div>
-                        <div style={{fontSize:13,fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</div>
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3}}>
+                          <div style={{fontSize:13,fontWeight:700,color:'var(--blue)'}}>{peso(w.total_amount)}</div>
+                          <span style={{fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4,
+                            background:isPaid?'rgba(34,197,94,0.12)':'rgba(217,74,74,0.12)',
+                            color:isPaid?'var(--success)':'var(--red)'}}>
+                            {isPaid?'PAID':'UNPAID'}
+                          </span>
+                        </div>
                       </>);
                     })()}
                   </div>
@@ -1149,6 +1186,8 @@ function Dashboard({ carWashes, employees, services, campaign, setPage }) {
     </div>
   );
 }
+
+
 /* ═══════════════════════════════════════════
    RECORD CAR WASH
 ═══════════════════════════════════════════ */
@@ -3493,7 +3532,7 @@ function AdminApp({ logout, role, isAdmin }) {
         </div>
         <div className="page-content">
           {/* ── CAR WASH pages ── */}
-          {page==='dashboard'        && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage}/></ErrorBoundary>}
+          {page==='dashboard'        && <ErrorBoundary><Dashboard carWashes={carWashes} employees={employees} services={services} campaign={activeCampaign} setPage={setPage} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
           {page==='record'           && <ErrorBoundary><RecordCarWash employees={employees} services={services} vlcProducts={vlcProducts} onSave={w=>{setCarWashes(p=>[w,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
           {page==='transactions'     && <ErrorBoundary><Transactions carWashes={carWashes} employees={employees} services={services} onDelete={id=>setCarWashes(p=>p.filter(w=>w.id!==id))} onRefresh={loadAll} showToast={showToast} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='ranking'          && <ErrorBoundary><Ranking carWashes={carWashes} employees={employees} campaign={activeCampaign}/></ErrorBoundary>}
@@ -3503,7 +3542,7 @@ function AdminApp({ logout, role, isAdmin }) {
           {page==='rewards'          && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={carWashes} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='logs'             && <ErrorBoundary><ActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
           {/* ── VULCANIZING pages ── */}
-          {page==='vlc-dashboard'    && <ErrorBoundary><VlcDashboard vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} setPage={setPage}/></ErrorBoundary>}
+          {page==='vlc-dashboard'    && <ErrorBoundary><VlcDashboard vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} setPage={setPage} onRefresh={loadAll} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-record'       && <ErrorBoundary><RecordVlcJob employees={employees} services={services} vlcProducts={vlcProducts} onSave={j=>{setVlcJobs(p=>[j,...p]);loadAll();}} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-transactions' && <ErrorBoundary><VlcTransactions vlcJobs={vlcJobs} employees={employees} vlcProducts={vlcProducts} onDelete={id=>setVlcJobs(p=>p.filter(j=>j.id!==id))} onRefresh={loadAll} showToast={showToast} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='vlc-ranking'      && <ErrorBoundary><VlcRanking vlcJobs={vlcJobs} employees={employees}/></ErrorBoundary>}
@@ -3529,66 +3568,68 @@ function AdminApp({ logout, role, isAdmin }) {
    ═══════════════════════════════════════════════════════════ */
 
 /* ── VlcDashboard ── */
-function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
+function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage, onRefresh, showToast }) {
   const vlcEmps = employees.filter(e=>e.business_type==='vulcanizing');
   const now = new Date();
   const [filter, setFilter] = React.useState('today');
   const [customFrom, setCustomFrom] = React.useState('');
   const [customTo,   setCustomTo]   = React.useState('');
+  const [markingPaid, setMarkingPaid] = React.useState(null);
 
-  const manilaDate = dt => { const d=typeof dt==='string'&&!dt.endsWith('Z')&&!dt.includes('+') ? new Date(dt+'Z') : new Date(dt); return d.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}); };
+  const manilaDate  = dt => { const d=typeof dt==='string'&&!dt.endsWith('Z')&&!dt.includes('+') ? new Date(dt+'Z') : new Date(dt); return d.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}); };
   const manilaToday = () => new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 
   const getFiltered = () => {
     const todayStr = manilaToday();
     if (filter==='today') return vlcJobs.filter(j=>manilaDate(j.transaction_date||j.created_date)===todayStr);
-    if (filter==='yesterday') {
-      const yest = new Date(); yest.setDate(yest.getDate()-1);
-      const yestStr = yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
-      return vlcJobs.filter(j=>manilaDate(j.transaction_date||j.created_date)===yestStr);
-    }
-    if (filter==='7days') {
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6); cutoff.setHours(0,0,0,0);
-      return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=cutoff);
-    }
-    if (filter==='14days') {
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-13); cutoff.setHours(0,0,0,0);
-      return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=cutoff);
-    }
+    if (filter==='yesterday') { const yest=new Date(); yest.setDate(yest.getDate()-1); return vlcJobs.filter(j=>manilaDate(j.transaction_date||j.created_date)===yest.toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})); }
+    if (filter==='7days')  { const c=new Date(); c.setDate(c.getDate()-6); c.setHours(0,0,0,0); return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=c); }
+    if (filter==='14days') { const c=new Date(); c.setDate(c.getDate()-13); c.setHours(0,0,0,0); return vlcJobs.filter(j=>new Date(j.transaction_date||j.created_date)>=c); }
     if (filter==='month')  return vlcJobs.filter(j=>{const d=new Date(j.transaction_date||j.created_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
     if (filter==='custom'&&customFrom&&customTo) return vlcJobs.filter(j=>{const s=manilaDate(j.transaction_date||j.created_date);return s>=customFrom&&s<=customTo;});
     return vlcJobs;
   };
   const filtered = getFiltered();
+  const unpaid   = filtered.filter(j => j.payment_status === 'unpaid');
 
   const totalRev  = filtered.reduce((s,j)=>s+(j.total_amount||0),0);
   const totalComm = filtered.reduce((s,j)=>s+(j.commission_amount||0),0);
   const totalCost = filtered.reduce((s,j)=>s+(j.total_product_cost||0),0);
   const totalNet  = filtered.reduce((s,j)=>s+(j.net_amount||0),0);
 
-  // Per-employee leaderboard for filtered period
   const empMap = {};
   filtered.forEach(j=>{
-    const id = j.employee_id;
-    if (!id) return;
-    if (!empMap[id]) empMap[id]={id,name:j.employee_name||'—',jobs:0,sales:0,comm:0};
-    empMap[id].jobs++;
-    empMap[id].sales+=(j.total_amount||0);
-    empMap[id].comm+=(j.commission_amount||0);
+    const splits = (()=>{ try{ const a=Array.isArray(j.commission_splits)?j.commission_splits:[]; return a.map(s=>typeof s==='string'?JSON.parse(s):s); }catch{return[];} })();
+    if(splits.length>0){
+      const teamSize=splits.length;
+      splits.forEach(sp=>{ const id=sp.employee_id||sp.id; if(!id)return; if(!empMap[id])empMap[id]={id,name:sp.employee_name||sp.name||'—',jobs:0,sales:0,comm:0}; empMap[id].jobs++; empMap[id].sales+=(j.total_amount||0)/teamSize; empMap[id].comm+=(j.commission_amount||0)/teamSize; });
+    } else {
+      const id=j.employee_id; if(!id)return;
+      if(!empMap[id])empMap[id]={id,name:j.employee_name||'—',jobs:0,sales:0,comm:0};
+      empMap[id].jobs++; empMap[id].sales+=(j.total_amount||0); empMap[id].comm+=(j.commission_amount||0);
+    }
   });
   const ranking = Object.values(empMap).sort((a,b)=>b.jobs-a.jobs||b.sales-a.sales);
   const topEmp  = ranking[0]||null;
-
   const recent  = [...vlcJobs].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).slice(0,5);
   const timeNow = now.toLocaleString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Manila'});
   const posColors=['var(--gold)','var(--silver)','var(--bronze)'];
   const posLabels=['1ST','2ND','3RD'];
-
   const filterLabel = {today:'Today',yesterday:'Yesterday','7days':'Last 7 Days','14days':'Last 14 Days',month:'This Month',custom:'Custom Range'}[filter]||'';
+
+  const markPaid = async (j) => {
+    setMarkingPaid(j.id);
+    try {
+      await api('update','VulcanizingJob',{id:j.id, data:{payment_status:'paid', amount_paid: j.total_amount||j.amount_paid||0}});
+      await logEvent({event_type:'vlc_job_updated',title:`Marked Paid — ${j.vehicle_info||j.customer_name||'Job'}`,description:`₱${j.total_amount||0} — marked as paid`,actor_name:j.employee_name||'Admin',entity_id:j.id});
+      if(onRefresh) await onRefresh();
+      if(showToast) showToast('Marked as paid ✓','success');
+    } catch(e) { if(showToast) showToast('Failed to update','error'); }
+    setMarkingPaid(null);
+  };
 
   return (
     <div>
-      {/* Hero */}
       <div className="hero-header">
         <div style={{position:'relative',zIndex:1}}>
           <div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>{timeNow}</div>
@@ -3600,12 +3641,8 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
       {/* Period filter */}
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:14,padding:'0 2px'}}>
         {[{k:'today',l:'Today'},{k:'yesterday',l:'Yesterday'},{k:'7days',l:'7 Days'},{k:'14days',l:'14 Days'},{k:'month',l:'Month'},{k:'custom',l:'Custom'}].map(t=>(
-          <button key={t.k}
-            className={`btn btn-sm ${filter===t.k?'btn-primary':'btn-ghost'}`}
-            onClick={()=>setFilter(t.k)}
-            style={{borderRadius:20,fontSize:12,fontWeight:700,padding:'6px 14px'}}>
-            {t.l}
-          </button>
+          <button key={t.k} className={`btn btn-sm ${filter===t.k?'btn-primary':'btn-ghost'}`} onClick={()=>setFilter(t.k)}
+            style={{borderRadius:20,fontSize:12,fontWeight:700,padding:'6px 14px'}}>{t.l}</button>
         ))}
       </div>
       {filter==='custom'&&(
@@ -3621,10 +3658,11 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
       {/* Stats */}
       <div className="stats-grid" style={{marginBottom:16}}>
         {[
-          {label:'Jobs',         value:filtered.length,   sub:`${filterLabel}`,              cls:'stat-red',    color:'var(--red)'},
-          {label:'Revenue',      value:peso(totalRev),    sub:`Net ${peso(totalNet)}`,        cls:'stat-green',  color:'var(--success)'},
-          {label:'Commission',   value:peso(totalComm),   sub:`Costs ${peso(totalCost)}`,     cls:'stat-yellow', color:'var(--gold)'},
-          {label:'Top Performer',value:topEmp?topEmp.name.split(' ')[0]:'—', sub:topEmp?`${topEmp.jobs} jobs · ${peso(topEmp.sales)}`:'No data yet', cls:'stat-gray', color:'var(--silver)'},
+          {label:'Jobs',          value:filtered.length,  sub:filterLabel,                           cls:'stat-red',    color:'var(--red)'},
+          {label:'Revenue',       value:peso(totalRev),   sub:`Net ${peso(totalNet)}`,               cls:'stat-green',  color:'var(--success)'},
+          {label:'Commission',    value:peso(totalComm),  sub:`Costs ${peso(totalCost)}`,            cls:'stat-yellow', color:'var(--gold)'},
+          {label:'Unpaid',        value:unpaid.length,    sub:unpaid.length>0?`${peso(unpaid.reduce((s,j)=>s+(j.total_amount||0),0))} outstanding`:'All settled ✓',
+            cls:unpaid.length>0?'stat-red':'stat-gray',  color:unpaid.length>0?'var(--red)':'var(--text2)'},
         ].map((s,i)=>(
           <div key={i} className={`stat-card ${s.cls}`}>
             <div className="stat-label">{s.label}</div>
@@ -3634,8 +3672,42 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
         ))}
       </div>
 
+      {/* ── UNPAID TRANSACTIONS ── */}
+      {unpaid.length > 0 && (
+        <div style={{background:'rgba(217,74,74,0.06)',border:'1px solid rgba(217,74,74,0.25)',borderRadius:16,padding:16,marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontWeight:800,color:'var(--red)',fontSize:14}}>❌ Unpaid — {filterLabel}</div>
+            <div style={{fontSize:12,color:'var(--text2)',fontWeight:600}}>{unpaid.length} job{unpaid.length!==1?'s':''} · {peso(unpaid.reduce((s,j)=>s+(j.total_amount||0),0))}</div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {[...unpaid].sort((a,b)=>new Date(b.transaction_date||b.created_date)-new Date(a.transaction_date||a.created_date)).map(j=>(
+              <div key={j.id} style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(217,74,74,0.15)'}}>
+                <div style={{width:32,height:32,borderRadius:8,background:'rgba(217,74,74,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🔧</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'var(--text)',marginBottom:2}}>{j.vehicle_info||j.customer_name||'Job'}</div>
+                  <div style={{fontSize:11,color:'var(--text2)'}}>
+                    {j.employee_name||'—'} · {manilaDate(j.transaction_date||j.created_date)} · {parseArr(j.products_used).map(p=>p.name||p).join(', ')||'—'}
+                  </div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0,marginRight:8}}>
+                  <div style={{fontSize:15,fontWeight:800,color:'var(--red)'}}>{peso(j.total_amount||0)}</div>
+                  {j.net_amount>0 && <div style={{fontSize:10,color:'var(--text2)'}}>net {peso(j.net_amount)}</div>}
+                </div>
+                <button
+                  onClick={()=>markPaid(j)}
+                  disabled={markingPaid===j.id}
+                  style={{flexShrink:0,padding:'7px 14px',borderRadius:8,border:'1px solid rgba(34,197,94,0.3)',cursor:markingPaid===j.id?'wait':'pointer',
+                    background:'rgba(34,197,94,0.15)',color:'var(--success)',fontWeight:700,fontSize:12,
+                    whiteSpace:'nowrap',opacity:markingPaid===j.id?0.6:1}}>
+                  {markingPaid===j.id ? '...' : '✓ Mark Paid'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid-2">
-        {/* Leaderboard */}
         <div className="card">
           <div className="section-title">{filterLabel} — Top Workers</div>
           {ranking.length===0
@@ -3658,13 +3730,13 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
           <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setPage('vlc-ranking')}>Full Leaderboard ↗</button>
         </div>
 
-        {/* Recent jobs */}
         <div className="card">
           <div className="section-title">Recent Jobs</div>
           {recent.length===0
             ? <div style={{textAlign:'center',padding:'24px 0',color:'var(--text2)',fontSize:13}}>No jobs yet.</div>
             : recent.map((j,i)=>{
                 const items=parseArr(j.products_used).map(p=>p.name||p).join(', ')||'—';
+                const isPaid = !j.payment_status || j.payment_status==='paid';
                 return (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
                     <div style={{width:32,height:32,borderRadius:8,background:'rgba(217,74,74,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🔧</div>
@@ -3672,9 +3744,13 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
                       <div style={{fontSize:12,fontWeight:600}}>{j.vehicle_info||j.customer_name||'Job'}</div>
                       <div style={{fontSize:11,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{items}</div>
                     </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
                       <div style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}>{peso(j.total_amount||0)}</div>
-                      <div style={{fontSize:10,color:'var(--text2)'}}>{j.employee_name||'—'}</div>
+                      <span style={{fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4,
+                        background:isPaid?'rgba(34,197,94,0.12)':'rgba(217,74,74,0.12)',
+                        color:isPaid?'var(--success)':'var(--red)'}}>
+                        {isPaid?'PAID':'UNPAID'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -3683,7 +3759,6 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
         </div>
       </div>
 
-      {/* Quick action */}
       <div style={{marginTop:16,textAlign:'center'}}>
         <button className="btn btn-primary" style={{padding:'14px 40px',fontSize:15,fontWeight:800}} onClick={()=>setPage('vlc-record')}>
           🔧 Record New Job
@@ -3692,6 +3767,7 @@ function VlcDashboard({ vlcJobs, employees, vlcProducts, setPage }) {
     </div>
   );
 }
+
 
 /* ── RecordVlcJob ── */
 function RecordVlcJob({ employees, services, vlcProducts, onSave, showToast }) {
