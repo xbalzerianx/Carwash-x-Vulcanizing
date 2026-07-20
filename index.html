@@ -5077,8 +5077,8 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
   
   // Salary payouts
   const periodPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (p.payout_date||p.created_date||'').slice(0,10)>=period.start && (p.payout_date||p.created_date||'').slice(0,10)<=period.end);
-  // For hasComm employees: only EXPLICIT salary payouts. For regular salaried: all non-commission payouts
-  const salaryPeriodPayouts = periodPayouts.filter(p => hasComm ? p.payout_type==='salary' : p.payout_type!=='commission');
+  // hasComm: salary = explicit 'salary' OR legacy no-type (pre-feature). Pure salary: all payouts
+  const salaryPeriodPayouts = periodPayouts.filter(p => hasComm ? (p.payout_type==='salary' || !p.payout_type) : p.payout_type!=='commission');
   const salaryPaid = salaryPeriodPayouts.reduce((s,p)=>s+(p.amount||0),0);
 
   let earned = 0;
@@ -5099,8 +5099,8 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
   const commEarned = commMonthOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
   const commRevenue = commMonthOrders.reduce((s,w)=>s+(w.work_amount||0),0);
   
-  // For salaried+commission employees, only count EXPLICIT commission payouts; for pure commission, count all KG payouts that aren't explicitly salary
-  const commMonthPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===thisMonth && (hasComm ? p.payout_type==='commission' : p.payout_type!=='salary'));
+  // hasComm: commission payouts MUST be explicit; legacy (no type) = salary. Pure commission: all payouts are commission
+  const commMonthPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===thisMonth && (hasComm ? p.payout_type==='commission' : true));
   const commPaid = commMonthPayouts.reduce((s,p)=>s+(p.amount||0),0);
   const commBalance = commEarned - commPaid;
 
@@ -5666,8 +5666,8 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
   const empPayouts    = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth);
 
   // Split payouts by type for hasComm employees
-  const empSalaryPayouts = empPayouts.filter(p => hasComm ? p.payout_type==='salary' : p.payout_type!=='commission');
-  const empCommPayouts   = empPayouts.filter(p => hasComm ? p.payout_type==='commission' : p.payout_type!=='salary');
+  const empSalaryPayouts = empPayouts.filter(p => hasComm ? (p.payout_type==='salary' || !p.payout_type) : p.payout_type!=='commission');
+  const empCommPayouts   = empPayouts.filter(p => hasComm ? p.payout_type==='commission' : true);
 
   // --- Current live period calcs (salary) ---
   const periodRange    = getPeriodRange(emp);
@@ -5683,7 +5683,7 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
   const commWorkOrders  = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
   const commEarned      = commWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
   const commRevenue     = commWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0);
-  const commPayoutsAll  = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth && (hasComm ? p.payout_type==='commission' : p.payout_type!=='salary'));
+  const commPayoutsAll  = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth && (hasComm ? p.payout_type==='commission' : true));
   const commPaid        = commPayoutsAll.reduce((s,p)=>s+(p.amount||0),0);
   const commBalance     = commEarned - commPaid;
 
