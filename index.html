@@ -3551,7 +3551,7 @@ function AdminApp({ logout, role, isAdmin }) {
           {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='kg-employees'    && <ErrorBoundary><KgEmployees employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
-          {page==='kg-record'       && <ErrorBoundary><KgRecordWork employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
+          {page==='kg-record'       && <ErrorBoundary><KgRecordWork employees={employees} vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='kg-reports'      && <ErrorBoundary><KgReports employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-logs'          && <ErrorBoundary><VlcActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
         </div>
@@ -4851,17 +4851,19 @@ function VlcEmployees({ employees, vlcJobs, payouts, showToast, onRefresh, isAdm
 
 /* ── VlcProducts — manage the products list (PP1, Sealant, etc.) ── */
 function VlcProducts({ vlcProducts, showToast, onRefresh }) {
-  const emptyForm = {name:'',price:0,default_cost:0,description:'',is_active:true};
+  const emptyForm = {name:'',price:0,default_cost:0,description:'',is_active:true,stock:0};
   const [showModal,setShowModal]=React.useState(false);
   const [editing,setEditing]=React.useState(null);
   const [form,setForm]=React.useState(emptyForm);
   const [saving,setSaving]=React.useState(false);
   const [confirmDel,setConfirmDel]=React.useState(null);
+  const [restockId,setRestockId]=React.useState(null);
+  const [restockQty,setRestockQty]=React.useState('');
+  const [restockSaving,setRestockSaving]=React.useState(false);
 
   const openAdd=()=>{setForm(emptyForm);setEditing(null);setShowModal(true);};
-  const openEdit=p=>{setForm({name:p.name,price:p.price||0,default_cost:p.default_cost||0,description:p.description||'',is_active:p.is_active!==false});setEditing(p);setShowModal(true);};
+  const openEdit=p=>{setForm({name:p.name,price:p.price||0,default_cost:p.default_cost||0,description:p.description||'',is_active:p.is_active!==false,stock:p.stock||0});setEditing(p);setShowModal(true);};
 
-  // Computed net = price - cost
   const net = Math.max(0, parseFloat(form.price||0) - parseFloat(form.default_cost||0));
 
   const handleSave=async()=>{
@@ -4871,7 +4873,7 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
     if(cost > price) return showToast('Cost cannot exceed price','warning');
     setSaving(true);
     try{
-      const data={name:form.name.trim(),price,default_cost:cost,description:form.description,is_active:form.is_active};
+      const data={name:form.name.trim(),price,default_cost:cost,description:form.description,is_active:form.is_active,stock:parseFloat(form.stock)||0};
       if(editing){
         await api('update','VulcanizingProduct',{id:editing.id,data});
         showToast('Product updated','success');
@@ -4882,6 +4884,20 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
       setShowModal(false); onRefresh();
     } catch(e){showToast('Save failed: '+e.message,'error');}
     finally{setSaving(false);}
+  };
+
+  const handleRestock=async()=>{
+    const qty=parseInt(restockQty)||0;
+    if(qty<=0){showToast('Enter a valid quantity','error');return;}
+    const prod=vlcProducts.find(p=>p.id===restockId);
+    if(!prod)return;
+    setRestockSaving(true);
+    try{
+      await api('update','VulcanizingProduct',{id:restockId,data:{stock:(prod.stock||0)+qty}});
+      showToast(`+${qty} added to ${prod.name}`,'success');
+      setRestockId(null); setRestockQty(''); onRefresh();
+    } catch(e){showToast('Restock failed','error');}
+    finally{setRestockSaving(false);}
   };
 
   const handleDelete=async()=>{
@@ -4897,34 +4913,54 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
   const inp={width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
     padding:'9px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'};
 
+  const stockColor=s=>s>5?'var(--success)':s>0?'#f59e0b':'var(--red)';
+  const stockBg=s=>s>5?'rgba(34,197,94,0.12)':s>0?'rgba(245,158,11,0.12)':'rgba(217,74,74,0.12)';
+
   return (
     <div>
       <div className="flex-between mb-4">
-        <div className="section-title" style={{marginBottom:0}}>📦 Vulcanizing Products</div>
+        <div className="section-title" style={{marginBottom:0}}>📦 Products & Inventory</div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Product</button>
       </div>
       <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 12px'}}>
-        💡 <strong>Price</strong> = what the customer pays (shown on dashboard). <strong>Cost</strong> = material deducted. Commission is calculated on <strong>Price − Cost</strong>.
+        💡 <strong>Stock</strong> = units in inventory. Products with 0 stock are hidden in work orders. <strong>Price − Cost</strong> = commission base.
       </div>
+
+      {/* Out of stock alert */}
+      {active.filter(p=>(p.stock||0)<=0).length>0&&(
+        <div style={{background:'rgba(217,74,74,0.1)',border:'1px solid rgba(217,74,74,0.3)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12,color:'var(--red)'}}>
+          ⚠️ <strong>{active.filter(p=>(p.stock||0)<=0).length} product{active.filter(p=>(p.stock||0)<=0).length>1?'s':''} out of stock</strong> — hidden from work orders. Use Restock to add inventory.
+        </div>
+      )}
+
       {[{label:'Active',list:active},{label:'Inactive',list:inactive}].map(({label,list})=>list.length>0&&(
         <div key={label}>
           <div style={{fontSize:11,fontWeight:800,color:'var(--text2)',textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>{label}</div>
           {list.map(p=>{
             const pNet=Math.max(0,(p.price||0)-(p.default_cost||0));
+            const stock=p.stock||0;
             return (
-            <div key={p.id} className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',marginBottom:8}}>
+            <div key={p.id} className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',marginBottom:8,opacity:stock<=0&&p.is_active!==false?0.7:1}}>
               <div style={{width:40,height:40,borderRadius:12,background:'rgba(212,175,55,0.15)',
                 display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>📦</div>
               <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+                <div style={{fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:8}}>
+                  {p.name}
+                  {stock<=0&&p.is_active!==false&&<span style={{fontSize:10,background:'rgba(217,74,74,0.2)',color:'var(--red)',borderRadius:4,padding:'1px 6px',fontWeight:700}}>OUT OF STOCK</span>}
+                </div>
                 <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>{p.description||'No description'}</div>
-                <div style={{display:'flex',gap:10,marginTop:4,flexWrap:'wrap'}}>
-                  <span style={{fontSize:11,background:'rgba(34,197,94,0.12)',color:'var(--success)',borderRadius:6,padding:'2px 7px'}}>Price ₱{p.price||0}</span>
+                <div style={{display:'flex',gap:8,marginTop:5,flexWrap:'wrap',alignItems:'center'}}>
+                  <span style={{fontSize:11,background:'rgba(34,197,94,0.12)',color:'var(--success)',borderRadius:6,padding:'2px 7px'}}>₱{p.price||0}</span>
                   <span style={{fontSize:11,background:'rgba(217,74,74,0.12)',color:'var(--red)',borderRadius:6,padding:'2px 7px'}}>Cost ₱{p.default_cost||0}</span>
                   <span style={{fontSize:11,background:'rgba(212,175,55,0.12)',color:'var(--gold)',borderRadius:6,padding:'2px 7px',fontWeight:700}}>Net ₱{pNet}</span>
+                  {/* Stock badge */}
+                  <span style={{fontSize:11,background:stockBg(stock),color:stockColor(stock),borderRadius:6,padding:'2px 9px',fontWeight:800,border:`1px solid ${stockColor(stock)}30`}}>
+                    📦 {stock} in stock
+                  </span>
                 </div>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:4,marginLeft:4}}>
+                <button className="btn btn-sm" onClick={()=>{setRestockId(p.id);setRestockQty('');}} style={{padding:'4px 10px',fontSize:11,background:'rgba(34,197,94,0.15)',color:'var(--success)',border:'1px solid rgba(34,197,94,0.3)',borderRadius:6,fontWeight:700}}>+Stock</button>
                 <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(p)} style={{padding:'4px 10px',fontSize:11}}>Edit</button>
                 <button className="btn btn-sm" onClick={()=>setConfirmDel(p.id)} style={{padding:'4px 10px',fontSize:11,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',borderRadius:6}}>Del</button>
               </div>
@@ -4939,34 +4975,32 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:400}}>
             <div style={{fontSize:16,fontWeight:800,marginBottom:20}}>{editing?'✏️ Edit':'📦 Add'} Product</div>
-
             <div className="form-group">
               <label className="form-label">Product Name *</label>
               <input style={inp} placeholder="e.g. PP1, Sealant, Valve Stem" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
             </div>
-
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
               <div className="form-group" style={{marginBottom:0}}>
-                <label className="form-label" style={{color:'var(--success)'}}>Price (₱) — shown on dashboard</label>
+                <label className="form-label" style={{color:'var(--success)'}}>Price (₱)</label>
                 <input type="number" min="0" style={inp} placeholder="150" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
               </div>
               <div className="form-group" style={{marginBottom:0}}>
-                <label className="form-label" style={{color:'var(--red)'}}>Cost (₱) — auto-deducted</label>
+                <label className="form-label" style={{color:'var(--red)'}}>Cost (₱)</label>
                 <input type="number" min="0" style={inp} placeholder="20" value={form.default_cost} onChange={e=>setForm(f=>({...f,default_cost:e.target.value}))}/>
               </div>
             </div>
-
-            {/* Net preview */}
             <div style={{background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <span style={{fontSize:12,color:'var(--text2)'}}>Commission calculated on:</span>
               <span style={{fontSize:18,fontWeight:900,color:'var(--gold)'}}>₱{net.toLocaleString()} net</span>
             </div>
-
+            <div className="form-group">
+              <label className="form-label">Initial Stock (units)</label>
+              <input type="number" min="0" style={inp} placeholder="0" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))}/>
+            </div>
             <div className="form-group">
               <label className="form-label">Description (optional)</label>
               <input style={inp} placeholder="Short description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/>
             </div>
-
             <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:20,cursor:'pointer'}}>
               <input type="checkbox" checked={form.is_active} onChange={e=>setForm(f=>({...f,is_active:e.target.checked}))}/>
               Active
@@ -4978,6 +5012,28 @@ function VlcProducts({ vlcProducts, showToast, onRefresh }) {
           </div>
         </div>
       )}
+
+      {/* Restock Modal */}
+      {restockId&&(()=>{const prod=vlcProducts.find(p=>p.id===restockId);return prod?(
+        <div className="modal-overlay" onClick={()=>setRestockId(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:320}}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:4}}>📦 Restock — {prod.name}</div>
+            <div style={{fontSize:13,color:'var(--text2)',marginBottom:16}}>Current stock: <strong style={{color:stockColor(prod.stock||0)}}>{prod.stock||0}</strong></div>
+            <label className="form-label">Add Quantity</label>
+            <input type="number" min="1" style={{...inp,marginBottom:16}} placeholder="e.g. 20" value={restockQty} onChange={e=>setRestockQty(e.target.value)} autoFocus/>
+            {restockQty&&+restockQty>0&&(
+              <div style={{background:'rgba(34,197,94,0.08)',border:'1px solid rgba(34,197,94,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:13,color:'var(--success)',textAlign:'center'}}>
+                New stock: <strong>{(prod.stock||0)+(+restockQty||0)}</strong> units
+              </div>
+            )}
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setRestockId(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:1,background:'var(--success)',borderColor:'var(--success)'}} onClick={handleRestock} disabled={restockSaving}>{restockSaving?'Saving…':'✅ Restock'}</button>
+            </div>
+          </div>
+        </div>
+      ):null;})()}
+
       {confirmDel&&(
         <div className="modal-overlay" onClick={()=>setConfirmDel(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:320,textAlign:'center'}}>
@@ -5960,17 +6016,21 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
 
 
 
-function KgRecordWork({ employees=[], showToast, onRefresh }) {
+function KgRecordWork({ employees=[], vlcProducts=[], showToast, onRefresh }) {
   const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.is_active!==false);
-  const [form, setForm] = useState({employee_id:'',work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
+  // Only show products that are active AND have stock > 0
+  const availableProducts = vlcProducts.filter(p=>p.is_active!==false && (p.stock||0)>0);
+
+  const [form, setForm] = useState({employee_id:'',work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday(),products_used:[]});
   const [saving, setSaving] = useState(false);
+  const [prodSearch, setProdSearch] = useState('');
+  const [showProdList, setShowProdList] = useState(false);
   // Commission input mode: 'percent' = enter % and auto-calc ₱, 'direct' = enter ₱ directly
   const [commMode, setCommMode] = useState('percent');
   const [commPct,  setCommPct]  = useState('');
 
   const selEmp = commEmps.find(e=>e.id===form.employee_id);
 
-  // When employee changes, pre-fill % from their profile
   const handleEmpChange = id => {
     const emp = commEmps.find(e=>e.id===id);
     const pct = emp?.commission_percentage || '';
@@ -5980,7 +6040,6 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
     setForm(f=>({...f, employee_id:id, worker_commission: commMode==='percent' ? autoComm : f.worker_commission}));
   };
 
-  // When amount changes, recalculate commission if in % mode
   const handleAmtChange = val => {
     const newComm = commMode==='percent' && commPct && +val
       ? (+val * +commPct / 100).toFixed(2)
@@ -5988,21 +6047,37 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
     setForm(f=>({...f, work_amount:val, worker_commission: commMode==='percent' ? newComm : f.worker_commission}));
   };
 
-  // When % changes, recalculate ₱
   const handlePctChange = val => {
     setCommPct(val);
     const newComm = +form.work_amount && +val ? (+form.work_amount * +val / 100).toFixed(2) : '';
     setForm(f=>({...f, worker_commission: newComm}));
   };
 
-  // Switch modes
   const switchMode = mode => {
     setCommMode(mode);
     if (mode==='percent') {
-      // re-calc ₱ from current %
       const newComm = +form.work_amount && +commPct ? (+form.work_amount * +commPct / 100).toFixed(2) : '';
       setForm(f=>({...f, worker_commission: newComm}));
     }
+  };
+
+  // Product handlers
+  const filteredProds = availableProducts.filter(p=>p.name.toLowerCase().includes(prodSearch.toLowerCase()));
+  const addProduct = prod => {
+    // If already added, just increase qty
+    const existing = form.products_used.find(p=>p.id===prod.id);
+    if(existing){
+      setForm(f=>({...f, products_used: f.products_used.map(p=>p.id===prod.id?{...p,qty:Math.min(p.qty+1,prod.stock||1)}:p)}));
+    } else {
+      setForm(f=>({...f, products_used:[...f.products_used,{id:prod.id,name:prod.name,price:prod.price||0,cost:prod.default_cost||0,qty:1,maxStock:prod.stock||1}]}));
+    }
+    setProdSearch(''); setShowProdList(false);
+  };
+  const removeProduct = id => setForm(f=>({...f, products_used:f.products_used.filter(p=>p.id!==id)}));
+  const updateQty = (id,qty) => {
+    const prod = availableProducts.find(p=>p.id===id);
+    const maxQ = prod?.stock||99;
+    setForm(f=>({...f, products_used:f.products_used.map(p=>p.id===id?{...p,qty:Math.min(Math.max(1,parseInt(qty)||1),maxQ)}:p)}));
   };
 
   const commAmt  = parseFloat(form.worker_commission)||0;
@@ -6015,19 +6090,38 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
     if(!form.work_description.trim()){showToast('Enter work description','error');return;}
     if(!form.work_amount||isNaN(+form.work_amount)){showToast('Enter valid amount','error');return;}
     if(!form.worker_commission||isNaN(+form.worker_commission)){showToast('Enter worker commission','error');return;}
+    // Validate stock availability
+    for(const p of form.products_used){
+      const latest = vlcProducts.find(vp=>vp.id===p.id);
+      if(latest && (latest.stock||0) < p.qty){
+        showToast(`Not enough stock for ${p.name} (only ${latest.stock||0} left)`,'error'); return;
+      }
+    }
     setSaving(true);
     try {
+      // Save work order
       await api('create','KgWorkOrder',{data:{
         employee_id:form.employee_id, employee_name:(selEmp?selEmp.full_name:''),
         work_description:form.work_description.trim(), work_amount:+form.work_amount,
         worker_commission:+form.worker_commission, notes:form.notes,
-        transaction_date:form.transaction_date
+        transaction_date:form.transaction_date,
+        products_used: form.products_used.map(p=>JSON.stringify({id:p.id,name:p.name,price:p.price,cost:p.cost,qty:p.qty}))
       }});
-      await logEvent({event_type:'kg_work_order',title:'Work Order — '+(selEmp?selEmp.full_name:''),description:form.work_description+' | Commission: '+peso(+form.worker_commission),actor_name:(selEmp?selEmp.full_name:''),amount:+form.worker_commission});
+      // Deduct stock for each product used
+      for(const p of form.products_used){
+        const latest = vlcProducts.find(vp=>vp.id===p.id);
+        if(latest){
+          const newStock = Math.max(0,(latest.stock||0)-p.qty);
+          await api('update','VulcanizingProduct',{id:p.id,data:{stock:newStock}});
+        }
+      }
+      await logEvent({event_type:'kg_work_order',title:'Work Order — '+(selEmp?selEmp.full_name:''),
+        description:form.work_description+(form.products_used.length>0?' | Products: '+form.products_used.map(p=>`${p.name} x${p.qty}`).join(', '):'')+' | Commission: '+peso(+form.worker_commission),
+        actor_name:(selEmp?selEmp.full_name:''),amount:+form.worker_commission});
       await onRefresh();
-      showToast('Work order recorded!','success');
-      const resetComm = commMode==='percent' && commPct ? '' : '';
-      setForm({employee_id:form.employee_id,work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday()});
+      showToast('Work order recorded!'+(form.products_used.length>0?' Inventory updated.':''),'success');
+      setForm({employee_id:form.employee_id,work_description:'',work_amount:'',worker_commission:'',notes:'',transaction_date:manilaToday(),products_used:[]});
+      setProdSearch('');
     } catch(err){ showToast('Failed: '+err.message,'error'); }
     setSaving(false);
   };
@@ -6067,6 +6161,83 @@ function KgRecordWork({ employees=[], showToast, onRefresh }) {
           <label style={labelStyle}>Work Order Amount (₱) *</label>
           <input type="number" min="0" step="0.01" value={form.work_amount} onChange={e=>handleAmtChange(e.target.value)} placeholder="0.00" required
             style={inputStyle}/>
+        </div>
+
+        {/* Products Used */}
+        <div style={{marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+            <label style={labelStyle}>Products Used (Optional)</label>
+            {availableProducts.length===0&&(
+              <span style={{fontSize:10,color:'var(--red)',fontWeight:700}}>No products in stock</span>
+            )}
+          </div>
+          {/* Search input */}
+          <div style={{position:'relative'}}>
+            <input value={prodSearch} onChange={e=>{setProdSearch(e.target.value);setShowProdList(true);}}
+              onFocus={()=>setShowProdList(true)}
+              placeholder={availableProducts.length>0?"Search products...":"All products out of stock"}
+              disabled={availableProducts.length===0}
+              style={{...inputStyle,paddingRight:36}}/>
+            <span style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',fontSize:16,pointerEvents:'none'}}>🔍</span>
+            {showProdList&&filteredProds.length>0&&(
+              <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',maxHeight:200,overflowY:'auto',marginTop:4}}>
+                {filteredProds.map(p=>{
+                  const alreadyAdded=form.products_used.find(pu=>pu.id===p.id);
+                  return (
+                  <div key={p.id} onClick={()=>addProduct(p)}
+                    style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,0.05)'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(212,175,55,0.08)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{p.name}</div>
+                      <div style={{fontSize:11,color:'var(--text2)'}}>₱{p.price} · {p.stock} in stock</div>
+                    </div>
+                    {alreadyAdded
+                      ? <span style={{fontSize:11,color:KG_GOLD,fontWeight:800}}>+1 more</span>
+                      : <span style={{fontSize:11,color:'var(--success)',fontWeight:700}}>+ Add</span>}
+                  </div>
+                );})}
+              </div>
+            )}
+            {showProdList&&prodSearch&&filteredProds.length===0&&(
+              <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,padding:'12px',textAlign:'center',fontSize:12,color:'var(--text2)',marginTop:4}}>
+                No in-stock products match "{prodSearch}"
+              </div>
+            )}
+          </div>
+          {/* Overlay to close dropdown */}
+          {showProdList&&<div style={{position:'fixed',inset:0,zIndex:49}} onClick={()=>setShowProdList(false)}/>}
+
+          {/* Selected products list */}
+          {form.products_used.length>0&&(
+            <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+              {form.products_used.map(p=>{
+                const avail=availableProducts.find(ap=>ap.id===p.id);
+                const maxQ=avail?.stock||p.maxStock||99;
+                return (
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:8,background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 10px'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{p.name}</div>
+                    <div style={{fontSize:11,color:'var(--text2)'}}>₱{p.price} · Max: {maxQ} in stock</div>
+                  </div>
+                  {/* Qty stepper */}
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <button type="button" onClick={()=>updateQty(p.id,p.qty-1)}
+                      style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',cursor:'pointer',fontWeight:900,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+                    <span style={{fontWeight:800,fontSize:14,minWidth:20,textAlign:'center',color:KG_GOLD}}>{p.qty}</span>
+                    <button type="button" onClick={()=>updateQty(p.id,p.qty+1)}
+                      disabled={p.qty>=maxQ}
+                      style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'var(--bg3,#1a1a1f)',color:p.qty>=maxQ?'var(--text2)':'var(--text)',cursor:p.qty>=maxQ?'not-allowed':'pointer',fontWeight:900,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+                  </div>
+                  <button type="button" onClick={()=>removeProduct(p.id)}
+                    style={{padding:'4px 8px',borderRadius:6,border:'none',background:'rgba(217,74,74,0.15)',color:'var(--red)',cursor:'pointer',fontSize:12,fontWeight:700}}>✕</button>
+                </div>
+              );})}
+              <div style={{fontSize:11,color:'var(--text2)',textAlign:'right',marginTop:2}}>
+                {form.products_used.reduce((s,p)=>s+p.qty,0)} unit{form.products_used.reduce((s,p)=>s+p.qty,0)!==1?'s':''} total — will be deducted from inventory on save
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Commission Section */}
