@@ -5145,19 +5145,20 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
     const daysWorked = Math.max(0, periodDays - absentCount);
     earned = dailyRate * daysWorked;
   } else {
-    earned = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth)
+    // ALL-TIME earned for pure commission employees (never resets)
+    earned = kgWorkOrders.filter(w => w.employee_id===emp.id)
                          .reduce((s,w)=>s+(w.worker_commission||0),0);
   }
   const salaryBalance = earned - salaryPaid;
 
-  // Commission section data
-  const commMonthOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth);
-  const commEarned = commMonthOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
-  const commRevenue = commMonthOrders.reduce((s,w)=>s+(w.work_amount||0),0);
+  // Commission section data — ALL-TIME (never resets, matches Carwash/Vulcanizing behavior)
+  const commAllOrders = kgWorkOrders.filter(w => w.employee_id===emp.id);
+  const commEarned = commAllOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
+  const commRevenue = commAllOrders.reduce((s,w)=>s+(w.work_amount||0),0);
   
   // hasComm: commission payouts MUST be explicit; legacy (no type) = salary. Pure commission: all payouts are commission
-  const commMonthPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===thisMonth && (hasComm ? p.payout_type==='commission' : true));
-  const commPaid = commMonthPayouts.reduce((s,p)=>s+(p.amount||0),0);
+  const commAllPayouts = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (hasComm ? p.payout_type==='commission' : true));
+  const commPaid = commAllPayouts.reduce((s,p)=>s+(p.amount||0),0);
   const commBalance = commEarned - commPaid;
 
   // Keep these defined for pure commission and pure salary layout rendering
@@ -5327,8 +5328,8 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
 
             <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:12}}>
               <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{commMonthOrders.length}</div>
-                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Jobs (Month)</div>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{commAllOrders.length}</div>
+                <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Total Jobs</div>
               </div>
               <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
                 <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(commRevenue)}</div>
@@ -5719,7 +5720,8 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
   // --- Filtered lists by filterMonth ---
   const empAbsences   = kgAbsences.filter(a => a.employee_id===emp.id && a.absent_date && a.absent_date.slice(0,7)===filterMonth);
   const empWorkOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
-  const empPayouts    = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth);
+  // Salary payouts stay period-filtered; commission payouts are ALL-TIME
+  const empPayouts    = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees');
 
   // Split payouts by type for hasComm employees
   const empSalaryPayouts = empPayouts.filter(p => hasComm ? (p.payout_type==='salary' || !p.payout_type) : p.payout_type!=='commission');
@@ -5736,16 +5738,18 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
   const salaryBalance  = salaryEarned - salaryPaid;
 
   // --- Commission calcs (this month) ---
-  const commWorkOrders  = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===filterMonth);
+  // ALL-TIME commission (never resets, matches Carwash/Vulcanizing)
+  const commWorkOrders  = kgWorkOrders.filter(w => w.employee_id===emp.id);
   const commEarned      = commWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0);
   const commRevenue     = commWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0);
-  const commPayoutsAll  = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && toYM(p.payout_date||p.created_date)===filterMonth && (hasComm ? p.payout_type==='commission' : true));
+  const commPayoutsAll  = payouts.filter(p => p.employee_id===emp.id && p.business_type==='kgemployees' && (hasComm ? p.payout_type==='commission' : true));
   const commPaid        = commPayoutsAll.reduce((s,p)=>s+(p.amount||0),0);
   const commBalance     = commEarned - commPaid;
 
-  // --- For pure commission employees (unchanged) ---
-  const pureEarned  = !isMonthly ? empWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0) : 0;
-  const pureRevenue = !isMonthly ? empWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0) : 0;
+  // --- For pure commission employees (ALL-TIME, never resets) ---
+  const allWorkOrders = kgWorkOrders.filter(w => w.employee_id===emp.id);
+  const pureEarned  = !isMonthly ? allWorkOrders.reduce((s,w)=>s+(w.worker_commission||0),0) : 0;
+  const pureRevenue = !isMonthly ? allWorkOrders.reduce((s,w)=>s+(w.work_amount||0),0) : 0;
   const purePaid    = !isMonthly ? empPayouts.reduce((s,p)=>s+(p.amount||0),0) : 0;
   const pureBalance = pureEarned - purePaid;
 
