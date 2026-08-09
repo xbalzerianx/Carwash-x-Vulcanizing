@@ -6036,12 +6036,8 @@ function KgRecordWork({ employees=[], vlcProducts=[], showToast, onRefresh }) {
   const selEmp = commEmps.find(e=>e.id===form.employee_id);
 
   const handleEmpChange = id => {
-    const emp = commEmps.find(e=>e.id===id);
-    const pct = emp?.commission_percentage || '';
-    setCommPct(String(pct));
-    const amt = +form.work_amount||0;
-    const autoComm = amt && pct ? (amt * (+pct) / 100).toFixed(2) : '';
-    setForm(f=>({...f, employee_id:id, worker_commission: commMode==='percent' ? autoComm : f.worker_commission}));
+    // No auto-fill from employee profile — percentage is entered manually per work order
+    setForm(f=>({...f, employee_id:id}));
   };
 
   const handleAmtChange = val => {
@@ -6149,7 +6145,7 @@ function KgRecordWork({ employees=[], vlcProducts=[], showToast, onRefresh }) {
           <select value={form.employee_id} onChange={e=>handleEmpChange(e.target.value)} required
             style={{...inputStyle}}>
             <option value="">— Select Employee —</option>
-            {commEmps.map(e=><option key={e.id} value={e.id}>{e.full_name}{e.commission_percentage?` (${e.commission_percentage}%)`:''}</option>)}
+            {commEmps.map(e=><option key={e.id} value={e.id}>{e.full_name}</option>)}
           </select>
         </div>
 
