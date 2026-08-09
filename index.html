@@ -3550,7 +3550,7 @@ function AdminApp({ logout, role, isAdmin }) {
           {page==='vlc-employees'    && <ErrorBoundary><VlcEmployees employees={employees} vlcJobs={vlcJobs} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='vlc-products'     && <ErrorBoundary><VlcProducts vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='vlc-rewards'      && <ErrorBoundary><Rewards campaigns={campaigns} carWashes={[]} employees={employees} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
-          {page==='kg-employees'    && <ErrorBoundary><KgEmployees employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
+          {page==='kg-employees'    && <ErrorBoundary><KgEmployees employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll} isAdmin={isAdmin}/></ErrorBoundary>}
           {page==='kg-record'       && <ErrorBoundary><KgRecordWork employees={employees} vlcProducts={vlcProducts} showToast={showToast} onRefresh={loadAll}/></ErrorBoundary>}
           {page==='kg-reports'      && <ErrorBoundary><KgReports employees={employees} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} showToast={showToast}/></ErrorBoundary>}
           {page==='vlc-logs'          && <ErrorBoundary><VlcActivityLogs logs={logs} employees={employees} onRefresh={loadAll}/></ErrorBoundary>}
@@ -5369,7 +5369,7 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
     </div>
   );
 }
-function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], showToast, onRefresh, isAdmin=true }) {
+function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[], vlcProducts=[], showToast, onRefresh, isAdmin=true }) {
   const kgEmps = employees.filter(e => e.business_type==='kgemployees');
   const [showModal, setShowModal] = useState(false);
   const [editing,   setEditing]   = useState(null);
@@ -5696,18 +5696,20 @@ function KgEmployees({ employees=[], kgWorkOrders=[], kgAbsences=[], payouts=[],
       )}
 
       {viewEmp && (
-        <KgProfileModal emp={viewEmp} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts}
+        <KgProfileModal emp={viewEmp} kgWorkOrders={kgWorkOrders} kgAbsences={kgAbsences} payouts={payouts} vlcProducts={vlcProducts}
           onClose={()=>setViewEmp(null)} isAdmin={isAdmin}
           onDeleteAbsence={async a=>{try{await api('delete','KgAbsence',{id:a.id});await onRefresh();showToast('Absence removed','success');}catch(e){showToast('Failed','error');}}}
           onDeleteWorkOrder={async w=>{try{await api('delete','KgWorkOrder',{id:w.id});await onRefresh();showToast('Work order removed','success');}catch(e){showToast('Failed','error');}}}
           onDeletePayout={async p=>{try{await api('delete','CommissionPayout',{id:p.id});await onRefresh();showToast('Payout removed','success');}catch(e){showToast('Failed','error');}}}
+          onUpdateWorkOrder={async(w,data)=>{try{await api('update','KgWorkOrder',{id:w.id,data});await onRefresh();showToast('Work order updated','success');}catch(e){showToast('Update failed: '+e.message,'error');throw e;}}}
         />
       )}
     </div>
   );
 }
 
-function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClose, isAdmin, onDeleteAbsence, onDeleteWorkOrder, onDeletePayout }) {
+function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], vlcProducts=[], onClose, isAdmin, onDeleteAbsence, onDeleteWorkOrder, onDeletePayout, onUpdateWorkOrder }) {
+  const [editingWO, setEditingWO] = useState(null);
   const isMonthly = emp.salary_type !== 'commission';
   const hasComm   = isMonthly && emp.has_commission === true;
 
@@ -5873,22 +5875,28 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
             <div>
               <div style={{fontWeight:700,color:KG_GOLD,marginBottom:12,fontSize:13}}>💼 Work Orders — {filterMonth}</div>
               {empWorkOrders.length===0 && <div style={{fontSize:13,color:'var(--text2)',textAlign:'center',padding:'24px 0'}}>No work orders this month</div>}
-              {[...empWorkOrders].reverse().map(w=>(
-                <div key={w.id} style={{padding:'12px',background:'rgba(255,255,255,0.03)',borderRadius:10,marginBottom:8,border:'1px solid rgba(255,255,255,0.06)'}}>
+              {[...empWorkOrders].reverse().map(w=>{
+                const woProducts = parseArr(w.products_used);
+                return (
+                <div key={w.id} onClick={()=>setEditingWO(w)}
+                  style={{padding:'12px',background:'rgba(255,255,255,0.03)',borderRadius:10,marginBottom:8,border:'1px solid rgba(255,255,255,0.06)',cursor:'pointer',transition:'border-color .15s'}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(212,175,55,0.4)'}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.06)'}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:700,color:'var(--text)',fontSize:14}}>{w.work_description||'—'}</div>
                       {w.notes && <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{w.notes}</div>}
-                      <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{fmt(w.transaction_date||w.created_date)}</div>
+                      {woProducts.length>0 && <div style={{fontSize:11,color:KG_GOLD,marginTop:3}}>📦 {woProducts.map(p=>`${p.name} x${p.qty}`).join(', ')}</div>}
+                      <div style={{fontSize:11,color:'var(--text2)',marginTop:4}}>{fmt(w.transaction_date||w.created_date)} · <span style={{color:KG_GOLD}}>tap to view/edit</span></div>
                     </div>
                     <div style={{textAlign:'right',marginLeft:12}}>
                       <div style={{fontSize:12,color:'var(--text2)'}}>{peso(w.work_amount||0)}</div>
                       <div style={{fontWeight:800,color:KG_GOLD,fontSize:16}}>+{peso(w.worker_commission||0)}</div>
-                      {isAdmin && <button onClick={()=>onDeleteWorkOrder(w)} style={{marginTop:6,background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11}}>Remove</button>}
+                      {isAdmin && <button onClick={e=>{e.stopPropagation();onDeleteWorkOrder(w);}} style={{marginTop:6,background:'rgba(217,74,74,0.2)',border:'none',color:'var(--red)',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11}}>Remove</button>}
                     </div>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
 
@@ -6014,11 +6022,183 @@ function KgProfileModal({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onClo
 
         </div>
       </div>
+
+      {editingWO && (
+        <KgWorkOrderEditModal
+          workOrder={editingWO}
+          vlcProducts={vlcProducts}
+          onClose={()=>setEditingWO(null)}
+          onSave={async(data)=>{ await onUpdateWorkOrder(editingWO, data); setEditingWO(null); }}
+        />
+      )}
     </div>
   );
 }
 
+/* ── KgWorkOrderEditModal — view + edit a single work order (description, amount, commission, notes, date, products) ── */
+function KgWorkOrderEditModal({ workOrder, vlcProducts=[], onClose, onSave }) {
+  const initialProducts = (parseArr(workOrder.products_used)||[]).map(p=>({...p}));
+  const [form, setForm] = useState({
+    work_description: workOrder.work_description||'',
+    work_amount: workOrder.work_amount||0,
+    worker_commission: workOrder.worker_commission||0,
+    notes: workOrder.notes||'',
+    transaction_date: (workOrder.transaction_date||workOrder.created_date||'').slice(0,10) || manilaToday(),
+  });
+  const [products, setProducts] = useState(initialProducts);
+  const [saving, setSaving] = useState(false);
+  const [prodSearch, setProdSearch] = useState('');
+  const [showProdList, setShowProdList] = useState(false);
 
+  // Available = active products with stock > 0, PLUS whatever is already on this order (so it doesn't vanish if stock is now 0)
+  const availableProducts = vlcProducts.filter(p=>p.is_active!==false && ((p.stock||0)>0 || products.find(pu=>pu.id===p.id)));
+  const filteredProds = availableProducts.filter(p=>p.name.toLowerCase().includes(prodSearch.toLowerCase()) && !products.find(pu=>pu.id===p.id));
+
+  const workAmt = parseFloat(form.work_amount)||0;
+  const commAmt = parseFloat(form.worker_commission)||0;
+  const derivedPct = workAmt>0 && commAmt>0 ? (commAmt/workAmt*100).toFixed(1) : null;
+
+  const addProduct = prod => {
+    setProducts(ps=>[...ps,{id:prod.id,name:prod.name,price:prod.price||0,cost:prod.default_cost||0,qty:1}]);
+    setProdSearch(''); setShowProdList(false);
+  };
+  const removeProduct = id => setProducts(ps=>ps.filter(p=>p.id!==id));
+  const updateQty = (id,qty) => {
+    const orig = vlcProducts.find(vp=>vp.id===id);
+    const already = initialProducts.find(p=>p.id===id);
+    // Max stock allowance = current live stock + whatever qty this order already had reserved
+    const maxQ = (orig?.stock||0) + (already?.qty||0);
+    setProducts(ps=>ps.map(p=>p.id===id?{...p,qty:Math.min(Math.max(1,parseInt(qty)||1),Math.max(1,maxQ))}:p));
+  };
+
+  const handleSave = async () => {
+    if(!form.work_description.trim()) return;
+    if(!form.work_amount || isNaN(+form.work_amount)) return;
+    if(!form.worker_commission || isNaN(+form.worker_commission)) return;
+    setSaving(true);
+    try {
+      // Reconcile stock: diff = newQty - oldQty for each product; apply to VulcanizingProduct.stock
+      const oldMap = {}; initialProducts.forEach(p=>oldMap[p.id]=p.qty);
+      const newMap = {}; products.forEach(p=>newMap[p.id]=p.qty);
+      const allIds = new Set([...Object.keys(oldMap), ...Object.keys(newMap)]);
+      for (const id of allIds) {
+        const oldQty = oldMap[id]||0, newQty = newMap[id]||0;
+        const diff = newQty - oldQty; // positive = need to deduct more stock, negative = return stock
+        if (diff !== 0) {
+          const prod = vlcProducts.find(vp=>vp.id===id);
+          if (prod) {
+            const updatedStock = Math.max(0, (prod.stock||0) - diff);
+            await api('update','VulcanizingProduct',{id, data:{stock:updatedStock}});
+          }
+        }
+      }
+      await onSave({
+        work_description: form.work_description.trim(),
+        work_amount: +form.work_amount,
+        worker_commission: +form.worker_commission,
+        notes: form.notes,
+        transaction_date: form.transaction_date,
+        products_used: products.map(p=>JSON.stringify({id:p.id,name:p.name,price:p.price,cost:p.cost,qty:p.qty})),
+      });
+    } catch(e) {
+      // error toast handled by caller
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inp = {width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box',outline:'none'};
+  const lbl = {fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text2)',display:'block',marginBottom:6};
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:460,maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+          <div style={{fontSize:16,fontWeight:800}}>💼 Edit Work Order</div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--text2)',fontSize:20,cursor:'pointer',lineHeight:1}}>×</button>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={lbl}>Description *</label>
+          <input style={inp} value={form.work_description} onChange={e=>setForm(f=>({...f,work_description:e.target.value}))}/>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={lbl}>Date</label>
+          <input type="date" style={inp} value={form.transaction_date} onChange={e=>setForm(f=>({...f,transaction_date:e.target.value}))}/>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+          <div>
+            <label style={lbl}>Work Amount (₱) *</label>
+            <input type="number" min="0" step="0.01" style={inp} value={form.work_amount} onChange={e=>setForm(f=>({...f,work_amount:e.target.value}))}/>
+          </div>
+          <div>
+            <label style={lbl}>Commission (₱) *</label>
+            <input type="number" min="0" step="0.01" style={inp} value={form.worker_commission} onChange={e=>setForm(f=>({...f,worker_commission:e.target.value}))}/>
+          </div>
+        </div>
+        {derivedPct && (
+          <div style={{fontSize:11,color:KG_GOLD,marginTop:-8,marginBottom:14,textAlign:'right'}}>≈ {derivedPct}% of work amount</div>
+        )}
+
+        {/* Products Used */}
+        <div style={{marginBottom:14}}>
+          <label style={lbl}>Products Used</label>
+          <div style={{position:'relative'}}>
+            <input value={prodSearch} onChange={e=>{setProdSearch(e.target.value);setShowProdList(true);}}
+              onFocus={()=>setShowProdList(true)} placeholder="Search products to add..."
+              style={{...inp,paddingRight:32}}/>
+            <span style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',fontSize:14,pointerEvents:'none'}}>🔍</span>
+            {showProdList && filteredProds.length>0 && (
+              <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:50,background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',maxHeight:180,overflowY:'auto',marginTop:4}}>
+                {filteredProds.map(p=>(
+                  <div key={p.id} onClick={()=>addProduct(p)}
+                    style={{display:'flex',justifyContent:'space-between',padding:'8px 12px',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,0.05)'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(212,175,55,0.08)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                    <span style={{fontSize:13,fontWeight:700}}>{p.name}</span>
+                    <span style={{fontSize:11,color:'var(--text2)'}}>₱{p.price} · {p.stock} in stock</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {showProdList && <div style={{position:'fixed',inset:0,zIndex:49}} onClick={()=>setShowProdList(false)}/>}
+
+          {products.length>0 && (
+            <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+              {products.map(p=>(
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:8,background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'8px 10px'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
+                    <div style={{fontSize:11,color:'var(--text2)'}}>₱{p.price}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <button type="button" onClick={()=>updateQty(p.id,p.qty-1)} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',cursor:'pointer',fontWeight:900}}>−</button>
+                    <span style={{fontWeight:800,fontSize:13,minWidth:18,textAlign:'center',color:KG_GOLD}}>{p.qty}</span>
+                    <button type="button" onClick={()=>updateQty(p.id,p.qty+1)} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'var(--bg3,#1a1a1f)',color:'var(--text)',cursor:'pointer',fontWeight:900}}>+</button>
+                  </div>
+                  <button type="button" onClick={()=>removeProduct(p.id)} style={{padding:'4px 8px',borderRadius:6,border:'none',background:'rgba(217,74,74,0.15)',color:'var(--red)',cursor:'pointer',fontSize:11,fontWeight:700}}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <label style={lbl}>Notes (optional)</label>
+          <input style={inp} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
+        </div>
+
+        <div style={{display:'flex',gap:10}}>
+          <button className="btn btn-ghost" style={{flex:1}} onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" style={{flex:1}} onClick={handleSave} disabled={saving}>{saving?'Saving…':'Save Changes'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function KgRecordWork({ employees=[], vlcProducts=[], showToast, onRefresh }) {
   const commEmps = employees.filter(e=>e.business_type==='kgemployees'&&e.is_active!==false);
