@@ -16,6 +16,30 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Drop old leftover dashboard views from the original setup — they are not
+-- used anywhere in the current app (all aggregation happens client-side in
+-- JS) and they block the employee_id/id TEXT conversions below because
+-- Postgres won't change a column type a view still depends on.
+DROP VIEW IF EXISTS v_today_summary CASCADE;
+DROP VIEW IF EXISTS v_daily_performance CASCADE;
+DROP VIEW IF EXISTS v_monthly_performance CASCADE;
+DROP VIEW IF EXISTS v_monthly_summary CASCADE;
+DROP VIEW IF EXISTS v_recent_transactions CASCADE;
+
+-- Also quiet the two "Function Search Path Mutable" advisories from the
+-- original setup by pinning a fixed search_path on those functions.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname IN ('fn_set_updated_at','fn_employee_stats')
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s SET search_path = public;', r.sig);
+  END LOOP;
+END $$;
+
 -- Drop any old foreign-key constraints tying employee_id/id columns to a
 -- UUID-typed employees.id, so the TEXT-id conversions below don't fail.
 DO $$
