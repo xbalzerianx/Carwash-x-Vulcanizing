@@ -519,7 +519,7 @@ const APP_ID  = '6a1c42f697e43e4ff43a5097';
 
 async function api(action, entity, extra = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
     // Cache-buster: some networks run a transparent/proxy cache that keys
     // solely on URL and ignores POST bodies, returning the same stale
@@ -3372,6 +3372,7 @@ function AdminApp({ logout, role, isAdmin }) {
   const [kgAbsences,setKgAbsences]=useState([]);
   const [loading,setLoading]=useState(true);
   const [loadError,setLoadError]=useState(null);
+  const [loadingSecs,setLoadingSecs]=useState(0);
   const [toast,setToast]=useState(null);
   const [showChangePins,setShowChangePins]=useState(false);
   const showToast=(msg,type='info')=>setToast({msg,type});
@@ -3380,9 +3381,11 @@ function AdminApp({ logout, role, isAdmin }) {
     setLoading(true);
     setLoadError(null);
     const failures=[];
+    const status={}; // entity -> 'pending' | 'success' | 'failed'
     const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
     const lastCountKey = e => 'kg_lastcount_'+e;
     const loadEntity = async (entity, setter, attempts=3) => {
+      status[entity]='pending';
       let lastError;
       const knownGoodCount = parseInt(localStorage.getItem(lastCountKey(entity))||'0',10);
       for (let attempt=1; attempt<=attempts; attempt++) {
@@ -3398,6 +3401,7 @@ function AdminApp({ logout, role, isAdmin }) {
           }
           setter(rows);
           if (rows.length > 0) localStorage.setItem(lastCountKey(entity), String(rows.length));
+          status[entity]='success';
           return true;
         } catch(e) {
           lastError=e;
@@ -3405,6 +3409,7 @@ function AdminApp({ logout, role, isAdmin }) {
           if (attempt<attempts) await sleep(1200*attempt);
         }
       }
+      status[entity]='failed';
       failures.push({entity, message: lastError?.message || 'Unknown error', errorName: lastError?.name || ''});
       console.error(entity+' could not be loaded:', lastError?.message);
       return false;
@@ -3430,7 +3435,25 @@ function AdminApp({ logout, role, isAdmin }) {
         await loadEntity(entity,setter);
       }
     };
-    await Promise.all([worker(),worker(),worker()]);
+
+    // Hard watchdog: no matter how badly the connection is behaving, the splash
+    // screen must never hang indefinitely. If everything hasn't settled within
+    // 35s, bail out and show whatever failed/never-started instead of spinning.
+    const workAll = Promise.all([worker(),worker(),worker()]);
+    const watchdog = sleep(35000).then(()=>'timeout');
+    const outcome = await Promise.race([workAll.then(()=>'done'), watchdog]);
+
+    if (outcome === 'timeout') {
+      const stuck = jobs
+        .map(([entity])=>entity)
+        .filter(entity => status[entity] !== 'success')
+        .map(entity => ({entity, message: 'No response from the server within 35 seconds — your connection may be blocking or dropping this request.', errorName: 'Timeout'}));
+      setLoadError(stuck.length ? stuck : [{entity:'Connection', message:'The app took too long to respond.', errorName:'Timeout'}]);
+      setLoading(false);
+      // Let already in-flight requests keep trying in the background; if they
+      // succeed later the relevant state still updates for next time you retry.
+      return;
+    }
 
     if (failures.length) {
       setLoadError(failures);
@@ -3447,6 +3470,11 @@ function AdminApp({ logout, role, isAdmin }) {
   };
 
   useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{
+    if(!loading){ setLoadingSecs(0); return; }
+    const t = setInterval(()=>setLoadingSecs(s=>s+1), 1000);
+    return ()=>clearInterval(t);
+  },[loading]);
   useEffect(()=>{const fn=()=>setSidebarOpen(window.innerWidth>768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
 
   // Nav items per business
@@ -3550,6 +3578,11 @@ function AdminApp({ logout, role, isAdmin }) {
         animation:'splashFadeUp 0.6s ease both',animationDelay:'0.45s',opacity:0}}>
         Loading
       </div>
+      {loadingSecs>=8 && (
+        <div style={{fontSize:12,color:'var(--red)',marginTop:16,textAlign:'center',maxWidth:280,lineHeight:1.5}}>
+          Still trying to reach the server ({loadingSecs}s)… this shouldn't take this long. If it doesn't finish shortly, your network connection may be blocking the request.
+        </div>
+      )}
       <style>{`
         @keyframes splashPulse{0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 0px rgba(217,74,74,0));}
           50%{transform:scale(1.08) translateY(-4px);filter:drop-shadow(0 0 20px rgba(217,74,74,0.6));}}
