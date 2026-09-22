@@ -3390,7 +3390,7 @@ function AdminApp({ logout, role, isAdmin }) {
           if (attempt<attempts) await sleep(1200*attempt);
         }
       }
-      failures.push(entity);
+      failures.push({entity, message: lastError?.message || 'Unknown error', errorName: lastError?.name || ''});
       console.error(entity+' could not be loaded:', lastError?.message);
       return false;
     };
@@ -3418,7 +3418,7 @@ function AdminApp({ logout, role, isAdmin }) {
     await Promise.all([worker(),worker(),worker()]);
 
     if (failures.length) {
-      setLoadError('Could not load: '+failures.join(', '));
+      setLoadError(failures);
       setLoading(false);
       return;
     }
@@ -3466,17 +3466,41 @@ function AdminApp({ logout, role, isAdmin }) {
   const pageLabel=navItems.find(n=>n.id===page)?.label||page;
   const isMobile=window.innerWidth<=768;
 
-  if(loadError) return (
+  if(loadError) {
+    const diagText = [
+      'KG Car Services — Load Failure Report',
+      'Time: '+new Date().toString(),
+      'Page URL: '+window.location.href,
+      'User agent: '+navigator.userAgent,
+      'Online: '+navigator.onLine,
+      'Timezone: '+(Intl.DateTimeFormat().resolvedOptions().timeZone||'unknown'),
+      '',
+      'Failed datasets:',
+      ...loadError.map(f=>`- ${f.entity}: ${f.message}${f.errorName?' ['+f.errorName+']':''}`),
+    ].join('\n');
+    return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:24}}>
-      <div style={{width:480,maxWidth:'100%',background:'var(--bg2)',border:'1px solid rgba(217,74,74,0.45)',borderRadius:16,padding:'34px 30px',textAlign:'center'}}>
+      <div style={{width:560,maxWidth:'100%',background:'var(--bg2)',border:'1px solid rgba(217,74,74,0.45)',borderRadius:16,padding:'34px 30px',textAlign:'center'}}>
         <div style={{fontSize:34,marginBottom:12}}>⚠️</div>
         <h2 style={{margin:'0 0 10px',fontSize:21}}>Data could not be loaded</h2>
-        <p style={{color:'var(--text2)',fontSize:14,lineHeight:1.6,margin:'0 0 8px'}}>Your records are safe and have not been deleted. The connection did not finish loading them.</p>
-        <p style={{color:'var(--red)',fontSize:12,margin:'0 0 22px'}}>{loadError}</p>
-        <button onClick={loadAll} style={{padding:'12px 28px',border:0,borderRadius:10,background:'var(--red)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer'}}>Retry Loading Data</button>
+        <p style={{color:'var(--text2)',fontSize:14,lineHeight:1.6,margin:'0 0 14px'}}>Your records are safe and have not been deleted. This device/connection could not reach the server for the items below.</p>
+        <div style={{textAlign:'left',background:'var(--bg3,#1a1a1f)',borderRadius:10,padding:'12px 16px',margin:'0 0 20px',maxHeight:180,overflowY:'auto'}}>
+          {loadError.map(f=>(
+            <div key={f.entity} style={{fontSize:12,color:'var(--red)',marginBottom:6,fontFamily:'monospace'}}>
+              <strong>{f.entity}</strong>: {f.message}{f.errorName?' ['+f.errorName+']':''}
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+          <button onClick={loadAll} style={{padding:'12px 28px',border:0,borderRadius:10,background:'var(--red)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer'}}>Retry Loading Data</button>
+          <button onClick={()=>{
+            navigator.clipboard?.writeText(diagText).then(()=>alert('Diagnostic info copied — paste it in your message.')).catch(()=>alert(diagText));
+          }} style={{padding:'12px 24px',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,background:'transparent',color:'var(--text)',fontWeight:700,fontSize:14,cursor:'pointer'}}>Copy Diagnostic Info</button>
+        </div>
       </div>
     </div>
   );
+  }
 
   if(loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:0,
