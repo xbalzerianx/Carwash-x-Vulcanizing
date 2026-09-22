@@ -518,12 +518,26 @@ const API_URL = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
 const APP_ID  = '6a1c42f697e43e4ff43a5097';
 
 async function api(action, entity, extra = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID}, body:JSON.stringify({action,entity,...extra}) });
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID},
+      body:JSON.stringify({action,entity,...extra}),
+      signal:controller.signal,
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error||'API error');
     return json.data;
-  } catch(e) { console.error(e); throw e; }
+  } catch(e) {
+    const err = e?.name==='AbortError' ? new Error(`${entity||'Request'} timed out`) : e;
+    console.error(err);
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 const peso    = n  => `₱${(n||0).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
@@ -3357,20 +3371,38 @@ function AdminApp({ logout, role, isAdmin }) {
   const showToast=(msg,type='info')=>setToast({msg,type});
 
   const loadAll=async()=>{
-    try{
-      const safe = async (entity) => { try { return await api('list', entity); } catch(e) { console.warn(entity+' load failed:', e.message); return []; } };
-      const [e,s,w,c,p,l,vj,vp,kwo,kga] = await Promise.all([
-        safe('Employee'), safe('Service'), safe('CarWash'),
-        safe('RewardCampaign'), safe('CommissionPayout'), safe('ActivityLog'),
-        safe('VulcanizingJob'), safe('VulcanizingProduct'),
-        safe('KgWorkOrder'), safe('KgAbsence')
-      ]);
-      setEmployees(e); setServices(s); setCarWashes(w);
-      setCampaigns(c); setPayouts(p); setLogs(l);
-      setVlcJobs(vj); setVlcProducts(vp);
-      setKgWorkOrders(kwo); setKgAbsences(kga);
-    } catch(err) { showToast('Load error: '+err.message,'error'); }
-    finally { setLoading(false); }
+    const failures=[];
+    const loadEntity = async (entity, setter) => {
+      try {
+        const rows = await api('list', entity);
+        setter(Array.isArray(rows) ? rows : []);
+      } catch(e) {
+        failures.push(entity);
+        console.warn(entity+' load failed:', e.message);
+      }
+    };
+
+    // Start every dataset independently. A slow optional dataset must never
+    // keep the whole application behind the loading screen.
+    const critical = [
+      loadEntity('Employee', setEmployees),
+      loadEntity('Service', setServices),
+      loadEntity('CarWash', setCarWashes),
+      loadEntity('RewardCampaign', setCampaigns),
+    ];
+    const secondary = [
+      loadEntity('CommissionPayout', setPayouts),
+      loadEntity('ActivityLog', setLogs),
+      loadEntity('VulcanizingJob', setVlcJobs),
+      loadEntity('VulcanizingProduct', setVlcProducts),
+      loadEntity('KgWorkOrder', setKgWorkOrders),
+      loadEntity('KgAbsence', setKgAbsences),
+    ];
+
+    await Promise.allSettled(critical);
+    setLoading(false);
+    await Promise.allSettled(secondary);
+    if (failures.length) showToast('Some data could not load: '+failures.join(', '),'error');
   };
 
   useEffect(()=>{loadAll();},[]);
