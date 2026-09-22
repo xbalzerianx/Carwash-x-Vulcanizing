@@ -3384,23 +3384,36 @@ function AdminApp({ logout, role, isAdmin }) {
     const status={}; // entity -> 'pending' | 'success' | 'failed'
     const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
     const lastCountKey = e => 'kg_lastcount_'+e;
-    const loadEntity = async (entity, setter, attempts=3) => {
+    // CarWash and VulcanizingJob history grows to multiple megabytes of JSON
+    // (each record embeds full service/employee snapshots). On a slow or
+    // high-latency connection (mobile data especially) that alone can blow
+    // the timeout. So on first load we fetch only a recent window for those
+    // two — enough for the default Dashboard view — then quietly fetch the
+    // complete history in the background right after and swap it in. Every
+    // other page (Transactions, Reports, etc.) still ends up with full data
+    // within a few seconds; nothing is permanently limited.
+    const RECENT_WINDOW_DAYS = 45;
+    const recentCutoffISO = new Date(Date.now() - RECENT_WINDOW_DAYS*24*60*60*1000).toISOString();
+    const FAST_WINDOW_ENTITIES = { CarWash:true, VulcanizingJob:true };
+    const loadEntity = async (entity, setter, attempts=3, useFastWindow=false) => {
       status[entity]='pending';
       let lastError;
       const knownGoodCount = parseInt(localStorage.getItem(lastCountKey(entity))||'0',10);
       for (let attempt=1; attempt<=attempts; attempt++) {
         try {
-          const rows = await api('list', entity);
+          const rows = useFastWindow
+            ? await api('filter', entity, {query:{transaction_date:{'$gte':recentCutoffISO}}})
+            : await api('list', entity);
           if (!Array.isArray(rows)) throw new Error('Invalid data response');
           // Safety net: some networks run a caching proxy that silently returns
           // an empty/stale body instead of erroring. If we previously confirmed
           // real records exist and this response comes back suspiciously empty,
           // treat it as a failed load and retry rather than displaying zeros.
-          if (rows.length === 0 && knownGoodCount > 3) {
+          if (rows.length === 0 && knownGoodCount > 3 && !useFastWindow) {
             throw new Error(`Returned 0 records but ${knownGoodCount} were previously loaded — likely a cached/blocked response, not real data`);
           }
           setter(rows);
-          if (rows.length > 0) localStorage.setItem(lastCountKey(entity), String(rows.length));
+          if (rows.length > 0 && !useFastWindow) localStorage.setItem(lastCountKey(entity), String(rows.length));
           status[entity]='success';
           return true;
         } catch(e) {
@@ -3413,6 +3426,14 @@ function AdminApp({ logout, role, isAdmin }) {
       failures.push({entity, message: lastError?.message || 'Unknown error', errorName: lastError?.name || ''});
       console.error(entity+' could not be loaded:', lastError?.message);
       return false;
+    };
+
+    // After the fast initial render, silently fetch the FULL history for the
+    // two large entities and swap it in once ready — no loading screen, no
+    // blocking, it just fills in seamlessly a few seconds later.
+    const backfillFullHistory=()=>{
+      loadEntity('CarWash', setCarWashes, 2, false);
+      loadEntity('VulcanizingJob', setVlcJobs, 2, false);
     };
 
     // Limit concurrency so slower connections do not split bandwidth across
@@ -3432,7 +3453,7 @@ function AdminApp({ logout, role, isAdmin }) {
     const worker=async()=>{
       while(nextJob<jobs.length){
         const [entity,setter]=jobs[nextJob++];
-        await loadEntity(entity,setter);
+        await loadEntity(entity,setter,3,!!FAST_WINDOW_ENTITIES[entity]);
       }
     };
 
@@ -3467,6 +3488,9 @@ function AdminApp({ logout, role, isAdmin }) {
     loadEntity('ActivityLog', setLogs, 2).then(ok=>{
       if(!ok) showToast('Activity Log is still loading. Please retry shortly.','error');
     });
+    // CarWash/VulcanizingJob were loaded with a recent-window filter above to
+    // get the dashboard on screen fast — now quietly fetch the full history.
+    backfillFullHistory();
   };
 
   useEffect(()=>{loadAll();},[]);
