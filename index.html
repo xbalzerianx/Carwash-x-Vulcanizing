@@ -519,7 +519,7 @@ const APP_ID  = '6a1c42f697e43e4ff43a5097';
 
 async function api(action, entity, extra = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
     const res = await fetch(API_URL, {
       method:'POST',
@@ -3366,45 +3366,69 @@ function AdminApp({ logout, role, isAdmin }) {
   const [kgWorkOrders,setKgWorkOrders]=useState([]);
   const [kgAbsences,setKgAbsences]=useState([]);
   const [loading,setLoading]=useState(true);
+  const [loadError,setLoadError]=useState(null);
   const [toast,setToast]=useState(null);
   const [showChangePins,setShowChangePins]=useState(false);
   const showToast=(msg,type='info')=>setToast({msg,type});
 
   const loadAll=async()=>{
+    setLoading(true);
+    setLoadError(null);
     const failures=[];
-    const loadEntity = async (entity, setter) => {
-      try {
-        const rows = await api('list', entity);
-        setter(Array.isArray(rows) ? rows : []);
-      } catch(e) {
-        failures.push(entity);
-        console.warn(entity+' load failed:', e.message);
+    const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
+    const loadEntity = async (entity, setter, attempts=3) => {
+      let lastError;
+      for (let attempt=1; attempt<=attempts; attempt++) {
+        try {
+          const rows = await api('list', entity);
+          if (!Array.isArray(rows)) throw new Error('Invalid data response');
+          setter(rows);
+          return true;
+        } catch(e) {
+          lastError=e;
+          console.warn(`${entity} load attempt ${attempt} failed:`, e.message);
+          if (attempt<attempts) await sleep(1200*attempt);
+        }
       }
+      failures.push(entity);
+      console.error(entity+' could not be loaded:', lastError?.message);
+      return false;
     };
 
-    // Start every dataset independently. A slow optional dataset must never
-    // keep the whole application behind the loading screen.
-    const critical = [
-      loadEntity('Employee', setEmployees),
-      loadEntity('Service', setServices),
-      loadEntity('CarWash', setCarWashes),
-      loadEntity('RewardCampaign', setCampaigns),
+    // Limit concurrency so slower connections do not split bandwidth across
+    // every large dataset and hit request timeouts. Failed reads retry safely.
+    const jobs = [
+      ['Employee', setEmployees],
+      ['CarWash', setCarWashes],
+      ['VulcanizingJob', setVlcJobs],
+      ['CommissionPayout', setPayouts],
+      ['KgWorkOrder', setKgWorkOrders],
+      ['Service', setServices],
+      ['VulcanizingProduct', setVlcProducts],
+      ['KgAbsence', setKgAbsences],
+      ['RewardCampaign', setCampaigns],
     ];
-    const secondary = [
-      loadEntity('CommissionPayout', setPayouts),
-      loadEntity('ActivityLog', setLogs),
-      loadEntity('VulcanizingJob', setVlcJobs),
-      loadEntity('VulcanizingProduct', setVlcProducts),
-      loadEntity('KgWorkOrder', setKgWorkOrders),
-      loadEntity('KgAbsence', setKgAbsences),
-    ];
+    let nextJob=0;
+    const worker=async()=>{
+      while(nextJob<jobs.length){
+        const [entity,setter]=jobs[nextJob++];
+        await loadEntity(entity,setter);
+      }
+    };
+    await Promise.all([worker(),worker(),worker()]);
 
-    // Wait until every available dataset has settled before showing totals.
-    // Each request has its own timeout, so this cannot trap the app forever,
-    // and users never see a temporary empty Staff or Vulcanizing module.
-    await Promise.allSettled([...critical, ...secondary]);
+    if (failures.length) {
+      setLoadError('Could not load: '+failures.join(', '));
+      setLoading(false);
+      return;
+    }
+
     setLoading(false);
-    if (failures.length) showToast('Some data could not load: '+failures.join(', '),'error');
+    // Logs are large and do not affect financial totals, so load them after
+    // all business records are safely visible.
+    loadEntity('ActivityLog', setLogs, 2).then(ok=>{
+      if(!ok) showToast('Activity Log is still loading. Please retry shortly.','error');
+    });
   };
 
   useEffect(()=>{loadAll();},[]);
@@ -3441,6 +3465,18 @@ function AdminApp({ logout, role, isAdmin }) {
   const activeCampaign=campaigns.find(c=>c.is_active);
   const pageLabel=navItems.find(n=>n.id===page)?.label||page;
   const isMobile=window.innerWidth<=768;
+
+  if(loadError) return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:24}}>
+      <div style={{width:480,maxWidth:'100%',background:'var(--bg2)',border:'1px solid rgba(217,74,74,0.45)',borderRadius:16,padding:'34px 30px',textAlign:'center'}}>
+        <div style={{fontSize:34,marginBottom:12}}>⚠️</div>
+        <h2 style={{margin:'0 0 10px',fontSize:21}}>Data could not be loaded</h2>
+        <p style={{color:'var(--text2)',fontSize:14,lineHeight:1.6,margin:'0 0 8px'}}>Your records are safe and have not been deleted. The connection did not finish loading them.</p>
+        <p style={{color:'var(--red)',fontSize:12,margin:'0 0 22px'}}>{loadError}</p>
+        <button onClick={loadAll} style={{padding:'12px 28px',border:0,borderRadius:10,background:'var(--red)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer'}}>Retry Loading Data</button>
+      </div>
+    </div>
+  );
 
   if(loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:0,
