@@ -514,7 +514,11 @@
 const { useState, useEffect, useRef } = React;
 
 // ── Backend: Base44 API (stable) ──
-const API_URL = 'https://superagent-f43a5097.base44.app/functions/apiHandler';
+// Same-origin proxy — avoids mobile networks/carriers that block or drop
+// requests to the cross-origin base44.app domain while the main site (this
+// same origin) loads fine. See /api/proxy.js for what's on the other end;
+// Base44 is still the one and only backend, untouched.
+const API_URL = '/api/proxy';
 const APP_ID  = '6a1c42f697e43e4ff43a5097';
 
 async function api(action, entity, extra = {}) {

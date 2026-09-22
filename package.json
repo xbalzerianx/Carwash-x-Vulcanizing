@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "@babel/standalone": "^7.27.6"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
