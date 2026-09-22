@@ -3399,9 +3399,11 @@ function AdminApp({ logout, role, isAdmin }) {
       loadEntity('KgAbsence', setKgAbsences),
     ];
 
-    await Promise.allSettled(critical);
+    // Wait until every available dataset has settled before showing totals.
+    // Each request has its own timeout, so this cannot trap the app forever,
+    // and users never see a temporary empty Staff or Vulcanizing module.
+    await Promise.allSettled([...critical, ...secondary]);
     setLoading(false);
-    await Promise.allSettled(secondary);
     if (failures.length) showToast('Some data could not load: '+failures.join(', '),'error');
   };
 
