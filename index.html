@@ -521,9 +521,14 @@ async function api(action, entity, extra = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch(API_URL, {
+    // Cache-buster: some networks run a transparent/proxy cache that keys
+    // solely on URL and ignores POST bodies, returning the same stale
+    // response for every request. A unique query param + no-store defeats it.
+    const bustUrl = API_URL + '?_=' + Date.now() + Math.random().toString(36).slice(2);
+    const res = await fetch(bustUrl, {
       method:'POST',
-      headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID},
+      cache:'no-store',
+      headers:{'Content-Type':'application/json','x-base44-app-id':APP_ID,'Cache-Control':'no-cache','Pragma':'no-cache'},
       body:JSON.stringify({action,entity,...extra}),
       signal:controller.signal,
     });
@@ -3376,13 +3381,23 @@ function AdminApp({ logout, role, isAdmin }) {
     setLoadError(null);
     const failures=[];
     const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
+    const lastCountKey = e => 'kg_lastcount_'+e;
     const loadEntity = async (entity, setter, attempts=3) => {
       let lastError;
+      const knownGoodCount = parseInt(localStorage.getItem(lastCountKey(entity))||'0',10);
       for (let attempt=1; attempt<=attempts; attempt++) {
         try {
           const rows = await api('list', entity);
           if (!Array.isArray(rows)) throw new Error('Invalid data response');
+          // Safety net: some networks run a caching proxy that silently returns
+          // an empty/stale body instead of erroring. If we previously confirmed
+          // real records exist and this response comes back suspiciously empty,
+          // treat it as a failed load and retry rather than displaying zeros.
+          if (rows.length === 0 && knownGoodCount > 3) {
+            throw new Error(`Returned 0 records but ${knownGoodCount} were previously loaded — likely a cached/blocked response, not real data`);
+          }
           setter(rows);
+          if (rows.length > 0) localStorage.setItem(lastCountKey(entity), String(rows.length));
           return true;
         } catch(e) {
           lastError=e;
