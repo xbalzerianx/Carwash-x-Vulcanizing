@@ -5295,6 +5295,10 @@ const salaryPeriodLabel = (emp) => {
 };
 
 function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdit, onViewProfile, onAdvance, onPayout, onAbsent, onToggleActive, onDelete, isAdmin }) {
+  // Earnings/balance figures start masked so staff glancing at the shared
+  // dashboard can't casually see each other's pay — tapping the card (or the
+  // reveal chip) reveals them for this card only, until the page reloads.
+  const [revealed, setRevealed] = useState(false);
   const thisMonth = toYM(new Date().toISOString());
   const isMonthly = emp.salary_type!=='commission'; // salaried (monthly/weekly/custom) vs commission
   const hasComm = isMonthly && emp.has_commission === true;
@@ -5341,7 +5345,7 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
   const monthOrders = kgWorkOrders.filter(w => w.employee_id===emp.id && toYM(w.transaction_date||w.created_date)===thisMonth);
 
   return (
-    <div onClick={()=>onViewProfile&&onViewProfile(emp)}
+    <div onClick={()=>{setRevealed(true); onViewProfile&&onViewProfile(emp);}}
       style={{background:'var(--bg2)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:20,padding:28,cursor:'pointer',transition:'border-color .2s'}}
       onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(212,175,55,0.4)'}
       onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
@@ -5398,7 +5402,7 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
 
           <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:10,padding:'10px 12px',marginBottom:12}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span>{isMonthly?'SALARY EARNED':'COMMISSION EARNED'}</span>
+              <div style={{display:'flex',alignItems:'center'}}><span>{isMonthly?'SALARY EARNED':'COMMISSION EARNED'}</span>{!revealed && <span style={{fontSize:9.5,fontWeight:700,padding:'2px 7px',borderRadius:20,background:'rgba(255,255,255,0.06)',color:'var(--text2)',letterSpacing:.3,marginLeft:8}}>🔒 tap to reveal</span>}</div>
               {isAdmin && (
                 <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
                   {isMonthly && <button onClick={()=>onAbsent&&onAbsent(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',cursor:'pointer',fontWeight:700}}>Mark Absent</button>}
@@ -5411,28 +5415,28 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(212,175,55,0.06)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:10,padding:'12px 14px',marginBottom:10}}>
                 <div>
                   <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:'var(--text2)',textTransform:'uppercase'}}>Work Earnings (Revenue)</div>
-                  <div style={{fontWeight:800,fontSize:20,color:'var(--text)',marginTop:2}}>{peso(workRevenue)}</div>
+                  <div style={{fontWeight:800,fontSize:20,color:'var(--text)',marginTop:2}}>{revealed?peso(workRevenue):'••••'}</div>
                 </div>
                 <div style={{fontSize:22,color:'var(--text2)'}}>→</div>
                 <div style={{textAlign:'right'}}>
                   <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase'}}>His Commission</div>
-                  <div style={{fontWeight:900,fontSize:24,color:KG_GOLD,marginTop:2}}>{peso(earned)}</div>
+                  <div style={{fontWeight:900,fontSize:24,color:KG_GOLD,marginTop:2}}>{revealed?peso(earned):'••••'}</div>
                 </div>
               </div>
             )}
             <div style={{display:'grid',gridTemplateColumns:isMonthly?'repeat(3,1fr)':'repeat(2,1fr)',gap:8}}>
               {isMonthly && (
                 <div style={{textAlign:'center'}}>
-                  <div style={{fontWeight:800,fontSize:16,color:KG_GOLD}}>{peso(earned)}</div>
+                  <div style={{fontWeight:800,fontSize:16,color:KG_GOLD}}>{revealed?peso(earned):'••••'}</div>
                   <div style={{fontSize:11,color:'var(--text2)'}}>Earned</div>
                 </div>
               )}
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:16,color:'var(--text)'}}>{peso(totalPaid)}</div>
+                <div style={{fontWeight:800,fontSize:16,color:'var(--text)'}}>{revealed?peso(totalPaid):'••••'}</div>
                 <div style={{fontSize:11,color:'var(--text2)'}}>Paid</div>
               </div>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:16,color:balance>=0?'var(--success)':'var(--red)'}}>{peso(balance)}</div>
+                <div style={{fontWeight:800,fontSize:16,color:balance>=0?'var(--success)':'var(--red)'}}>{revealed?peso(balance):'••••'}</div>
                 <div style={{fontSize:11,color:'var(--text2)'}}>Balance</div>
               </div>
             </div>
@@ -5443,7 +5447,7 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
           {/* SALARY SECTION */}
           <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,padding:16,marginBottom:14}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span>── SALARY ──</span>
+              <div style={{display:'flex',alignItems:'center'}}><span>── SALARY ──</span>{!revealed && <span style={{fontSize:9.5,fontWeight:700,padding:'2px 7px',borderRadius:20,background:'rgba(255,255,255,0.06)',color:'var(--text2)',letterSpacing:.3,marginLeft:8}}>🔒 tap to reveal</span>}</div>
               {isAdmin && (
                 <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>onAbsent&&onAbsent(emp)} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(217,74,74,0.15)',color:'var(--red)',border:'1px solid rgba(217,74,74,0.3)',cursor:'pointer',fontWeight:700}}>Mark Absent</button>
@@ -5470,15 +5474,15 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
 
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,background:'var(--bg3,rgba(255,255,255,0.02))',borderRadius:10,padding:'10px 12px'}}>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{peso(earned)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{revealed?peso(earned):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)'}}>Earned</div>
               </div>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(salaryPaid)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{revealed?peso(salaryPaid):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)'}}>Paid</div>
               </div>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:salaryBalance>=0?'var(--success)':'var(--red)'}}>{peso(salaryBalance)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:salaryBalance>=0?'var(--success)':'var(--red)'}}>{revealed?peso(salaryBalance):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)'}}>Balance</div>
               </div>
             </div>
@@ -5487,7 +5491,7 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
           {/* COMMISSION SECTION */}
           <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,padding:16,marginBottom:14}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:KG_GOLD,textTransform:'uppercase',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span>── COMMISSION ──</span>
+              <div style={{display:'flex',alignItems:'center'}}><span>── COMMISSION ──</span>{!revealed && <span style={{fontSize:9.5,fontWeight:700,padding:'2px 7px',borderRadius:20,background:'rgba(255,255,255,0.06)',color:'var(--text2)',letterSpacing:.3,marginLeft:8}}>🔒 tap to reveal</span>}</div>
               {isAdmin && (
                 <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>onAdvance&&onAdvance(emp, 'commission')} style={{fontSize:11,padding:'3px 9px',borderRadius:6,background:'rgba(212,175,55,0.15)',color:KG_GOLD,border:'1px solid rgba(212,175,55,0.3)',cursor:'pointer',fontWeight:700}}>Comm Adv</button>
@@ -5502,22 +5506,22 @@ function KgEmployeeCard({ emp, kgWorkOrders=[], kgAbsences=[], payouts=[], onEdi
                 <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Total Jobs</div>
               </div>
               <div style={{background:'var(--bg3,rgba(255,255,255,0.04))',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(commRevenue)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{revealed?peso(commRevenue):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)',marginTop:2}}>Revenue</div>
               </div>
             </div>
 
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,background:'var(--bg3,rgba(255,255,255,0.02))',borderRadius:10,padding:'10px 12px'}}>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{peso(commEarned)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:KG_GOLD}}>{revealed?peso(commEarned):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)'}}>Earned</div>
               </div>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{peso(commPaid)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:'var(--text)'}}>{revealed?peso(commPaid):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)'}}>Paid</div>
               </div>
               <div style={{textAlign:'center'}}>
-                <div style={{fontWeight:800,fontSize:15,color:commBalance>=0?'var(--success)':'var(--red)'}}>{peso(commBalance)}</div>
+                <div style={{fontWeight:800,fontSize:15,color:commBalance>=0?'var(--success)':'var(--red)'}}>{revealed?peso(commBalance):'••••'}</div>
                 <div style={{fontSize:10.5,color:'var(--text2)'}}>Balance</div>
               </div>
             </div>
